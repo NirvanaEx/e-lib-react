@@ -31,7 +31,35 @@ export class DepartmentsService {
       .first();
     const data = await query.offset((page - 1) * pageSize).limit(pageSize);
 
-    return { data, meta: buildPaginationMeta(page, pageSize, Number(countResult?.count || 0)) };
+    let countsById = new Map<number, number>();
+    if (data.length > 0) {
+      const ids = data.map((item: any) => item.id);
+      const result = await this.dbService.db.raw(
+        `WITH RECURSIVE tree AS (
+          SELECT d.id as root_id, d.id as id
+          FROM departments d
+          WHERE d.id = ANY(?::int[])
+          UNION ALL
+          SELECT t.root_id, d.id
+          FROM tree t
+          JOIN departments d ON d.parent_id = t.id
+        )
+        SELECT root_id, COUNT(u.id)::int AS data_count
+        FROM tree t
+        LEFT JOIN users u ON u.department_id = t.id
+        GROUP BY root_id`,
+        [ids]
+      );
+      const rows = result?.rows || [];
+      countsById = new Map(rows.map((row: any) => [Number(row.root_id), Number(row.data_count || 0)]));
+    }
+
+    const dataWithCounts = data.map((item: any) => ({
+      ...item,
+      dataCount: countsById.get(item.id) || 0
+    }));
+
+    return { data: dataWithCounts, meta: buildPaginationMeta(page, pageSize, Number(countResult?.count || 0)) };
   }
 
   async listOptions(params: { page: number; pageSize: number; q?: string }) {
@@ -166,6 +194,23 @@ export class DepartmentsService {
     const hasChildren = await this.dbService.db("departments").where({ parent_id: id }).first();
     if (hasChildren) {
       throw new BadRequestException("Department has children");
+    }
+
+    const dataResult = await this.dbService.db.raw(
+      `WITH RECURSIVE tree AS (
+        SELECT id FROM departments WHERE id = ?
+        UNION ALL
+        SELECT d.id FROM departments d
+        JOIN tree t ON d.parent_id = t.id
+      )
+      SELECT COUNT(u.id)::int AS data_count
+      FROM tree t
+      LEFT JOIN users u ON u.department_id = t.id`,
+      [id]
+    );
+    const dataCount = Number(dataResult?.rows?.[0]?.data_count || 0);
+    if (dataCount > 0) {
+      throw new BadRequestException("Department has data");
     }
 
     await this.dbService.db("departments").where({ id }).delete();

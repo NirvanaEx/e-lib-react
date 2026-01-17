@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Autocomplete,
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -12,8 +13,10 @@ import {
   Tooltip
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
@@ -30,6 +33,7 @@ import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../../shared/utils/errors";
+import { formatDateTime } from "../../shared/utils/date";
 
 const schema = z.object({
   name: z.string().min(1),
@@ -43,6 +47,13 @@ type DepartmentRow = {
   name: string;
   parent_id?: number | null;
   depth: number;
+  created_at?: string;
+  dataCount?: number;
+};
+
+type TreeRow = DepartmentRow & {
+  treeDepth: number;
+  hasChildren: boolean;
 };
 
 const defaultValues: FormValues = {
@@ -53,6 +64,8 @@ const defaultValues: FormValues = {
 export default function DepartmentsPage() {
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<DepartmentRow | null>(null);
+  const [createParentId, setCreateParentId] = React.useState<number | null>(null);
+  const [expandedIds, setExpandedIds] = React.useState<Set<number>>(new Set());
   const [confirmDelete, setConfirmDelete] = React.useState<DepartmentRow | null>(null);
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
@@ -121,10 +134,22 @@ export default function DepartmentsPage() {
         name: editing.name,
         parentId: editing.parent_id ?? null
       });
-    } else {
-      reset(defaultValues);
+      return;
     }
-  }, [editing, reset]);
+    if (open) {
+      reset({
+        name: "",
+        parentId: createParentId ?? null
+      });
+    }
+  }, [editing, createParentId, open, reset]);
+
+  const handleOpenCreate = (parentId?: number | null) => {
+    setEditing(null);
+    const nextParentId = parentId ?? null;
+    setCreateParentId(nextParentId);
+    setOpen(true);
+  };
 
   const onSubmit = (values: FormValues) => {
     const payload = {
@@ -143,12 +168,50 @@ export default function DepartmentsPage() {
     ? allDepartments.filter((dept) => dept.id !== editing.id)
     : allDepartments;
 
+  const treeRows: TreeRow[] = React.useMemo(() => {
+    const rowsById = new Map(rows.map((row) => [row.id, row]));
+    const childrenMap = new Map<number | null, DepartmentRow[]>();
+
+    rows.forEach((row) => {
+      const parentKey = row.parent_id && rowsById.has(row.parent_id) ? row.parent_id : null;
+      if (!childrenMap.has(parentKey)) {
+        childrenMap.set(parentKey, []);
+      }
+      childrenMap.get(parentKey)?.push(row);
+    });
+
+    const result: TreeRow[] = [];
+    const walk = (node: DepartmentRow, depth: number) => {
+      const children = childrenMap.get(node.id) || [];
+      result.push({ ...node, treeDepth: depth, hasChildren: children.length > 0 });
+      if (expandedIds.has(node.id)) {
+        children.forEach((child) => walk(child, depth + 1));
+      }
+    };
+
+    const roots = childrenMap.get(null) || [];
+    roots.forEach((root) => walk(root, 1));
+    return result;
+  }, [rows, expandedIds]);
+
+  const toggleExpanded = (id: number) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
   return (
     <Page
       title={t("departments")}
       subtitle={t("departmentsSubtitle")}
       action={
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenCreate()}>
           {t("newDepartment")}
         </Button>
       }
@@ -160,25 +223,41 @@ export default function DepartmentsPage() {
       {isLoading ? (
         <LoadingState rows={6} />
       ) : rows.length === 0 ? (
-        <EmptyState title={t("departmentsEmpty")} subtitle={t("departmentsEmptySubtitle")} action={{ label: t("newDepartment"), onClick: () => setOpen(true) }} />
+        <EmptyState
+          title={t("departmentsEmpty")}
+          subtitle={t("departmentsEmptySubtitle")}
+          action={{ label: t("newDepartment"), onClick: () => handleOpenCreate() }}
+        />
       ) : (
         <DataTable
-          rows={rows}
+          rows={treeRows}
           columns={[
             {
               key: "name",
               label: t("name"),
-              render: (row) => `${"- ".repeat(Math.max(0, row.depth - 1))}${row.name}`
+              render: (row) => (
+                <Stack direction="row" alignItems="center" spacing={0.5} sx={{ pl: Math.max(0, row.treeDepth - 1) * 2 }}>
+                  {row.hasChildren ? (
+                    <IconButton size="small" onClick={() => toggleExpanded(row.id)}>
+                      {expandedIds.has(row.id) ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
+                    </IconButton>
+                  ) : (
+                    <Box sx={{ width: 32 }} />
+                  )}
+                  <Box sx={{ minWidth: 0 }}>{row.name}</Box>
+                </Stack>
+              )
             },
             {
-              key: "parent",
-              label: t("parent"),
-              render: (row) => {
-                const parent = allDepartments.find((dept) => dept.id === row.parent_id);
-                return parent?.name || "-";
-              }
+              key: "created_at",
+              label: t("createdAt"),
+              render: (row) => formatDateTime(row.created_at)
             },
-            { key: "depth", label: t("depth") },
+            {
+              key: "dataCount",
+              label: t("dataCount"),
+              render: (row) => row.dataCount ?? 0
+            },
             {
               key: "actions",
               label: t("actions"),
@@ -188,6 +267,11 @@ export default function DepartmentsPage() {
                   <Tooltip title={t("edit")}>
                     <IconButton size="small" onClick={() => setEditing(row)}>
                       <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t("newDepartment")}>
+                    <IconButton size="small" onClick={() => handleOpenCreate(row.id)}>
+                      <AddIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title={t("delete")}>
@@ -210,7 +294,16 @@ export default function DepartmentsPage() {
         onPageSizeChange={setPageSize}
       />
 
-      <Dialog open={open || !!editing} onClose={() => { setOpen(false); setEditing(null); }} fullWidth maxWidth="sm">
+      <Dialog
+        open={open || !!editing}
+        onClose={() => {
+          setOpen(false);
+          setEditing(null);
+          setCreateParentId(null);
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>{editing ? t("editDepartment") : t("newDepartment")}</DialogTitle>
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogContent sx={{ pt: 1 }}>
@@ -239,7 +332,15 @@ export default function DepartmentsPage() {
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => { setOpen(false); setEditing(null); }}>{t("cancel")}</Button>
+            <Button
+              onClick={() => {
+                setOpen(false);
+                setEditing(null);
+                setCreateParentId(null);
+              }}
+            >
+              {t("cancel")}
+            </Button>
             <Button type="submit" variant="contained" disabled={createMutation.isPending || updateMutation.isPending}>
               {editing ? t("save") : t("create")}
             </Button>

@@ -29,6 +29,7 @@ export class CategoriesService {
         "categories.id",
         "categories.parent_id",
         "categories.depth",
+        "categories.created_at",
         "categories_translations.lang",
         "categories_translations.title"
       )
@@ -51,6 +52,7 @@ export class CategoriesService {
       id: number;
       parent_id: number | null;
       depth: number;
+      created_at: string;
       translations: CategoryTranslation[];
     };
 
@@ -61,6 +63,7 @@ export class CategoriesService {
           id: row.id,
           parent_id: row.parent_id,
           depth: row.depth,
+          created_at: row.created_at,
           translations: []
         });
       }
@@ -79,12 +82,41 @@ export class CategoriesService {
         id: item.id,
         parentId: item.parent_id,
         depth: item.depth,
+        createdAt: item.created_at,
         title: picked?.title || null,
         availableLangs: getAvailableLangs(item.translations)
       };
     });
 
-    return { data, meta: buildPaginationMeta(page, pageSize, Number(countResult?.count || 0)) };
+    let countsById = new Map<number, number>();
+    if (data.length > 0) {
+      const ids = data.map((item) => item.id);
+      const result = await this.dbService.db.raw(
+        `WITH RECURSIVE tree AS (
+          SELECT c.id as root_id, c.id as id
+          FROM categories c
+          WHERE c.id = ANY(?::int[])
+          UNION ALL
+          SELECT t.root_id, c.id
+          FROM tree t
+          JOIN categories c ON c.parent_id = t.id
+        )
+        SELECT root_id, COUNT(fi.id)::int AS data_count
+        FROM tree t
+        LEFT JOIN file_items fi ON fi.category_id = t.id
+        GROUP BY root_id`,
+        [ids]
+      );
+      const rows = result?.rows || [];
+      countsById = new Map(rows.map((row: any) => [Number(row.root_id), Number(row.data_count || 0)]));
+    }
+
+    const dataWithCounts = data.map((item) => ({
+      ...item,
+      dataCount: countsById.get(item.id) || 0
+    }));
+
+    return { data: dataWithCounts, meta: buildPaginationMeta(page, pageSize, Number(countResult?.count || 0)) };
   }
 
   async getOne(id: number, preferredLang: string | null) {
@@ -243,6 +275,23 @@ export class CategoriesService {
     const hasChildren = await this.dbService.db("categories").where({ parent_id: id }).first();
     if (hasChildren) {
       throw new BadRequestException("Category has children");
+    }
+
+    const dataResult = await this.dbService.db.raw(
+      `WITH RECURSIVE tree AS (
+        SELECT id FROM categories WHERE id = ?
+        UNION ALL
+        SELECT c.id FROM categories c
+        JOIN tree t ON c.parent_id = t.id
+      )
+      SELECT COUNT(fi.id)::int AS data_count
+      FROM tree t
+      LEFT JOIN file_items fi ON fi.category_id = t.id`,
+      [id]
+    );
+    const dataCount = Number(dataResult?.rows?.[0]?.data_count || 0);
+    if (dataCount > 0) {
+      throw new BadRequestException("Category has data");
     }
 
     await this.dbService.db("categories_translations").where({ category_id: id }).delete();
