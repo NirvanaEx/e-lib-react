@@ -1,43 +1,94 @@
 import React from "react";
+import type { SxProps, Theme } from "@mui/material/styles";
 import {
+  Box,
+  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
-  TableRow,
-  Paper
+  TableRow
 } from "@mui/material";
 
 export type Column<T> = {
   key: keyof T | string;
   label: string;
   render?: (row: T) => React.ReactNode;
+  align?: "left" | "center" | "right";
+  width?: number | string;
+  minWidth?: number | string;
+  headerSx?: SxProps<Theme>;
+  cellSx?: SxProps<Theme>;
 };
 
 export function DataTable<T extends { id: number | string }>({
   rows,
-  columns
+  columns,
+  rowKey
 }: {
   rows: T[];
   columns: Column<T>[];
+  rowKey?: (row: T) => string | number;
 }) {
   return (
-    <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-      <Table>
+    <TableContainer
+      component={Paper}
+      sx={{
+        borderRadius: 3,
+        boxShadow: "var(--shadow)",
+        border: "1px solid var(--border)"
+      }}
+    >
+      <Table size="small" stickyHeader sx={{ tableLayout: "fixed" }}>
         <TableHead>
           <TableRow>
             {columns.map((col) => (
-              <TableCell key={String(col.key)}>{col.label}</TableCell>
+              <TableCell
+                key={String(col.key)}
+                align={col.align}
+                sx={{
+                  fontWeight: 700,
+                  color: "text.secondary",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  fontSize: "0.7rem",
+                  borderBottomColor: "var(--border)",
+                  width: col.width,
+                  minWidth: col.minWidth,
+                  ...col.headerSx
+                }}
+              >
+                {col.label}
+              </TableCell>
             ))}
           </TableRow>
         </TableHead>
         <TableBody>
           {rows.map((row) => (
-            <TableRow key={row.id}>
+            <TableRow
+              key={rowKey ? rowKey(row) : row.id}
+              hover
+              sx={{
+                "&:hover": {
+                  backgroundColor: "rgba(41, 76, 96, 0.06)"
+                }
+              }}
+            >
               {columns.map((col) => (
-                <TableCell key={String(col.key)}>
-                  {col.render ? col.render(row) : (row as any)[col.key]}
+                <TableCell
+                  key={String(col.key)}
+                  align={col.align}
+                  sx={{
+                    borderBottomColor: "var(--border)",
+                    color: "text.primary",
+                    py: 1.5,
+                    ...col.cellSx
+                  }}
+                >
+                  <Box sx={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {col.render ? col.render(row) : (row as any)[col.key]}
+                  </Box>
                 </TableCell>
               ))}
             </TableRow>

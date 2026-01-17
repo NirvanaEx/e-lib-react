@@ -504,7 +504,45 @@ export class FilesService {
     const versions = await this.dbService.db("file_versions")
       .where({ file_item_id: fileItemId })
       .orderBy("version_number", "desc");
-    return { data: versions };
+
+    const versionIds = versions.map((version: any) => version.id);
+    const assets = versionIds.length
+      ? await this.dbService.db("file_version_assets")
+          .whereIn("file_version_id", versionIds)
+          .select(
+            "id",
+            "file_version_id",
+            "lang",
+            "original_name",
+            "mime",
+            "size",
+            "path",
+            "created_at"
+          )
+      : [];
+
+    const assetsByVersion = new Map<number, any[]>();
+    assets.forEach((asset: any) => {
+      if (!assetsByVersion.has(asset.file_version_id)) {
+        assetsByVersion.set(asset.file_version_id, []);
+      }
+      assetsByVersion.get(asset.file_version_id)?.push({
+        id: asset.id,
+        lang: asset.lang,
+        originalName: asset.original_name,
+        mime: asset.mime,
+        size: asset.size,
+        path: asset.path,
+        createdAt: asset.created_at
+      });
+    });
+
+    const data = versions.map((version: any) => ({
+      ...version,
+      assets: assetsByVersion.get(version.id) || []
+    }));
+
+    return { data };
   }
 
   async createVersion(fileItemId: number, dto: any, actorId: number) {

@@ -1,10 +1,11 @@
 import React from "react";
-import { Box, Button, Paper, TextField, Typography } from "@mui/material";
+import { Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { changeTempPassword } from "./auth.api";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 const schema = z.object({
   currentPassword: z.string().min(1),
@@ -15,6 +16,7 @@ type FormValues = z.infer<typeof schema>;
 
 export default function ChangeTempPasswordPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const {
     register,
     handleSubmit,
@@ -27,16 +29,38 @@ export default function ChangeTempPasswordPage() {
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center", p: 2 }}>
-      <Paper elevation={6} sx={{ p: 4, width: "100%", maxWidth: 420 }}>
-        <Typography variant="h5" sx={{ mb: 2 }}>
-          Change temporary password
-        </Typography>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        p: 2,
+        background:
+          "radial-gradient(600px 380px at 15% 10%, rgba(198,138,63,0.18), transparent 70%), radial-gradient(700px 400px at 100% 0%, rgba(29,77,79,0.18), transparent 60%)"
+      }}
+    >
+      <Paper
+        elevation={0}
+        sx={{
+          p: 4,
+          width: "100%",
+          maxWidth: 460,
+          borderRadius: 4,
+          border: "1px solid var(--border)",
+          boxShadow: "var(--shadow)"
+        }}
+      >
+        <Stack spacing={1} sx={{ mb: 3 }}>
+          <Typography variant="h4">{t("changeTempPassword")}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {t("tempPasswordSubtitle")}
+          </Typography>
+        </Stack>
         <form onSubmit={handleSubmit(onSubmit)}>
           <TextField
             fullWidth
             margin="normal"
-            label="Current password"
+            label={t("currentPassword")}
             type="password"
             {...register("currentPassword")}
             error={!!errors.currentPassword}
@@ -45,14 +69,14 @@ export default function ChangeTempPasswordPage() {
           <TextField
             fullWidth
             margin="normal"
-            label="New password"
+            label={t("newPassword")}
             type="password"
             {...register("newPassword")}
             error={!!errors.newPassword}
             helperText={errors.newPassword?.message}
           />
           <Button fullWidth variant="contained" type="submit" disabled={isSubmitting} sx={{ mt: 2 }}>
-            Update password
+            {t("updatePassword")}
           </Button>
         </form>
       </Paper>

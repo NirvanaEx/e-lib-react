@@ -1,12 +1,38 @@
 import React from "react";
 import { Box, Typography } from "@mui/material";
 
-export function Page({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+export function Page({
+  title,
+  subtitle,
+  action,
+  children
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-        <Typography variant="h5">{title}</Typography>
-        {action}
+    <Box sx={{ width: "100%", maxWidth: 1280, mx: "auto" }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: { md: "center" },
+          justifyContent: "space-between",
+          gap: 2,
+          mb: 3
+        }}
+      >
+        <Box>
+          <Typography variant="h4">{title}</Typography>
+          {subtitle && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              {subtitle}
+            </Typography>
+          )}
+        </Box>
+        {action && <Box>{action}</Box>}
       </Box>
       {children}
     </Box>

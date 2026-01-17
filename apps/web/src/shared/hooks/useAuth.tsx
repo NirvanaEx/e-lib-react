@@ -14,6 +14,7 @@ type AuthContextValue = {
   token: string | null;
   user: AuthUser | null;
   setAuth: (token: string, user: AuthUser) => void;
+  updateUser: (user: Partial<AuthUser>) => void;
   clearAuth: () => void;
 };
 
@@ -38,8 +39,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(newToken);
     setUser(newUser);
     if (newUser.lang) {
+      localStorage.setItem("lang", newUser.lang);
       i18n.changeLanguage(newUser.lang);
     }
+  };
+
+  const updateUser = (patch: Partial<AuthUser>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      localStorage.setItem("user", JSON.stringify(next));
+      if (next.lang) {
+        localStorage.setItem("lang", next.lang);
+        i18n.changeLanguage(next.lang);
+      }
+      return next;
+    });
   };
 
   const clearAuth = () => {
@@ -49,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  const value = useMemo(() => ({ token, user, setAuth, clearAuth }), [token, user]);
+  const value = useMemo(() => ({ token, user, setAuth, updateUser, clearAuth }), [token, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
