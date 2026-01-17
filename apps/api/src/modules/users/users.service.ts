@@ -61,6 +61,32 @@ export class UsersService {
     };
   }
 
+  async listOptions(params: { page: number; pageSize: number; q?: string }) {
+    const { page, pageSize, q } = params;
+    const query = this.dbService
+      .db("users")
+      .select("id", "login")
+      .whereNull("deleted_at")
+      .orderBy("login", "asc");
+
+    if (q) {
+      query.whereILike("users.login", `%${q}%`);
+    }
+
+    const countResult = await query
+      .clone()
+      .clearSelect()
+      .clearOrder()
+      .count<{ count: string }>("users.id as count")
+      .first();
+    const data = await query.offset((page - 1) * pageSize).limit(pageSize);
+
+    return {
+      data,
+      meta: buildPaginationMeta(page, pageSize, Number(countResult?.count || 0))
+    };
+  }
+
   async create(dto: any, actorId: number) {
     const existing = await this.dbService
       .db("users")

@@ -8,6 +8,7 @@ export type AuthUser = {
   departmentId?: number | null;
   mustChangePassword?: boolean;
   lang?: string | null;
+  permissions?: string[];
 };
 
 type AuthContextValue = {

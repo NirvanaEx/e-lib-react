@@ -1,0 +1,47 @@
+const permissions = [
+  "dashboard.access",
+  "role.read",
+  "user.read",
+  "user.add",
+  "user.update",
+  "user.delete",
+  "user.restore",
+  "user.reset_password",
+  "department.read",
+  "department.add",
+  "department.update",
+  "department.delete",
+  "session.read",
+  "audit.read",
+  "section.read",
+  "section.add",
+  "section.update",
+  "section.delete",
+  "category.read",
+  "category.add",
+  "category.update",
+  "category.delete",
+  "file.read",
+  "file.add",
+  "file.update",
+  "file.delete",
+  "file.restore",
+  "file.force_delete",
+  "file.access.update",
+  "file.version.read",
+  "file.version.add",
+  "file.version.delete",
+  "file.version.restore",
+  "file.version.set_current",
+  "file.asset.upload",
+  "file.asset.delete",
+  "file.trash.read",
+  "file.download",
+  "stats.read"
+];
+
+exports.seed = async function (knex) {
+  await knex("role_permissions").del();
+  await knex("permissions").del();
+  await knex("permissions").insert(permissions.map((name) => ({ name })));
+};

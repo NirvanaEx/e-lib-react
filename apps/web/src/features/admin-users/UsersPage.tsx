@@ -372,7 +372,7 @@ export default function UsersPage() {
                 )}
               />
               {departmentOptions.length === 0 && (
-                <Button size="small" onClick={() => navigate("/admin/departments")}>
+                <Button size="small" onClick={() => navigate("/dashboard/departments")}>
                   {t("createDepartment")}
                 </Button>
               )}

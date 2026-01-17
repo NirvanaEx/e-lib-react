@@ -36,8 +36,8 @@ import {
 } from "./files.api";
 import { fetchSections } from "../sections/sections.api";
 import { fetchCategories } from "../categories/categories.api";
-import { fetchDepartments } from "../departments/departments.api";
-import { fetchUsers } from "../admin-users/users.api";
+import { fetchDepartmentOptions } from "../departments/departments.api";
+import { fetchUserOptions } from "../admin-users/users.api";
 import { Page } from "../../shared/ui/Page";
 import { TranslationsEditor } from "../../shared/ui/TranslationsEditor";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
@@ -92,12 +92,12 @@ export default function FileDetailsPage() {
 
   const { data: departmentsData } = useQuery({
     queryKey: ["departments", "options", 200],
-    queryFn: () => fetchDepartments({ page: 1, pageSize: 200 })
+    queryFn: () => fetchDepartmentOptions({ page: 1, pageSize: 200 })
   });
 
   const { data: usersData } = useQuery({
     queryKey: ["users", "options", "file-access"],
-    queryFn: () => fetchUsers({ page: 1, pageSize: 100 })
+    queryFn: () => fetchUserOptions({ page: 1, pageSize: 100 })
   });
 
   const sections = sectionsData?.data || [];

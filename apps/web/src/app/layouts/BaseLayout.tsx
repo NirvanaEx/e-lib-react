@@ -27,6 +27,7 @@ import i18n from "../i18n";
 import { changeLanguage } from "../../features/settings/settings.api";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
+import { getDefaultRoute, hasAccess } from "../../shared/utils/access";
 
 export type NavItem = {
   label: string;
@@ -61,25 +62,17 @@ export function BaseLayout({
   };
 
   const panelLinks = React.useMemo(() => {
-    const role = user?.role;
-    if (role === "superadmin" || role === "admin") {
-      return [
-        { key: "admin", label: t("admin"), path: "/admin/users" },
-        { key: "manage", label: t("manage"), path: "/manage/sections" },
-        { key: "user", label: t("user"), path: "/user/files" }
-      ];
+    const links: { key: string; label: string; path: string }[] = [];
+    if (hasAccess(user, ["dashboard.access"])) {
+      links.push({ key: "dashboard", label: t("dashboard"), path: getDefaultRoute(user) });
     }
-    if (role === "manager") {
-      return [{ key: "manage", label: t("manage"), path: "/manage/sections" }];
+    if (user?.role === "superadmin" || user?.role === "admin" || user?.role === "user") {
+      links.push({ key: "user", label: t("user"), path: "/users" });
     }
-    return [{ key: "user", label: t("user"), path: "/user/files" }];
-  }, [t, user?.role]);
+    return links;
+  }, [t, user]);
 
-  const currentPanel = pathname.startsWith("/admin")
-    ? "admin"
-    : pathname.startsWith("/manage")
-      ? "manage"
-      : "user";
+  const currentPanel = pathname.startsWith("/dashboard") ? "dashboard" : "user";
 
   const drawerContent = (
     <Box

@@ -34,6 +34,27 @@ export class DepartmentsService {
     return { data, meta: buildPaginationMeta(page, pageSize, Number(countResult?.count || 0)) };
   }
 
+  async listOptions(params: { page: number; pageSize: number; q?: string }) {
+    const { page, pageSize, q } = params;
+    const query = this.dbService.db("departments")
+      .select("id", "name")
+      .orderBy("name", "asc");
+
+    if (q) {
+      query.whereILike("name", `%${q}%`);
+    }
+
+    const countResult = await query
+      .clone()
+      .clearSelect()
+      .clearOrder()
+      .count<{ count: string }>("departments.id as count")
+      .first();
+    const data = await query.offset((page - 1) * pageSize).limit(pageSize);
+
+    return { data, meta: buildPaginationMeta(page, pageSize, Number(countResult?.count || 0)) };
+  }
+
   async create(dto: { name: string; parentId?: number | null }, actorId: number) {
     return this.dbService.db.transaction(async (trx) => {
       let depth = 1;

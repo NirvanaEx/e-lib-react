@@ -17,6 +17,7 @@ import { diskStorage } from "multer";
 import fs from "fs";
 import path from "path";
 import { Roles } from "../../common/decorators/roles.decorator";
+import { Access } from "../../common/decorators/access.decorator";
 import { User } from "../../common/decorators/user.decorator";
 import { Lang } from "../../common/decorators/lang.decorator";
 import { FilesService } from "./files.service";
@@ -36,14 +37,16 @@ if (!fs.existsSync(uploadDir)) {
 }
 const maxSize = Number(process.env.MAX_UPLOAD_SIZE_MB || 10) * 1024 * 1024;
 
-@ApiTags("manage/files")
+@ApiTags("dashboard/files")
 @ApiBearerAuth()
 @Roles("superadmin", "admin", "manager")
-@Controller("manage")
+@Access("dashboard.access")
+@Controller("dashboard")
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
   @Get("files")
+  @Access("file.read")
   async list(@Query() query: FilesQueryDto, @Lang() lang: string | null) {
     return this.filesService.listManage(
       { page: query.page || 1, pageSize: query.pageSize || 20, q: query.q, sortBy: query.sortBy, sortDir: query.sortDir },
@@ -52,16 +55,19 @@ export class FilesController {
   }
 
   @Post("files")
+  @Access("file.add")
   async create(@Body() body: CreateFileDto, @User() actor: any) {
     return this.filesService.create(body, actor.id);
   }
 
   @Get("files/:id")
+  @Access("file.read")
   async getOne(@Param("id", ParseIntPipe) id: number, @Lang() lang: string | null) {
     return this.filesService.getManage(id, lang);
   }
 
   @Patch("files/:id")
+  @Access("file.update")
   async update(
     @Param("id", ParseIntPipe) id: number,
     @Body() body: UpdateFileDto,
@@ -71,6 +77,7 @@ export class FilesController {
   }
 
   @Patch("files/:id/access")
+  @Access("file.access.update")
   async updateAccess(
     @Param("id", ParseIntPipe) id: number,
     @Body() body: UpdateAccessDto,
@@ -80,21 +87,25 @@ export class FilesController {
   }
 
   @Delete("files/:id")
+  @Access("file.delete")
   async softDelete(@Param("id", ParseIntPipe) id: number, @User() actor: any) {
     return this.filesService.softDelete(id, actor.id);
   }
 
   @Post("files/:id/restore")
+  @Access("file.restore")
   async restore(@Param("id", ParseIntPipe) id: number, @User() actor: any) {
     return this.filesService.restore(id, actor.id);
   }
 
   @Get("files/:id/versions")
+  @Access("file.version.read")
   async listVersions(@Param("id", ParseIntPipe) id: number) {
     return this.filesService.listVersions(id);
   }
 
   @Post("files/:id/versions")
+  @Access("file.version.add")
   async createVersion(
     @Param("id", ParseIntPipe) id: number,
     @Body() body: CreateVersionDto,
@@ -104,6 +115,7 @@ export class FilesController {
   }
 
   @Patch("files/:id/current-version")
+  @Access("file.version.set_current")
   async setCurrentVersion(
     @Param("id", ParseIntPipe) id: number,
     @Body() body: SetCurrentVersionDto,
@@ -113,6 +125,7 @@ export class FilesController {
   }
 
   @Delete("files/:id/versions/:versionId")
+  @Access("file.version.delete")
   async deleteVersion(
     @Param("id", ParseIntPipe) id: number,
     @Param("versionId", ParseIntPipe) versionId: number,
@@ -122,6 +135,7 @@ export class FilesController {
   }
 
   @Post("files/:id/versions/:versionId/restore")
+  @Access("file.version.restore")
   async restoreVersion(
     @Param("id", ParseIntPipe) id: number,
     @Param("versionId", ParseIntPipe) versionId: number,
@@ -144,6 +158,7 @@ export class FilesController {
     })
   )
   @Post("files/:id/versions/:versionId/assets")
+  @Access("file.asset.upload")
   async uploadAsset(
     @Param("id", ParseIntPipe) id: number,
     @Param("versionId", ParseIntPipe) versionId: number,
@@ -155,6 +170,7 @@ export class FilesController {
   }
 
   @Delete("files/:id/versions/:versionId/assets/:assetId")
+  @Access("file.asset.delete")
   async deleteAsset(
     @Param("id", ParseIntPipe) id: number,
     @Param("versionId", ParseIntPipe) versionId: number,
@@ -165,6 +181,7 @@ export class FilesController {
   }
 
   @Get("trash")
+  @Access("file.trash.read")
   async trash(@Query() query: TrashQueryDto, @Lang() lang: string | null) {
     return this.filesService.listTrash(
       { page: query.page || 1, pageSize: query.pageSize || 20, q: query.q },
@@ -173,6 +190,7 @@ export class FilesController {
   }
 
   @Delete("trash/:id")
+  @Access("file.force_delete")
   async forceDelete(@Param("id", ParseIntPipe) id: number, @User() actor: any) {
     return this.filesService.forceDelete(id, actor.id);
   }

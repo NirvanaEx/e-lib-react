@@ -24,6 +24,7 @@ export class AuthService {
         "users.surname",
         "users.name",
         "users.patronymic",
+        "users.role_id",
         "users.department_id",
         "users.must_change_password",
         "users.lang",
@@ -42,6 +43,12 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
+    const permissions = await this.dbService
+      .db("role_permissions")
+      .leftJoin("permissions", "permissions.id", "role_permissions.permission_id")
+      .where("role_permissions.role_id", user.role_id)
+      .pluck("permissions.name");
+
     await this.sessionsService.logSession(user.id, ip, userAgent || "");
 
     const token = this.jwtService.sign(
@@ -51,7 +58,8 @@ export class AuthService {
         role: user.role,
         departmentId: user.department_id,
         mustChangePassword: user.must_change_password,
-        lang: user.lang
+        lang: user.lang,
+        permissions
       },
       { expiresIn: this.config.get<string>("JWT_EXPIRES_IN", "1d") }
     );
@@ -67,7 +75,8 @@ export class AuthService {
         surname: user.surname,
         name: user.name,
         patronymic: user.patronymic,
-        lang: user.lang
+        lang: user.lang,
+        permissions
       }
     };
   }
