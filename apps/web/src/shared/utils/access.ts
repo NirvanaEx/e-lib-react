@@ -3,11 +3,11 @@ import type { AuthUser } from "../hooks/useAuth";
 const dashboardRoutes = [
   { path: "/dashboard/users", permission: "user.read" },
   { path: "/dashboard/departments", permission: "department.read" },
+  { path: "/dashboard/roles", permission: "role.read" },
   { path: "/dashboard/sessions", permission: "session.read" },
   { path: "/dashboard/sections", permission: "section.read" },
   { path: "/dashboard/categories", permission: "category.read" },
   { path: "/dashboard/files", permission: "file.read" },
-  { path: "/dashboard/trash", permission: "file.trash.read" },
   { path: "/dashboard/stats", permission: "stats.read" },
   { path: "/dashboard/audit", permission: "audit.read" }
 ];

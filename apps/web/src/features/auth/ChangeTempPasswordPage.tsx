@@ -19,7 +19,7 @@ type FormValues = z.infer<typeof schema>;
 export default function ChangeTempPasswordPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, setAuth, updateUser, clearAuth } = useAuth();
   const {
     register,
     handleSubmit,
@@ -27,8 +27,19 @@ export default function ChangeTempPasswordPage() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (values: FormValues) => {
-    await changeTempPassword(values);
+    const data = await changeTempPassword(values);
+    if (data?.accessToken && data?.user) {
+      setAuth(data.accessToken, data.user);
+      navigate(getDefaultRoute(data.user));
+      return;
+    }
+    updateUser({ mustChangePassword: false });
     navigate(getDefaultRoute(user));
+  };
+
+  const handleLogout = () => {
+    clearAuth();
+    navigate("/login");
   };
 
   return (
@@ -80,6 +91,9 @@ export default function ChangeTempPasswordPage() {
           />
           <Button fullWidth variant="contained" type="submit" disabled={isSubmitting} sx={{ mt: 2 }}>
             {t("updatePassword")}
+          </Button>
+          <Button fullWidth variant="text" onClick={handleLogout} sx={{ mt: 1 }}>
+            {t("logout")}
           </Button>
         </form>
       </Paper>

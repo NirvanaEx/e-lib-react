@@ -35,17 +35,24 @@ export type NavItem = {
   icon?: React.ReactNode;
 };
 
+export type NavSection = {
+  label: string;
+  items: NavItem[];
+};
+
 const drawerWidth = 260;
 
 export function BaseLayout({
   title,
-  items,
+  items = [],
+  sections,
   children,
   sidebarContent,
   settingsPath
 }: {
   title: string;
-  items: NavItem[];
+  items?: NavItem[];
+  sections?: NavSection[];
   children: React.ReactNode;
   sidebarContent?: React.ReactNode;
   settingsPath?: string;
@@ -92,40 +99,54 @@ export function BaseLayout({
         </Typography>
       </Box>
       <List>
-        {items.map((item) => {
-          const active = pathname.startsWith(item.path);
-          return (
-            <ListItemButton
-              key={item.path}
-              selected={active}
-              onClick={() => navigate(item.path)}
-              sx={{
-                borderRadius: 2.5,
-                mb: 0.8,
-                py: 1.2,
-                "&.Mui-selected": {
-                  backgroundColor: "rgba(29, 77, 79, 0.12)"
-                },
-                "&.Mui-selected:hover": {
-                  backgroundColor: "rgba(29, 77, 79, 0.16)"
-                }
-              }}
-            >
-              {item.icon && (
-                <ListItemIcon sx={{ minWidth: 36, color: active ? "primary.main" : "text.secondary" }}>
-                  {item.icon}
-                </ListItemIcon>
-              )}
-              <ListItemText
-                primary={
-                  <Typography variant="body2" sx={{ fontWeight: active ? 700 : 600 }}>
-                    {item.label}
-                  </Typography>
-                }
-              />
-            </ListItemButton>
-          );
-        })}
+        {(sections && sections.length > 0 ? sections : [{ label: "", items }]).map((section) => (
+          <Box key={section.label || "default"}>
+            {section.label && (
+              <Typography
+                variant="overline"
+                color="text.secondary"
+                sx={{ letterSpacing: "0.16em", fontWeight: 700, display: "block", mb: 1 }}
+              >
+                {section.label}
+              </Typography>
+            )}
+            {section.items.map((item) => {
+              const active = pathname.startsWith(item.path);
+              return (
+                <ListItemButton
+                  key={item.path}
+                  selected={active}
+                  onClick={() => navigate(item.path)}
+                  sx={{
+                    borderRadius: 2.5,
+                    mb: 0.8,
+                    py: 1.2,
+                    "&.Mui-selected": {
+                      backgroundColor: "rgba(29, 77, 79, 0.12)"
+                    },
+                    "&.Mui-selected:hover": {
+                      backgroundColor: "rgba(29, 77, 79, 0.16)"
+                    }
+                  }}
+                >
+                  {item.icon && (
+                    <ListItemIcon sx={{ minWidth: 36, color: active ? "primary.main" : "text.secondary" }}>
+                      {item.icon}
+                    </ListItemIcon>
+                  )}
+                  <ListItemText
+                    primary={
+                      <Typography variant="body2" sx={{ fontWeight: active ? 700 : 600 }}>
+                        {item.label}
+                      </Typography>
+                    }
+                  />
+                </ListItemButton>
+              );
+            })}
+            {section.label && <Box sx={{ mb: 1.5 }} />}
+          </Box>
+        ))}
       </List>
       {sidebarContent && (
         <Box sx={{ mt: 2 }}>

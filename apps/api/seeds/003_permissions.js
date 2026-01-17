@@ -1,6 +1,8 @@
 const permissions = [
   "dashboard.access",
   "role.read",
+  "role.update",
+  "role.add",
   "user.read",
   "user.add",
   "user.update",
