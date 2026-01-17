@@ -18,7 +18,7 @@ export class CategoriesController {
   @Get()
   async list(@Query() query: CategoriesQueryDto, @Lang() lang: string | null) {
     return this.categoriesService.list(
-      { page: query.page || 1, pageSize: query.pageSize || 20, q: query.q, sectionId: query.sectionId },
+      { page: query.page || 1, pageSize: query.pageSize || 20, q: query.q },
       lang
     );
   }

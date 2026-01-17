@@ -31,7 +31,13 @@ export default function LoginPage() {
     try {
       const data = await login(values);
       setAuth(data.accessToken, data.user);
-      navigate("/user/files");
+      if (data.user?.role === "superadmin" || data.user?.role === "admin") {
+        navigate("/admin/users");
+      } else if (data.user?.role === "manager") {
+        navigate("/manage/sections");
+      } else {
+        navigate("/user/files");
+      }
     } catch (_err) {
       showToast({ message: t("loginFailed"), severity: "error" });
     }

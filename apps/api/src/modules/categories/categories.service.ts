@@ -17,8 +17,8 @@ export class CategoriesService {
     private readonly auditService: AuditService
   ) {}
 
-  async list(params: { page: number; pageSize: number; q?: string; sectionId?: number }, preferredLang: string | null) {
-    const { page, pageSize, q, sectionId } = params;
+  async list(params: { page: number; pageSize: number; q?: string }, preferredLang: string | null) {
+    const { page, pageSize, q } = params;
     const baseQuery = this.dbService.db("categories")
       .leftJoin(
         "categories_translations",
@@ -27,7 +27,6 @@ export class CategoriesService {
       )
       .select(
         "categories.id",
-        "categories.section_id",
         "categories.parent_id",
         "categories.depth",
         "categories_translations.lang",
@@ -35,9 +34,6 @@ export class CategoriesService {
       )
       .orderBy("categories.id", "desc");
 
-    if (sectionId) {
-      baseQuery.where("categories.section_id", sectionId);
-    }
     if (q) {
       baseQuery.whereILike("categories_translations.title", `%${q}%`);
     }
@@ -53,7 +49,6 @@ export class CategoriesService {
 
     type CategoryRow = {
       id: number;
-      section_id: number;
       parent_id: number | null;
       depth: number;
       translations: CategoryTranslation[];
@@ -64,7 +59,6 @@ export class CategoriesService {
       if (!grouped.has(row.id)) {
         grouped.set(row.id, {
           id: row.id,
-          section_id: row.section_id,
           parent_id: row.parent_id,
           depth: row.depth,
           translations: []
@@ -83,7 +77,6 @@ export class CategoriesService {
       const picked = selectTranslation<CategoryTranslation>(item.translations, lang, defaultLang);
       return {
         id: item.id,
-        sectionId: item.section_id,
         parentId: item.parent_id,
         depth: item.depth,
         title: picked?.title || null,
@@ -103,7 +96,6 @@ export class CategoriesService {
       )
       .select(
         "categories.id",
-        "categories.section_id",
         "categories.parent_id",
         "categories.depth",
         "categories_translations.lang",
@@ -124,7 +116,6 @@ export class CategoriesService {
 
     return {
       id,
-      sectionId: base.section_id,
       parentId: base.parent_id,
       depth: base.depth,
       title: picked?.title || null,
@@ -139,16 +130,12 @@ export class CategoriesService {
       if (dto.parentId) {
         const parent = await trx("categories").where({ id: dto.parentId }).first();
         if (!parent) throw new BadRequestException("Parent not found");
-        if (parent.section_id !== dto.sectionId) {
-          throw new BadRequestException("Parent is in another section");
-        }
         depth = parent.depth + 1;
       }
       if (depth > MAX_DEPTH) throw new BadRequestException("Max depth exceeded");
 
       const [id] = await trx("categories")
         .insert({
-          section_id: dto.sectionId,
           parent_id: dto.parentId || null,
           depth,
           created_at: trx.fn.now(),
@@ -187,9 +174,6 @@ export class CategoriesService {
         if (newParentId) {
           const parent = await trx("categories").where({ id: newParentId }).first();
           if (!parent) throw new BadRequestException("Parent not found");
-          if (parent.section_id !== current.section_id) {
-            throw new BadRequestException("Parent is in another section");
-          }
           newDepth = parent.depth + 1;
         } else {
           newDepth = 1;

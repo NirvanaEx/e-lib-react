@@ -19,7 +19,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { fetchSections } from "../sections/sections.api";
 import { fetchCategories, createCategory, deleteCategory, fetchCategory, updateCategory } from "./categories.api";
 import { DataTable } from "../../shared/ui/DataTable";
 import { Page } from "../../shared/ui/Page";
@@ -33,10 +32,8 @@ import { TranslationsEditor } from "../../shared/ui/TranslationsEditor";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../../shared/utils/errors";
-import { useNavigate } from "react-router-dom";
 
 const schema = z.object({
-  sectionId: z.number().min(1),
   parentId: z.number().nullable().optional()
 });
 
@@ -44,17 +41,13 @@ type FormValues = z.infer<typeof schema>;
 
 type CategoryRow = {
   id: number;
-  sectionId: number;
   parentId: number | null;
   depth: number;
   title: string | null;
   availableLangs?: string[];
 };
 
-type SectionOption = { id: number; title?: string | null };
-
 const defaultValues: FormValues = {
-  sectionId: 0,
   parentId: null
 };
 
@@ -66,24 +59,22 @@ export default function CategoriesPage() {
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
-  const [sectionFilter, setSectionFilter] = React.useState<number | null>(null);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { t } = useTranslation();
-  const navigate = useNavigate();
 
   React.useEffect(() => {
     setPage(1);
-  }, [search, pageSize, sectionFilter]);
+  }, [search, pageSize]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["categories", page, pageSize, search, sectionFilter],
-    queryFn: () => fetchCategories({ page, pageSize, q: search, sectionId: sectionFilter || undefined })
+    queryKey: ["categories", page, pageSize, search],
+    queryFn: () => fetchCategories({ page, pageSize, q: search })
   });
 
-  const { data: sectionsData } = useQuery({
-    queryKey: ["sections", "options", 200],
-    queryFn: () => fetchSections({ page: 1, pageSize: 200 })
+  const { data: parentOptionsData } = useQuery({
+    queryKey: ["categories", "options", 500],
+    queryFn: () => fetchCategories({ page: 1, pageSize: 500 })
   });
 
   const { data: categoryDetails } = useQuery({
@@ -92,25 +83,14 @@ export default function CategoriesPage() {
     enabled: !!editingId
   });
 
-  const sections: SectionOption[] = sectionsData?.data || [];
-
-  const { control, handleSubmit, reset, watch } = useForm<FormValues>({
+  const { control, handleSubmit, reset } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues
-  });
-
-  const formSectionId = watch("sectionId");
-
-  const { data: parentOptionsData } = useQuery({
-    queryKey: ["categories", "options", formSectionId],
-    queryFn: () => fetchCategories({ page: 1, pageSize: 500, sectionId: formSectionId || undefined }),
-    enabled: !!formSectionId
   });
 
   React.useEffect(() => {
     if (categoryDetails) {
       reset({
-        sectionId: categoryDetails.sectionId,
         parentId: categoryDetails.parentId || null
       });
       setTranslations(categoryDetails.translations.map((item: any) => ({ lang: item.lang, title: item.title })));
@@ -183,7 +163,6 @@ export default function CategoriesPage() {
     }
 
     const payload = {
-      sectionId: values.sectionId,
       parentId: values.parentId || null,
       translations: normalizedTranslations
     };
@@ -207,21 +186,16 @@ export default function CategoriesPage() {
     >
       <FiltersBar>
         <SearchField value={search} onChange={setSearch} placeholder={t("searchCategories")} />
-        <Autocomplete
-          options={sections}
-          getOptionLabel={(option) => option.title || `#${option.id}`}
-          value={sections.find((section) => section.id === sectionFilter) || null}
-          isOptionEqualToValue={(option, value) => option.id === value.id}
-          onChange={(_, value) => setSectionFilter(value ? value.id : null)}
-          renderInput={(params) => <TextField {...params} size="small" label={t("section")} />}
-          sx={{ minWidth: 200 }}
-        />
       </FiltersBar>
 
       {isLoading ? (
         <LoadingState rows={6} />
       ) : rows.length === 0 ? (
-        <EmptyState title={t("categoriesEmpty")} subtitle={t("categoriesEmptySubtitle")} action={{ label: t("newCategory"), onClick: handleOpenCreate }} />
+        <EmptyState
+          title={t("categoriesEmpty")}
+          subtitle={t("categoriesEmptySubtitle")}
+          action={{ label: t("newCategory"), onClick: handleOpenCreate }}
+        />
       ) : (
         <DataTable
           rows={rows}
@@ -230,11 +204,6 @@ export default function CategoriesPage() {
               key: "title",
               label: t("title"),
               render: (row) => `${"- ".repeat(Math.max(0, row.depth - 1))}${row.title || ""}`
-            },
-            {
-              key: "section",
-              label: t("section"),
-              render: (row) => sections.find((section) => section.id === row.sectionId)?.title || `#${row.sectionId}`
             },
             {
               key: "langs",
@@ -283,27 +252,6 @@ export default function CategoriesPage() {
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogContent sx={{ pt: 1 }}>
             <Stack spacing={2} sx={{ mt: 1 }}>
-              <Controller
-                control={control}
-                name="sectionId"
-                render={({ field }) => (
-                  <Autocomplete
-                    options={sections}
-                    getOptionLabel={(option) => option.title || `#${option.id}`}
-                    value={sections.find((section) => section.id === field.value) || null}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
-                    onChange={(_, value) => field.onChange(value ? value.id : 0)}
-                    renderInput={(params) => (
-                      <TextField {...params} label={t("section")} error={!field.value} />
-                    )}
-                  />
-                )}
-              />
-              {sections.length === 0 && (
-                <Button size="small" onClick={() => navigate("/manage/sections")}>
-                  {t("createSection")}
-                </Button>
-              )}
               <Controller
                 control={control}
                 name="parentId"

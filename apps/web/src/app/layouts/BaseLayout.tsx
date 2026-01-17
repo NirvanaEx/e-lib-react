@@ -2,7 +2,9 @@ import React from "react";
 import {
   AppBar,
   Box,
+  Button,
   Chip,
+  Divider,
   Drawer,
   IconButton,
   List,
@@ -11,12 +13,14 @@ import {
   ListItemText,
   MenuItem,
   Select,
+  Stack,
   Toolbar,
   Tooltip,
   Typography
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
+import SettingsIcon from "@mui/icons-material/Settings";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/hooks/useAuth";
 import i18n from "../i18n";
@@ -32,7 +36,19 @@ export type NavItem = {
 
 const drawerWidth = 260;
 
-export function BaseLayout({ title, items, children }: { title: string; items: NavItem[]; children: React.ReactNode }) {
+export function BaseLayout({
+  title,
+  items,
+  children,
+  sidebarContent,
+  settingsPath
+}: {
+  title: string;
+  items: NavItem[];
+  children: React.ReactNode;
+  sidebarContent?: React.ReactNode;
+  settingsPath?: string;
+}) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -44,7 +60,28 @@ export function BaseLayout({ title, items, children }: { title: string; items: N
     setMobileOpen((prev) => !prev);
   };
 
-  const drawer = (
+  const panelLinks = React.useMemo(() => {
+    const role = user?.role;
+    if (role === "superadmin" || role === "admin") {
+      return [
+        { key: "admin", label: t("admin"), path: "/admin/users" },
+        { key: "manage", label: t("manage"), path: "/manage/sections" },
+        { key: "user", label: t("user"), path: "/user/files" }
+      ];
+    }
+    if (role === "manager") {
+      return [{ key: "manage", label: t("manage"), path: "/manage/sections" }];
+    }
+    return [{ key: "user", label: t("user"), path: "/user/files" }];
+  }, [t, user?.role]);
+
+  const currentPanel = pathname.startsWith("/admin")
+    ? "admin"
+    : pathname.startsWith("/manage")
+      ? "manage"
+      : "user";
+
+  const drawerContent = (
     <Box
       sx={{
         p: 2.5,
@@ -97,6 +134,12 @@ export function BaseLayout({ title, items, children }: { title: string; items: N
           );
         })}
       </List>
+      {sidebarContent && (
+        <Box sx={{ mt: 2 }}>
+          <Divider sx={{ mb: 2 }} />
+          {sidebarContent}
+        </Box>
+      )}
     </Box>
   );
 
@@ -110,7 +153,9 @@ export function BaseLayout({ title, items, children }: { title: string; items: N
           zIndex: (theme) => theme.zIndex.drawer + 1,
           backdropFilter: "blur(12px)",
           backgroundColor: "rgba(243, 241, 236, 0.9)",
-          borderBottom: "1px solid var(--border)"
+          borderBottom: "1px solid var(--border)",
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          ml: { md: `${drawerWidth}px` }
         }}
       >
         <Toolbar sx={{ display: "flex", justifyContent: "space-between", px: { xs: 2, md: 3 } }}>
@@ -121,6 +166,20 @@ export function BaseLayout({ title, items, children }: { title: string; items: N
             <Typography variant="h6">{title}</Typography>
           </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            {panelLinks.length > 1 && (
+              <Stack direction="row" spacing={1}>
+                {panelLinks.map((panel) => (
+                  <Button
+                    key={panel.key}
+                    size="small"
+                    variant={currentPanel === panel.key ? "contained" : "outlined"}
+                    onClick={() => navigate(panel.path)}
+                  >
+                    {panel.label}
+                  </Button>
+                ))}
+              </Stack>
+            )}
             <Select
               size="small"
               value={i18n.language}
@@ -141,6 +200,13 @@ export function BaseLayout({ title, items, children }: { title: string; items: N
               <MenuItem value="en">EN</MenuItem>
               <MenuItem value="uz">UZ</MenuItem>
             </Select>
+            {settingsPath && (
+              <Tooltip title={t("settings")}>
+                <IconButton color="inherit" onClick={() => navigate(settingsPath)}>
+                  <SettingsIcon />
+                </IconButton>
+              </Tooltip>
+            )}
             {user?.role && (
               <Chip
                 label={user.role}
@@ -168,7 +234,10 @@ export function BaseLayout({ title, items, children }: { title: string; items: N
             "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth }
           }}
         >
-          {drawer}
+          <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <Toolbar />
+            <Box sx={{ flex: 1, overflow: "auto" }}>{drawerContent}</Box>
+          </Box>
         </Drawer>
         <Drawer
           variant="permanent"
@@ -178,10 +247,14 @@ export function BaseLayout({ title, items, children }: { title: string; items: N
           }}
           open
         >
-          {drawer}
+          <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <Toolbar />
+            <Box sx={{ flex: 1, overflow: "auto" }}>{drawerContent}</Box>
+          </Box>
         </Drawer>
       </Box>
-      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 4 }, mt: 9 }}>
+      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 4 } }}>
+        <Toolbar />
         {children}
       </Box>
     </Box>

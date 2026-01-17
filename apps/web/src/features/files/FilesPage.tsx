@@ -12,7 +12,8 @@ import {
   Select,
   Stack,
   TextField,
-  Tooltip
+  Tooltip,
+  Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -55,6 +56,7 @@ type FileRow = {
   title: string | null;
   sectionId: number;
   categoryId: number;
+  createdAt?: string | null;
   accessType: string;
   currentVersionId?: number | null;
   availableLangs?: string[];
@@ -62,7 +64,7 @@ type FileRow = {
 
 type SectionOption = { id: number; title?: string | null };
 
-type CategoryOption = { id: number; title?: string | null; sectionId: number };
+type CategoryOption = { id: number; title?: string | null; depth?: number };
 
 const defaultValues: FormValues = {
   sectionId: 0,
@@ -77,6 +79,8 @@ export default function FilesPage() {
   const [open, setOpen] = React.useState(false);
   const [confirmTrash, setConfirmTrash] = React.useState<number | null>(null);
   const [translations, setTranslations] = React.useState<any[]>([]);
+  const [initialFile, setInitialFile] = React.useState<File | null>(null);
+  const [initialLang, setInitialLang] = React.useState("ru");
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
@@ -114,36 +118,52 @@ export default function FilesPage() {
   const departments = departmentsData?.data || [];
   const users = usersData?.data || [];
 
-  const { control, handleSubmit, watch, reset, setValue } = useForm<FormValues>({
+  const { control, handleSubmit, watch, reset } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues
   });
 
-  const formSectionId = watch("sectionId");
   const accessType = watch("accessType");
 
-  React.useEffect(() => {
-    setValue("categoryId", 0);
-  }, [formSectionId, setValue]);
-
   const { data: categoriesData } = useQuery({
-    queryKey: ["categories", "options", formSectionId],
-    queryFn: () => fetchCategories({ page: 1, pageSize: 500, sectionId: formSectionId || undefined }),
-    enabled: !!formSectionId
+    queryKey: ["categories", "options", 500],
+    queryFn: () => fetchCategories({ page: 1, pageSize: 500 })
   });
 
   const categories: CategoryOption[] = categoriesData?.data || [];
 
+  const sectionTitleById = React.useMemo(() => {
+    const map = new Map<number, string>();
+    sections.forEach((section) => {
+      map.set(section.id, section.title || `#${section.id}`);
+    });
+    return map;
+  }, [sections]);
+
+  const categoryInfoById = React.useMemo(() => {
+    const map = new Map<number, { title: string; depth: number }>();
+    categories.forEach((category) => {
+      map.set(category.id, {
+        title: category.title || `#${category.id}`,
+        depth: category.depth || 1
+      });
+    });
+    return map;
+  }, [categories]);
+
+  const formatSectionLabel = (sectionId: number) => sectionTitleById.get(sectionId) || `#${sectionId}`;
+
+  const formatCategoryLabel = (categoryId: number) => {
+    const category = categoryInfoById.get(categoryId);
+    if (!category) return `#${categoryId}`;
+    const prefix = "- ".repeat(Math.max(0, category.depth - 1));
+    return `${prefix}${category.title}`;
+  };
+
+  const formatCreatedAt = (value?: string | null) => (value ? new Date(value).toLocaleDateString() : "-");
+
   const createMutation = useMutation({
-    mutationFn: createFile,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["files"] });
-      setOpen(false);
-      reset(defaultValues);
-      setTranslations([]);
-      showToast({ message: t("fileCreated"), severity: "success" });
-    },
-    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
+    mutationFn: createFile
   });
 
   const deleteMutation = useMutation({
@@ -161,10 +181,21 @@ export default function FilesPage() {
   const handleOpenCreate = () => {
     reset(defaultValues);
     setTranslations([{ lang: "ru", title: "", description: "" }]);
+    setInitialFile(null);
+    setInitialLang("ru");
     setOpen(true);
   };
 
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = async (values: FormValues) => {
+    if (!values.sectionId) {
+      showToast({ message: t("selectSectionError"), severity: "error" });
+      return;
+    }
+    if (!values.categoryId) {
+      showToast({ message: t("selectCategoryError"), severity: "error" });
+      return;
+    }
+
     const normalizedTranslations = translations
       .map((item) => ({
         lang: item.lang,
@@ -179,15 +210,31 @@ export default function FilesPage() {
     }
 
     const payload = {
-      sectionId: values.sectionId,
-      categoryId: values.categoryId,
+      sectionId: Number(values.sectionId),
+      categoryId: Number(values.categoryId),
       accessType: values.accessType,
       accessDepartmentIds: values.accessType === "restricted" ? values.accessDepartmentIds : [],
       accessUserIds: values.accessType === "restricted" ? values.accessUserIds : [],
       translations: normalizedTranslations
     };
 
-    createMutation.mutate(payload);
+    try {
+      const result = await createMutation.mutateAsync(payload);
+      if (initialFile && result?.currentVersionId) {
+        const form = new FormData();
+        form.append("lang", initialLang);
+        form.append("file", initialFile);
+        await uploadAsset(result.id, result.currentVersionId, form);
+      }
+      queryClient.invalidateQueries({ queryKey: ["files"] });
+      setOpen(false);
+      reset(defaultValues);
+      setTranslations([]);
+      setInitialFile(null);
+      showToast({ message: t("fileCreated"), severity: "success" });
+    } catch (error) {
+      showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" });
+    }
   };
 
   return (
@@ -222,6 +269,16 @@ export default function FilesPage() {
           columns={[
             { key: "title", label: t("title") },
             {
+              key: "section",
+              label: t("section"),
+              render: (row) => formatSectionLabel(row.sectionId)
+            },
+            {
+              key: "category",
+              label: t("category"),
+              render: (row) => formatCategoryLabel(row.categoryId)
+            },
+            {
               key: "accessType",
               label: t("access"),
               render: (row) => (
@@ -238,6 +295,11 @@ export default function FilesPage() {
                   ))}
                 </Stack>
               )
+            },
+            {
+              key: "createdAt",
+              label: t("createdAt"),
+              render: (row) => formatCreatedAt(row.createdAt)
             },
             {
               key: "actions",
@@ -282,6 +344,14 @@ export default function FilesPage() {
                   <Autocomplete
                     options={sections}
                     getOptionLabel={(option) => option.title || `#${option.id}`}
+                    renderOption={(props, option) => {
+                      const { key, ...optionProps } = props;
+                      return (
+                        <li key={option.id} {...optionProps}>
+                          {option.title || `#${option.id}`}
+                        </li>
+                      );
+                    }}
                     value={sections.find((section) => section.id === field.value) || null}
                     isOptionEqualToValue={(option, value) => option.id === value.id}
                     onChange={(_, value) => field.onChange(value ? value.id : 0)}
@@ -300,7 +370,16 @@ export default function FilesPage() {
                 render={({ field }) => (
                   <Autocomplete
                     options={categories}
-                    getOptionLabel={(option) => option.title || `#${option.id}`}
+                    getOptionLabel={(option) => `${"- ".repeat(Math.max(0, (option.depth || 1) - 1))}${option.title || `#${option.id}`}`}
+                    renderOption={(props, option) => {
+                      const { key, ...optionProps } = props;
+                      const label = `${"- ".repeat(Math.max(0, (option.depth || 1) - 1))}${option.title || `#${option.id}`}`;
+                      return (
+                        <li key={option.id} {...optionProps}>
+                          {label}
+                        </li>
+                      );
+                    }}
                     value={categories.find((cat) => cat.id === field.value) || null}
                     isOptionEqualToValue={(option, value) => option.id === value.id}
                     onChange={(_, value) => field.onChange(value ? value.id : 0)}
@@ -308,13 +387,11 @@ export default function FilesPage() {
                   />
                 )}
               />
-              {formSectionId ? (
-                categories.length === 0 && (
-                  <Button size="small" onClick={() => navigate("/manage/categories")}>
-                    {t("createCategory")}
-                  </Button>
-                )
-              ) : null}
+              {categories.length === 0 && (
+                <Button size="small" onClick={() => navigate("/manage/categories")}>
+                  {t("createCategory")}
+                </Button>
+              )}
               <Controller
                 control={control}
                 name="accessType"
@@ -340,6 +417,14 @@ export default function FilesPage() {
                         multiple
                         options={departments}
                         getOptionLabel={(option: any) => option.name}
+                        renderOption={(props, option: any) => {
+                          const { key, ...optionProps } = props;
+                          return (
+                            <li key={option.id} {...optionProps}>
+                              {option.name}
+                            </li>
+                          );
+                        }}
                         value={departments.filter((dept: any) => field.value?.includes(dept.id))}
                         isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
                         onChange={(_, value) => field.onChange(value.map((item: any) => item.id))}
@@ -355,6 +440,14 @@ export default function FilesPage() {
                         multiple
                         options={users}
                         getOptionLabel={(option: any) => option.login}
+                        renderOption={(props, option: any) => {
+                          const { key, ...optionProps } = props;
+                          return (
+                            <li key={option.id} {...optionProps}>
+                              {option.login}
+                            </li>
+                          );
+                        }}
                         value={users.filter((user: any) => field.value?.includes(user.id))}
                         isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
                         onChange={(_, value) => field.onChange(value.map((item: any) => item.id))}
@@ -372,6 +465,26 @@ export default function FilesPage() {
                 descriptionLabel={t("description")}
                 helperText={t("translationsHint")}
               />
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
+                <TextField
+                  select
+                  label={t("language")}
+                  value={initialLang}
+                  onChange={(event) => setInitialLang(event.target.value)}
+                  sx={{ minWidth: 140 }}
+                >
+                  <MenuItem value="ru">RU</MenuItem>
+                  <MenuItem value="en">EN</MenuItem>
+                  <MenuItem value="uz">UZ</MenuItem>
+                </TextField>
+                <Button component="label" variant="outlined">
+                  {t("selectFile")}
+                  <input type="file" hidden onChange={(event) => setInitialFile(event.target.files?.[0] || null)} />
+                </Button>
+                <Typography variant="caption" color="text.secondary">
+                  {initialFile ? initialFile.name : t("noFileSelected")}
+                </Typography>
+              </Stack>
             </Stack>
           </DialogContent>
           <DialogActions>

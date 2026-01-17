@@ -21,7 +21,8 @@ export const theme = createTheme({
     MuiPaper: {
       styleOverrides: {
         root: {
-          backgroundImage: "none"
+          backgroundImage: "none",
+          boxShadow: "none"
         }
       }
     },

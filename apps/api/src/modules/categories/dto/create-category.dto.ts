@@ -1,12 +1,8 @@
-import { ArrayMinSize, IsArray, IsInt, IsNotEmpty, IsOptional, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsInt, IsOptional, ValidateNested } from "class-validator";
 import { Type } from "class-transformer";
 import { TranslationDto } from "../../../common/dto/translation.dto";
 
 export class CreateCategoryDto {
-  @Type(() => Number)
-  @IsInt()
-  sectionId!: number;
-
   @IsOptional()
   @Type(() => Number)
   @IsInt()
