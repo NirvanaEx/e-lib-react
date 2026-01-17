@@ -1,0 +1,36 @@
+version: "3.9"
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file:
+      - /srv/apps/e-lib/.env
+    ports:
+      - "3001:3001"
+    volumes:
+      - /srv/apps/e-lib/uploads:/app/uploads
+    depends_on:
+      - db
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+  db:
+    image: postgres:15-alpine
+    env_file:
+      - /srv/apps/e-lib/.env
+    environment:
+      POSTGRES_USER: ${DB_USER:-elib}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-elib}
+      POSTGRES_DB: ${DB_NAME:-elib}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+volumes:
+  db_data:
