@@ -85,6 +85,7 @@ export class FilesService {
       .first();
     if (!file) throw new NotFoundException();
     if (file.access_type === "public") return;
+    if (user?.permissions?.includes("file.download.restricted")) return;
 
     const hasDept = user.departmentId
       ? await this.dbService.db("file_access_departments")
@@ -174,7 +175,7 @@ export class FilesService {
     const defaultLang = this.getDefaultLang();
     const lang = normalizeLang(preferredLang) || null;
 
-    const data = Array.from(grouped.values()).map((item) => {
+    const baseData = Array.from(grouped.values()).map((item) => {
       const picked = selectTranslation<FileTranslation>(item.translations, lang, defaultLang);
       return {
         id: item.id,
@@ -186,6 +187,28 @@ export class FilesService {
         title: picked?.title || null,
         description: picked?.description || null,
         availableLangs: getAvailableLangs(item.translations)
+      };
+    });
+
+    const versionIds = baseData.map((item) => item.currentVersionId).filter(Boolean) as number[];
+    const assetLangsByVersion = new Map<number, Set<string>>();
+    if (versionIds.length > 0) {
+      const assetRows = await this.dbService.db("file_version_assets")
+        .select("file_version_id", "lang")
+        .whereIn("file_version_id", versionIds);
+      assetRows.forEach((row: any) => {
+        if (!assetLangsByVersion.has(row.file_version_id)) {
+          assetLangsByVersion.set(row.file_version_id, new Set<string>());
+        }
+        assetLangsByVersion.get(row.file_version_id)?.add(row.lang);
+      });
+    }
+
+    const data = baseData.map((item) => {
+      const langs = item.currentVersionId ? Array.from(assetLangsByVersion.get(item.currentVersionId) || []) : [];
+      return {
+        ...item,
+        availableAssetLangs: langs.sort()
       };
     });
 
@@ -875,7 +898,7 @@ export class FilesService {
     const defaultLang = this.getDefaultLang();
     const lang = normalizeLang(preferredLang) || null;
 
-    const data = Array.from(grouped.values()).map((item) => {
+    const baseData = Array.from(grouped.values()).map((item) => {
       const picked = selectTranslation<FileTranslation>(item.translations, lang, defaultLang);
       return {
         id: item.id,
@@ -883,7 +906,30 @@ export class FilesService {
         categoryId: item.category_id,
         title: picked?.title || null,
         description: picked?.description || null,
-        availableLangs: getAvailableLangs(item.translations)
+        availableLangs: getAvailableLangs(item.translations),
+        currentVersionId: item.current_version_id
+      };
+    });
+
+    const versionIds = baseData.map((item) => item.currentVersionId).filter(Boolean) as number[];
+    const assetLangsByVersion = new Map<number, Set<string>>();
+    if (versionIds.length > 0) {
+      const assetRows = await this.dbService.db("file_version_assets")
+        .select("file_version_id", "lang")
+        .whereIn("file_version_id", versionIds);
+      assetRows.forEach((row: any) => {
+        if (!assetLangsByVersion.has(row.file_version_id)) {
+          assetLangsByVersion.set(row.file_version_id, new Set<string>());
+        }
+        assetLangsByVersion.get(row.file_version_id)?.add(row.lang);
+      });
+    }
+
+    const data = baseData.map((item) => {
+      const langs = item.currentVersionId ? Array.from(assetLangsByVersion.get(item.currentVersionId) || []) : [];
+      return {
+        ...item,
+        availableAssetLangs: langs.sort()
       };
     });
 
@@ -920,6 +966,8 @@ export class FilesService {
       .where({ file_version_id: rows[0].current_version_id })
       .select("id", "lang", "original_name", "size", "mime");
 
+    const availableAssetLangs = assets.map((asset: any) => asset.lang).filter(Boolean);
+
     return {
       id: fileItemId,
       sectionId: rows[0].section_id,
@@ -927,6 +975,7 @@ export class FilesService {
       title: picked?.title || null,
       description: picked?.description || null,
       availableLangs: getAvailableLangs(translations),
+      availableAssetLangs,
       assets
     };
   }
@@ -946,6 +995,17 @@ export class FilesService {
     const lang = normalizeLang(preferredLang) || null;
     const selected = assets.find((a) => a.lang === (lang || defaultLang)) || assets.find((a) => a.lang === defaultLang) || assets[0];
 
+    const translationRows = await this.dbService.db("file_translations")
+      .where({ file_item_id: fileItemId })
+      .select("lang", "title");
+    const translations: FileTranslation[] = translationRows
+      .filter((row: any) => row.lang)
+      .map((row: any) => ({ lang: row.lang as Lang, title: row.title, description: null }));
+    const title =
+      translations.find((t) => t.lang === selected.lang)?.title ||
+      (lang ? translations.find((t) => t.lang === lang)?.title : null) ||
+      null;
+
     await this.downloadsService.log({
       userId: user.id,
       fileItemId: fileItemId,
@@ -954,7 +1014,7 @@ export class FilesService {
       lang: selected.lang
     });
 
-    return selected;
+    return { ...selected, title };
   }
 
   async getUserMenu(user: any, preferredLang: string | null) {

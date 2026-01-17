@@ -32,6 +32,7 @@ exports.seed = async function (knex) {
     "file.asset.delete",
     "file.trash.read",
     "file.download",
+    "file.download.restricted",
     "stats.read",
     "audit.read"
   ];

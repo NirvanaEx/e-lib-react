@@ -6,6 +6,7 @@ import { fetchUserFile, downloadUserFile } from "./files.api";
 import { Page } from "../../shared/ui/Page";
 import { useTranslation } from "react-i18next";
 import { formatBytes } from "../../shared/utils/format";
+import { getFilenameFromDisposition } from "../../shared/utils/download";
 
 export default function UserFileDetailsPage() {
   const params = useParams();
@@ -13,20 +14,30 @@ export default function UserFileDetailsPage() {
   const { t } = useTranslation();
   const { data } = useQuery({ queryKey: ["user-file", fileId], queryFn: () => fetchUserFile(fileId) });
   const [lang, setLang] = React.useState("ru");
+  const assetLangs = React.useMemo(() => {
+    const langs = (data?.assets || []).map((asset: any) => asset.lang).filter(Boolean);
+    return Array.from(new Set(langs));
+  }, [data]);
 
   React.useEffect(() => {
-    if (data?.availableLangs?.length) {
+    if (assetLangs.length > 0) {
+      setLang(assetLangs[0]);
+    } else if (data?.availableLangs?.length) {
       setLang(data.availableLangs[0]);
     }
-  }, [data]);
+  }, [assetLangs, data]);
 
   const downloadMutation = useMutation({
     mutationFn: () => downloadUserFile(fileId, lang),
-    onSuccess: (blob) => {
+    onSuccess: (response) => {
+      const blob = response.data;
+      const filename =
+        getFilenameFromDisposition(response.headers?.["content-disposition"]) ||
+        `${data?.title || "file"}${lang ? `_${lang.toUpperCase()}` : ""}`;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = data?.title || "file";
+      a.download = filename;
       a.click();
       window.URL.revokeObjectURL(url);
     }
@@ -39,7 +50,7 @@ export default function UserFileDetailsPage() {
           {t("availableLanguages")}
         </Typography>
         <Stack direction="row" spacing={1} flexWrap="wrap">
-          {(data?.availableLangs || []).map((item: string) => (
+          {(assetLangs.length ? assetLangs : data?.availableLangs || []).map((item: string) => (
             <Chip key={item} size="small" label={item.toUpperCase()} />
           ))}
         </Stack>
@@ -47,7 +58,7 @@ export default function UserFileDetailsPage() {
       <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
           <TextField select label={t("language")} value={lang} onChange={(e) => setLang(e.target.value)} sx={{ width: 160 }}>
-            {(data?.availableLangs || []).map((item: string) => (
+            {(assetLangs.length ? assetLangs : data?.availableLangs || []).map((item: string) => (
               <MenuItem key={item} value={item}>
                 {item.toUpperCase()}
               </MenuItem>

@@ -19,12 +19,13 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DeleteIcon from "@mui/icons-material/Delete";
+import DownloadIcon from "@mui/icons-material/Download";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { fetchFiles, createFile, deleteFile } from "./files.api";
+import { fetchFiles, createFile, deleteFile, uploadAsset, downloadUserFile } from "./files.api";
 import { fetchSections } from "../sections/sections.api";
 import { fetchCategories } from "../categories/categories.api";
 import { fetchDepartmentOptions } from "../departments/departments.api";
@@ -43,6 +44,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { getErrorMessage } from "../../shared/utils/errors";
 import { buildPathMap, formatPath } from "../../shared/utils/tree";
+import { getFilenameFromDisposition } from "../../shared/utils/download";
 
 const schema = z.object({
   sectionId: z.number().min(1),
@@ -63,6 +65,7 @@ type FileRow = {
   accessType: string;
   currentVersionId?: number | null;
   availableLangs?: string[];
+  availableAssetLangs?: string[];
 };
 
 type SectionOption = { id: number; title?: string | null };
@@ -86,6 +89,12 @@ export default function FilesPage() {
   const [translations, setTranslations] = React.useState<any[]>([]);
   const [initialFile, setInitialFile] = React.useState<File | null>(null);
   const [initialLang, setInitialLang] = React.useState("ru");
+  const [extraAssets, setExtraAssets] = React.useState<Array<{ lang: string; file: File | null }>>([]);
+  const [downloadTarget, setDownloadTarget] = React.useState<{
+    id: number;
+    title: string | null;
+    langs: string[];
+  } | null>(null);
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
@@ -186,6 +195,7 @@ export default function FilesPage() {
   );
 
   const formatCreatedAt = (value?: string | null) => (value ? new Date(value).toLocaleDateString() : "-");
+  const languageOptions = ["ru", "en", "uz"];
 
   const createMutation = useMutation({
     mutationFn: createFile
@@ -200,6 +210,24 @@ export default function FilesPage() {
     onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
   });
 
+  const downloadMutation = useMutation({
+    mutationFn: ({ id, lang }: { id: number; lang?: string | null; title?: string | null }) =>
+      downloadUserFile(id, lang || undefined),
+    onSuccess: (response, variables) => {
+      const blob = response.data;
+      const filename =
+        getFilenameFromDisposition(response.headers?.["content-disposition"]) ||
+        `${variables.title || "file"}${variables.lang ? `_${variables.lang.toUpperCase()}` : ""}`;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    },
+    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
+  });
+
   const rows: FileRow[] = data?.data || [];
   const meta = data?.meta || { page, pageSize, total: 0 };
 
@@ -208,10 +236,21 @@ export default function FilesPage() {
     setTranslations([{ lang: "ru", title: "", description: "" }]);
     setInitialFile(null);
     setInitialLang("ru");
+    setExtraAssets([]);
     setOpen(true);
   };
 
+  const addExtraAsset = () => {
+    const used = new Set([initialLang, ...extraAssets.map((item) => item.lang)]);
+    const nextLang = languageOptions.find((lang) => !used.has(lang)) || "ru";
+    setExtraAssets((prev) => [...prev, { lang: nextLang, file: null }]);
+  };
+
   const onSubmit = async (values: FormValues) => {
+    if (!initialFile) {
+      showToast({ message: t("fileRequired"), severity: "error" });
+      return;
+    }
     if (!values.sectionId) {
       showToast({ message: t("selectSectionError"), severity: "error" });
       return;
@@ -244,18 +283,39 @@ export default function FilesPage() {
     };
 
     try {
+      const extraWithFile = extraAssets.filter((item) => item.file);
+      if (extraWithFile.length !== extraAssets.length) {
+        showToast({ message: t("selectFileForLang"), severity: "error" });
+        return;
+      }
+      const usedLangs = new Set([initialLang]);
+      for (const item of extraWithFile) {
+        if (usedLangs.has(item.lang)) {
+          showToast({ message: t("languageDuplicate"), severity: "error" });
+          return;
+        }
+        usedLangs.add(item.lang);
+      }
+
       const result = await createMutation.mutateAsync(payload);
       if (initialFile && result?.currentVersionId) {
         const form = new FormData();
         form.append("lang", initialLang);
         form.append("file", initialFile);
         await uploadAsset(result.id, result.currentVersionId, form);
+        for (const item of extraWithFile) {
+          const extraForm = new FormData();
+          extraForm.append("lang", item.lang);
+          extraForm.append("file", item.file as File);
+          await uploadAsset(result.id, result.currentVersionId, extraForm);
+        }
       }
       queryClient.invalidateQueries({ queryKey: ["files"] });
       setOpen(false);
       reset(defaultValues);
       setTranslations([]);
       setInitialFile(null);
+      setExtraAssets([]);
       showToast({ message: t("fileCreated"), severity: "success" });
     } catch (error) {
       showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" });
@@ -313,18 +373,50 @@ export default function FilesPage() {
             {
               key: "langs",
               label: t("languages"),
-              render: (row) => (
-                <Stack direction="row" spacing={1}>
-                  {(row.availableLangs || []).map((lang: string) => (
-                    <Chip key={lang} size="small" label={lang.toUpperCase()} />
-                  ))}
-                </Stack>
-              )
+              render: (row) => {
+                const langs = row.availableAssetLangs || row.availableLangs || [];
+                return (
+                  <Stack direction="row" spacing={1}>
+                    {langs.map((lang: string) => (
+                      <Chip key={lang} size="small" label={lang.toUpperCase()} />
+                    ))}
+                  </Stack>
+                );
+              }
             },
             {
               key: "createdAt",
               label: t("createdAt"),
               render: (row) => formatCreatedAt(row.createdAt)
+            },
+            {
+              key: "download",
+              label: t("download"),
+              align: "center",
+              render: (row) => {
+                const langs = row.availableAssetLangs || row.availableLangs || [];
+                const disabled = langs.length === 0;
+                return (
+                  <Tooltip title={disabled ? t("noAssets") : t("download")}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        disabled={disabled}
+                        onClick={() => {
+                          if (langs.length > 1) {
+                            setDownloadTarget({ id: row.id, title: row.title, langs });
+                            return;
+                          }
+                          const lang = langs[0];
+                          downloadMutation.mutate({ id: row.id, lang, title: row.title });
+                        }}
+                      >
+                        <DownloadIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                );
+              }
             },
             {
               key: "actions",
@@ -509,6 +601,63 @@ export default function FilesPage() {
                   {initialFile ? initialFile.name : t("noFileSelected")}
                 </Typography>
               </Stack>
+              <Stack spacing={1}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="subtitle2">{t("additionalFiles")}</Typography>
+                  <Button size="small" onClick={addExtraAsset}>
+                    {t("addLanguageFile")}
+                  </Button>
+                </Stack>
+                {extraAssets.map((item, index) => (
+                  <Stack
+                    key={`${item.lang}-${index}`}
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={2}
+                    alignItems={{ sm: "center" }}
+                  >
+                    <TextField
+                      select
+                      label={t("language")}
+                      value={item.lang}
+                      onChange={(event) => {
+                        const next = event.target.value;
+                        setExtraAssets((prev) =>
+                          prev.map((entry, idx) => (idx === index ? { ...entry, lang: next } : entry))
+                        );
+                      }}
+                      sx={{ minWidth: 140 }}
+                    >
+                      {languageOptions.map((lang) => (
+                        <MenuItem key={lang} value={lang}>
+                          {lang.toUpperCase()}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    <Button component="label" variant="outlined">
+                      {t("selectFile")}
+                      <input
+                        type="file"
+                        hidden
+                        onChange={(event) => {
+                          const file = event.target.files?.[0] || null;
+                          setExtraAssets((prev) =>
+                            prev.map((entry, idx) => (idx === index ? { ...entry, file } : entry))
+                          );
+                        }}
+                      />
+                    </Button>
+                    <Typography variant="caption" color="text.secondary">
+                      {item.file ? item.file.name : t("noFileSelected")}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={() => setExtraAssets((prev) => prev.filter((_, idx) => idx !== index))}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                ))}
+              </Stack>
             </Stack>
           </DialogContent>
           <DialogActions>
@@ -533,6 +682,30 @@ export default function FilesPage() {
         }}
         onCancel={() => setConfirmTrash(null)}
       />
+
+      <Dialog open={!!downloadTarget} onClose={() => setDownloadTarget(null)} fullWidth maxWidth="xs">
+        <DialogTitle>{t("download")}</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <Stack spacing={1} sx={{ mt: 1 }}>
+            {(downloadTarget?.langs || []).map((lang) => (
+              <Button
+                key={lang}
+                variant="outlined"
+                onClick={() => {
+                  if (!downloadTarget) return;
+                  downloadMutation.mutate({ id: downloadTarget.id, lang, title: downloadTarget.title });
+                  setDownloadTarget(null);
+                }}
+              >
+                {lang.toUpperCase()}
+              </Button>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDownloadTarget(null)}>{t("cancel")}</Button>
+        </DialogActions>
+      </Dialog>
     </Page>
   );
 }

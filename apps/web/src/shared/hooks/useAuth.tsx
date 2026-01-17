@@ -6,6 +6,7 @@ export type AuthUser = {
   login: string;
   role: string;
   departmentId?: number | null;
+  department?: string | null;
   mustChangePassword?: boolean;
   lang?: string | null;
   permissions?: string[];

@@ -17,6 +17,7 @@ export class AuthService {
   async login(login: string, password: string, ip: string, userAgent: string | undefined) {
     const user = await this.dbService.db("users")
       .leftJoin("roles", "roles.id", "users.role_id")
+      .leftJoin("departments", "departments.id", "users.department_id")
       .select(
         "users.id",
         "users.login",
@@ -28,7 +29,8 @@ export class AuthService {
         "users.department_id",
         "users.must_change_password",
         "users.lang",
-        "roles.name as role"
+        "roles.name as role",
+        "departments.name as department"
       )
       .where("users.login", login)
       .whereNull("users.deleted_at")
@@ -57,6 +59,7 @@ export class AuthService {
         login: user.login,
         role: user.role,
         departmentId: user.department_id,
+        department: user.department,
         mustChangePassword: user.must_change_password,
         lang: user.lang,
         permissions
@@ -71,6 +74,7 @@ export class AuthService {
         login: user.login,
         role: user.role,
         departmentId: user.department_id,
+        department: user.department,
         mustChangePassword: user.must_change_password,
         surname: user.surname,
         name: user.name,
@@ -103,6 +107,7 @@ export class AuthService {
 
     const refreshed = await this.dbService.db("users")
       .leftJoin("roles", "roles.id", "users.role_id")
+      .leftJoin("departments", "departments.id", "users.department_id")
       .select(
         "users.id",
         "users.login",
@@ -113,7 +118,8 @@ export class AuthService {
         "users.department_id",
         "users.lang",
         "users.must_change_password",
-        "roles.name as role"
+        "roles.name as role",
+        "departments.name as department"
       )
       .where("users.id", userId)
       .first();
@@ -134,6 +140,7 @@ export class AuthService {
         login: refreshed.login,
         role: refreshed.role,
         departmentId: refreshed.department_id,
+        department: refreshed.department,
         mustChangePassword: false,
         lang: refreshed.lang,
         permissions
@@ -148,6 +155,7 @@ export class AuthService {
         login: refreshed.login,
         role: refreshed.role,
         departmentId: refreshed.department_id,
+        department: refreshed.department,
         mustChangePassword: false,
         surname: refreshed.surname,
         name: refreshed.name,

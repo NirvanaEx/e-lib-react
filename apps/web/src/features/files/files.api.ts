@@ -93,8 +93,7 @@ export async function fetchUserFile(id: number) {
 }
 
 export async function downloadUserFile(id: number, lang?: string) {
-  const { data } = await api.post(`/user/files/${id}/download`, { lang }, { responseType: "blob" });
-  return data;
+  return api.post(`/user/files/${id}/download`, { lang }, { responseType: "blob" });
 }
 
 export async function fetchMenu() {
