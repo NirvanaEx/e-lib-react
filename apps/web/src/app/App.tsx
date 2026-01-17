@@ -10,6 +10,7 @@ import ChangeTempPasswordPage from "../features/auth/ChangeTempPasswordPage";
 import DashboardLayout from "./layouts/DashboardLayout";
 import UserLayout from "./layouts/UserLayout";
 import UsersPage from "../features/admin-users/UsersPage";
+import RolesPage from "../features/roles/RolesPage";
 import DepartmentsPage from "../features/departments/DepartmentsPage";
 import SessionsPage from "../features/sessions/SessionsPage";
 import AuditPage from "../features/audit/AuditPage";
@@ -73,6 +74,18 @@ export default function App() {
                     <RequireAccess permissions={["dashboard.access", "user.read"]}>
                       <DashboardLayout>
                         <UsersPage />
+                      </DashboardLayout>
+                    </RequireAccess>
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/dashboard/roles"
+                element={
+                  <RequireAuth>
+                    <RequireAccess permissions={["dashboard.access", "role.read"]}>
+                      <DashboardLayout>
+                        <RolesPage />
                       </DashboardLayout>
                     </RequireAccess>
                   </RequireAuth>

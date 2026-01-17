@@ -101,6 +101,60 @@ export class AuthService {
       .update({ password_hash: hash, must_change_password: false, updated_at: this.dbService.db.fn.now() })
       .where({ id: userId });
 
-    return { success: true };
+    const refreshed = await this.dbService.db("users")
+      .leftJoin("roles", "roles.id", "users.role_id")
+      .select(
+        "users.id",
+        "users.login",
+        "users.surname",
+        "users.name",
+        "users.patronymic",
+        "users.role_id",
+        "users.department_id",
+        "users.lang",
+        "users.must_change_password",
+        "roles.name as role"
+      )
+      .where("users.id", userId)
+      .first();
+
+    if (!refreshed) {
+      throw new UnauthorizedException();
+    }
+
+    const permissions = await this.dbService
+      .db("role_permissions")
+      .leftJoin("permissions", "permissions.id", "role_permissions.permission_id")
+      .where("role_permissions.role_id", refreshed.role_id)
+      .pluck("permissions.name");
+
+    const token = this.jwtService.sign(
+      {
+        sub: refreshed.id,
+        login: refreshed.login,
+        role: refreshed.role,
+        departmentId: refreshed.department_id,
+        mustChangePassword: false,
+        lang: refreshed.lang,
+        permissions
+      },
+      { expiresIn: this.config.get<string>("JWT_EXPIRES_IN", "1d") }
+    );
+
+    return {
+      accessToken: token,
+      user: {
+        id: refreshed.id,
+        login: refreshed.login,
+        role: refreshed.role,
+        departmentId: refreshed.department_id,
+        mustChangePassword: false,
+        surname: refreshed.surname,
+        name: refreshed.name,
+        patronymic: refreshed.patronymic,
+        lang: refreshed.lang,
+        permissions
+      }
+    };
   }
 }

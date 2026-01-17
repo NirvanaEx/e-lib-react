@@ -13,7 +13,7 @@ export function Page({
   children: React.ReactNode;
 }) {
   return (
-    <Box sx={{ width: "100%", maxWidth: 1280, mx: "auto" }}>
+    <Box sx={{ width: "100%" }}>
       <Box
         sx={{
           display: "flex",
