@@ -85,26 +85,9 @@ export default function FileDetailsPage() {
     queryFn: () => fetchSections({ page: 1, pageSize: 200 })
   });
 
-  const watchedSectionId = metadataForm.watch("sectionId");
-
-  const prevSectionIdRef = React.useRef<number | null>(null);
-
-  React.useEffect(() => {
-    if (!watchedSectionId) {
-      prevSectionIdRef.current = watchedSectionId;
-      return;
-    }
-
-    if (prevSectionIdRef.current && prevSectionIdRef.current !== watchedSectionId) {
-      metadataForm.setValue("categoryId", 0);
-    }
-    prevSectionIdRef.current = watchedSectionId;
-  }, [watchedSectionId, metadataForm]);
-
   const { data: categoriesData } = useQuery({
-    queryKey: ["categories", "options", watchedSectionId],
-    queryFn: () => fetchCategories({ page: 1, pageSize: 500, sectionId: watchedSectionId || undefined }),
-    enabled: !!watchedSectionId
+    queryKey: ["categories", "options", 500],
+    queryFn: () => fetchCategories({ page: 1, pageSize: 500 })
   });
 
   const { data: departmentsData } = useQuery({
@@ -233,6 +216,15 @@ export default function FileDetailsPage() {
   };
 
   const handleSaveMetadata = metadataForm.handleSubmit((values) => {
+    if (!values.sectionId) {
+      showToast({ message: t("selectSectionError"), severity: "error" });
+      return;
+    }
+    if (!values.categoryId) {
+      showToast({ message: t("selectCategoryError"), severity: "error" });
+      return;
+    }
+
     const normalizedTranslations = translations
       .map((item) => ({
         lang: item.lang,
@@ -247,8 +239,8 @@ export default function FileDetailsPage() {
     }
 
     updateMetadataMutation.mutate({
-      sectionId: values.sectionId,
-      categoryId: values.categoryId,
+      sectionId: Number(values.sectionId),
+      categoryId: Number(values.categoryId),
       translations: normalizedTranslations
     });
   });
@@ -290,6 +282,14 @@ export default function FileDetailsPage() {
                   <Autocomplete
                     options={sections}
                     getOptionLabel={(option) => option.title || `#${option.id}`}
+                    renderOption={(props, option) => {
+                      const { key, ...optionProps } = props;
+                      return (
+                        <li key={option.id} {...optionProps}>
+                          {option.title || `#${option.id}`}
+                        </li>
+                      );
+                    }}
                     value={sections.find((section: any) => section.id === field.value) || null}
                     isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
                     onChange={(_, value: any | null) => field.onChange(value ? value.id : 0)}
@@ -303,7 +303,16 @@ export default function FileDetailsPage() {
                 render={({ field }) => (
                   <Autocomplete
                     options={categories}
-                    getOptionLabel={(option) => option.title || `#${option.id}`}
+                    getOptionLabel={(option) => `${"- ".repeat(Math.max(0, (option.depth || 1) - 1))}${option.title || `#${option.id}`}`}
+                    renderOption={(props, option) => {
+                      const { key, ...optionProps } = props;
+                      const label = `${"- ".repeat(Math.max(0, (option.depth || 1) - 1))}${option.title || `#${option.id}`}`;
+                      return (
+                        <li key={option.id} {...optionProps}>
+                          {label}
+                        </li>
+                      );
+                    }}
                     value={categories.find((cat: any) => cat.id === field.value) || null}
                     isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
                     onChange={(_, value: any | null) => field.onChange(value ? value.id : 0)}
@@ -350,6 +359,14 @@ export default function FileDetailsPage() {
                       multiple
                       options={departments}
                       getOptionLabel={(option: any) => option.name}
+                      renderOption={(props, option: any) => {
+                        const { key, ...optionProps } = props;
+                        return (
+                          <li key={option.id} {...optionProps}>
+                            {option.name}
+                          </li>
+                        );
+                      }}
                       value={departments.filter((dept: any) => field.value.includes(dept.id))}
                       isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
                       onChange={(_, value) => field.onChange(value.map((item: any) => item.id))}
@@ -365,6 +382,14 @@ export default function FileDetailsPage() {
                       multiple
                       options={users}
                       getOptionLabel={(option: any) => option.login}
+                      renderOption={(props, option: any) => {
+                        const { key, ...optionProps } = props;
+                        return (
+                          <li key={option.id} {...optionProps}>
+                            {option.login}
+                          </li>
+                        );
+                      }}
                       value={users.filter((user: any) => field.value.includes(user.id))}
                       isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
                       onChange={(_, value) => field.onChange(value.map((item: any) => item.id))}

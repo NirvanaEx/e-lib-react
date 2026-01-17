@@ -26,6 +26,12 @@ import SettingsPage from "../features/settings/SettingsPage";
 
 const queryClient = new QueryClient();
 
+function getDefaultRoute(role?: string | null) {
+  if (role === "superadmin" || role === "admin") return "/admin/users";
+  if (role === "manager") return "/manage/sections";
+  return "/user/files";
+}
+
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { token, user } = useAuth();
   if (!token) return <Navigate to="/login" replace />;
@@ -38,8 +44,13 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 function RequireRole({ roles, children }: { roles: string[]; children: React.ReactNode }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  if (!roles.includes(user.role)) return <Navigate to="/user/files" replace />;
+  if (!roles.includes(user.role)) return <Navigate to={getDefaultRoute(user.role)} replace />;
   return <>{children}</>;
+}
+
+function DefaultRedirect() {
+  const { user } = useAuth();
+  return <Navigate to={getDefaultRoute(user?.role)} replace />;
 }
 
 export default function App() {
@@ -192,9 +203,11 @@ export default function App() {
                 path="/user/files"
                 element={
                   <RequireAuth>
-                    <UserLayout>
-                      <UserFilesPage />
-                    </UserLayout>
+                    <RequireRole roles={["superadmin", "admin", "user"]}>
+                      <UserLayout>
+                        <UserFilesPage />
+                      </UserLayout>
+                    </RequireRole>
                   </RequireAuth>
                 }
               />
@@ -202,9 +215,11 @@ export default function App() {
                 path="/user/files/:id"
                 element={
                   <RequireAuth>
-                    <UserLayout>
-                      <UserFileDetailsPage />
-                    </UserLayout>
+                    <RequireRole roles={["superadmin", "admin", "user"]}>
+                      <UserLayout>
+                        <UserFileDetailsPage />
+                      </UserLayout>
+                    </RequireRole>
                   </RequireAuth>
                 }
               />
@@ -212,14 +227,23 @@ export default function App() {
                 path="/user/settings"
                 element={
                   <RequireAuth>
-                    <UserLayout>
-                      <SettingsPage />
-                    </UserLayout>
+                    <RequireRole roles={["superadmin", "admin", "user"]}>
+                      <UserLayout>
+                        <SettingsPage />
+                      </UserLayout>
+                    </RequireRole>
                   </RequireAuth>
                 }
               />
 
-              <Route path="*" element={<Navigate to="/user/files" replace />} />
+              <Route
+                path="*"
+                element={
+                  <RequireAuth>
+                    <DefaultRedirect />
+                  </RequireAuth>
+                }
+              />
               </Routes>
             </BrowserRouter>
           </ToastProvider>

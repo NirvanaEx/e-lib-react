@@ -41,10 +41,40 @@ export class FilesService {
     }
   }
 
-  private buildAssetPath(fileItemId: number, versionId: number, lang: string, originalName: string) {
-    const ext = path.extname(originalName) || "";
-    const name = `${uuidv4()}${ext}`;
-    return path.join(this.getUploadDir(), `file_items/${fileItemId}/v${versionId}/${lang}/${name}`);
+  private getDateParts(date = new Date()) {
+    const year = String(date.getFullYear());
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return { year, month, day };
+  }
+
+  private sanitizeFileName(originalName: string) {
+    const base = path.basename(originalName || "");
+    const safe = base.replace(/[<>:"/\\|?*]+/g, "_").replace(/\s+/g, " ").trim();
+    return safe || `${uuidv4()}`;
+  }
+
+  private async ensureUniquePath(targetPath: string) {
+    const parsed = path.parse(targetPath);
+    let candidate = targetPath;
+    let counter = 1;
+    while (true) {
+      try {
+        await fs.access(candidate);
+        candidate = path.join(parsed.dir, `${parsed.name}_${counter}${parsed.ext}`);
+        counter += 1;
+      } catch (_err) {
+        return candidate;
+      }
+    }
+  }
+
+  private async buildAssetPath(originalName: string) {
+    const safeName = this.sanitizeFileName(originalName);
+    const { year, month, day } = this.getDateParts();
+    const dir = path.join(this.getUploadDir(), year, month, day);
+    const rawPath = path.join(dir, safeName);
+    return this.ensureUniquePath(rawPath);
   }
 
   private async validateAccess(user: any, fileItemId: number) {
@@ -152,6 +182,7 @@ export class FilesService {
         categoryId: item.category_id,
         accessType: item.access_type,
         currentVersionId: item.current_version_id,
+        createdAt: item.created_at,
         title: picked?.title || null,
         description: picked?.description || null,
         availableLangs: getAvailableLangs(item.translations)
@@ -220,11 +251,10 @@ export class FilesService {
     }
 
     return this.dbService.db.transaction(async (trx) => {
+      const section = await trx("sections").where({ id: dto.sectionId }).first();
+      if (!section) throw new BadRequestException("Section not found");
       const category = await trx("categories").where({ id: dto.categoryId }).first();
       if (!category) throw new BadRequestException("Category not found");
-      if (category.section_id !== dto.sectionId) {
-        throw new BadRequestException("Category is not in section");
-      }
 
       const [fileItem] = await trx("file_items")
         .insert({
@@ -308,11 +338,10 @@ export class FilesService {
       if (dto.categoryId || dto.sectionId) {
         const sectionId = dto.sectionId ?? file.section_id;
         const categoryId = dto.categoryId ?? file.category_id;
+        const section = await trx("sections").where({ id: sectionId }).first();
+        if (!section) throw new BadRequestException("Section not found");
         const category = await trx("categories").where({ id: categoryId }).first();
         if (!category) throw new BadRequestException("Category not found");
-        if (category.section_id !== sectionId) {
-          throw new BadRequestException("Category is not in section");
-        }
         await trx("file_items")
           .update({ section_id: sectionId, category_id: categoryId, updated_at: trx.fn.now() })
           .where({ id: fileItemId });
@@ -575,7 +604,7 @@ export class FilesService {
           .select("lang", "path", "original_name", "mime", "size", "checksum");
 
         for (const asset of assets) {
-          const newPath = this.buildAssetPath(fileItemId, versionId, asset.lang, asset.original_name);
+          const newPath = await this.buildAssetPath(asset.original_name);
           await this.ensureUploadDir(path.dirname(newPath));
           await fs.copyFile(asset.path, newPath);
 
@@ -696,7 +725,7 @@ export class FilesService {
       throw new BadRequestException("File extension not allowed");
     }
 
-    const newPath = this.buildAssetPath(fileItemId, versionId, lang, file.originalname);
+    const newPath = await this.buildAssetPath(file.originalname);
     await this.ensureUploadDir(path.dirname(newPath));
     await fs.rename(file.path, newPath);
 
@@ -938,29 +967,39 @@ export class FilesService {
         });
       });
 
-    const sectionIds = Array.from(new Set(accessibleFileIds.map((f: any) => f.section_id)));
-    const categoryIds = Array.from(new Set(accessibleFileIds.map((f: any) => f.category_id)));
-
-    if (sectionIds.length === 0) {
+    if (accessibleFileIds.length === 0) {
       return { sections: [], categories: [] };
     }
 
-    const sectionsRows = await this.dbService.db("sections")
-      .leftJoin("sections_translations", "sections.id", "sections_translations.section_id")
-      .whereIn("sections.id", sectionIds)
-      .select("sections.id", "sections_translations.lang", "sections_translations.title");
+    const sectionIds = Array.from(new Set(accessibleFileIds.map((f: any) => f.section_id).filter(Boolean)));
+    const categoryIds = Array.from(new Set(accessibleFileIds.map((f: any) => f.category_id).filter(Boolean)));
 
-    const categoriesRows = await this.dbService.db("categories")
-      .leftJoin("categories_translations", "categories.id", "categories_translations.category_id")
-      .whereIn("categories.id", categoryIds)
-      .select("categories.id", "categories.section_id", "categories.parent_id", "categories_translations.lang", "categories_translations.title");
+    const sectionsRows = sectionIds.length
+      ? await this.dbService.db("sections")
+          .leftJoin("sections_translations", "sections.id", "sections_translations.section_id")
+          .whereIn("sections.id", sectionIds)
+          .select("sections.id", "sections_translations.lang", "sections_translations.title")
+      : [];
+
+    const categoriesRows = categoryIds.length
+      ? await this.dbService.db("categories")
+          .leftJoin("categories_translations", "categories.id", "categories_translations.category_id")
+          .whereIn("categories.id", categoryIds)
+          .select(
+            "categories.id",
+            "categories.parent_id",
+            "categories.depth",
+            "categories_translations.lang",
+            "categories_translations.title"
+          )
+      : [];
 
     const defaultLang = this.getDefaultLang();
     const lang = normalizeLang(preferredLang) || null;
 
     type MenuTranslation = { lang: Lang; title: string };
     type MenuSection = { id: number; translations: MenuTranslation[] };
-    type MenuCategory = { id: number; sectionId: number; parentId: number | null; translations: MenuTranslation[] };
+    type MenuCategory = { id: number; parentId: number | null; depth: number; translations: MenuTranslation[] };
 
     const groupSections = new Map<number, MenuSection>();
     sectionsRows.forEach((row: any) => {
@@ -982,8 +1021,8 @@ export class FilesService {
       if (!groupCategories.has(row.id)) {
         groupCategories.set(row.id, {
           id: row.id,
-          sectionId: row.section_id,
           parentId: row.parent_id,
+          depth: row.depth,
           translations: []
         });
       }
@@ -996,8 +1035,8 @@ export class FilesService {
       const picked = selectTranslation<MenuTranslation>(c.translations, lang, defaultLang);
       return {
         id: c.id,
-        sectionId: c.sectionId,
         parentId: c.parentId,
+        depth: c.depth,
         title: picked?.title || null,
         availableLangs: getAvailableLangs(c.translations)
       };

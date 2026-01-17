@@ -1,6 +1,6 @@
 import api from "../../shared/api/client";
 
-export async function fetchCategories(params: { page: number; pageSize: number; q?: string; sectionId?: number }) {
+export async function fetchCategories(params: { page: number; pageSize: number; q?: string }) {
   const { data } = await api.get("/manage/categories", { params });
   return data;
 }

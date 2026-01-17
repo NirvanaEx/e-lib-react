@@ -8,7 +8,7 @@
   --primary: #1d4d4f;
   --primary-2: #c68a3f;
   --accent: #294c60;
-  --shadow: 0 10px 30px rgba(30, 30, 30, 0.08);
+  --shadow: none;
 }
 
 * {
