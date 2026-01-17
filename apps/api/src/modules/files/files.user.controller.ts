@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post, Query, Res } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Response } from "express";
+import path from "path";
 import { User } from "../../common/decorators/user.decorator";
 import { Lang } from "../../common/decorators/lang.decorator";
 import { Access } from "../../common/decorators/access.decorator";
@@ -11,7 +12,7 @@ import { DownloadDto } from "./dto/download.dto";
 
 @ApiTags("user/files")
 @ApiBearerAuth()
-@Roles("superadmin", "admin", "user")
+@Roles("superadmin", "admin", "manager", "user")
 @Controller("user")
 export class FilesUserController {
   constructor(private readonly filesService: FilesService) {}
@@ -59,6 +60,22 @@ export class FilesUserController {
     @Res() res: Response
   ) {
     const asset = await this.filesService.download(id, user, body.lang || null);
-    return res.download(asset.path, asset.original_name);
+    const filename = this.buildDownloadName(asset.original_name, asset.lang, asset.title);
+    return res.download(asset.path, filename);
+  }
+
+  private buildDownloadName(originalName: string, lang?: string | null, title?: string | null) {
+    const parsed = path.parse(originalName);
+    const baseName = this.sanitizeFilename(title || parsed.name || originalName);
+    const suffix = lang ? `_${lang.toUpperCase()}` : "";
+    const extension = parsed.ext || "";
+    return `${baseName || "file"}${suffix}${extension}`;
+  }
+
+  private sanitizeFilename(value: string) {
+    return value
+      .replace(/[\\/:*?"<>|]+/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 }

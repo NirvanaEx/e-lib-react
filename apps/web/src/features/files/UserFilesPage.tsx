@@ -63,13 +63,16 @@ export default function UserFilesPage() {
             {
               key: "langs",
               label: t("languages"),
-              render: (row) => (
-                <Stack direction="row" spacing={1}>
-                  {(row.availableLangs || []).map((lang: string) => (
-                    <Chip key={lang} size="small" label={lang.toUpperCase()} />
-                  ))}
-                </Stack>
-              )
+              render: (row) => {
+                const langs = row.availableAssetLangs || row.availableLangs || [];
+                return (
+                  <Stack direction="row" spacing={1}>
+                    {langs.map((lang: string) => (
+                      <Chip key={lang} size="small" label={lang.toUpperCase()} />
+                    ))}
+                  </Stack>
+                );
+              }
             },
             {
               key: "actions",

@@ -39,6 +39,7 @@ const permissions = [
   "file.asset.delete",
   "file.trash.read",
   "file.download",
+  "file.download.restricted",
   "stats.read"
 ];
 

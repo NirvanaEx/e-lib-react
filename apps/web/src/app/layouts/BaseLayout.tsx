@@ -21,6 +21,7 @@ import {
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SettingsIcon from "@mui/icons-material/Settings";
+import BusinessIcon from "@mui/icons-material/Business";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/hooks/useAuth";
 import i18n from "../i18n";
@@ -221,14 +222,39 @@ export function BaseLayout({
                 </IconButton>
               </Tooltip>
             )}
-            {user?.role && (
-              <Chip
-                label={user.role}
-                size="small"
-                sx={{ textTransform: "capitalize", fontWeight: 600, backgroundColor: "rgba(29, 77, 79, 0.12)" }}
-              />
+            {user && (
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{
+                  px: 1.5,
+                  py: 0.6,
+                  borderRadius: 99,
+                  border: "1px solid var(--border)",
+                  backgroundColor: "rgba(255,255,255,0.7)"
+                }}
+              >
+                {user.department && (
+                  <Chip
+                    icon={<BusinessIcon fontSize="small" />}
+                    label={user.department}
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                )}
+                {user.role && (
+                  <Chip
+                    label={user.role}
+                    size="small"
+                    sx={{ textTransform: "capitalize", fontWeight: 600, backgroundColor: "rgba(29, 77, 79, 0.12)" }}
+                  />
+                )}
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {user.login}
+                </Typography>
+              </Stack>
             )}
-            <Typography variant="body2">{user?.login}</Typography>
             <Tooltip title={t("logout")}>
               <IconButton onClick={clearAuth} color="inherit">
                 <LogoutIcon />
