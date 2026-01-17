@@ -51,6 +51,7 @@ type CategoryRow = {
   availableLangs?: string[];
   createdAt?: string;
   dataCount?: number;
+  dataOwnCount?: number;
 };
 
 type TreeRow = CategoryRow & {
@@ -289,6 +290,11 @@ export default function CategoriesPage() {
               key: "createdAt",
               label: t("createdAt"),
               render: (row) => formatDateTime(row.createdAt)
+            },
+            {
+              key: "dataOwnCount",
+              label: t("dataOwnCount"),
+              render: (row) => row.dataOwnCount ?? 0
             },
             {
               key: "dataCount",

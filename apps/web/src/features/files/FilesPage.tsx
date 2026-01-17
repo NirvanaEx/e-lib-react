@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Autocomplete,
+  Box,
   Button,
   Chip,
   Dialog,
@@ -16,6 +17,7 @@ import {
   Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DeleteIcon from "@mui/icons-material/Delete";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -40,6 +42,7 @@ import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { getErrorMessage } from "../../shared/utils/errors";
+import { buildPathMap, formatPath } from "../../shared/utils/tree";
 
 const schema = z.object({
   sectionId: z.number().min(1),
@@ -64,7 +67,9 @@ type FileRow = {
 
 type SectionOption = { id: number; title?: string | null };
 
-type CategoryOption = { id: number; title?: string | null; depth?: number };
+type CategoryOption = { id: number; title?: string | null; depth?: number; parentId?: number | null };
+
+type DepartmentOption = { id: number; name: string; parent_id?: number | null; depth?: number };
 
 const defaultValues: FormValues = {
   sectionId: 0,
@@ -115,7 +120,7 @@ export default function FilesPage() {
   });
 
   const sections: SectionOption[] = sectionsData?.data || [];
-  const departments = departmentsData?.data || [];
+  const departments: DepartmentOption[] = departmentsData?.data || [];
   const users = usersData?.data || [];
 
   const { control, handleSubmit, watch, reset } = useForm<FormValues>({
@@ -140,25 +145,45 @@ export default function FilesPage() {
     return map;
   }, [sections]);
 
-  const categoryInfoById = React.useMemo(() => {
-    const map = new Map<number, { title: string; depth: number }>();
-    categories.forEach((category) => {
-      map.set(category.id, {
-        title: category.title || `#${category.id}`,
-        depth: category.depth || 1
-      });
-    });
-    return map;
-  }, [categories]);
-
   const formatSectionLabel = (sectionId: number) => sectionTitleById.get(sectionId) || `#${sectionId}`;
 
-  const formatCategoryLabel = (categoryId: number) => {
-    const category = categoryInfoById.get(categoryId);
-    if (!category) return `#${categoryId}`;
-    const prefix = "- ".repeat(Math.max(0, category.depth - 1));
-    return `${prefix}${category.title}`;
-  };
+  const categoryPathById = React.useMemo(
+    () =>
+      buildPathMap(
+        categories,
+        (item) => item.id,
+        (item) => item.parentId ?? null,
+        (item) => item.title || `#${item.id}`
+      ),
+    [categories]
+  );
+
+  const departmentPathById = React.useMemo(
+    () =>
+      buildPathMap(
+        departments,
+        (item) => item.id,
+        (item) => item.parent_id ?? null,
+        (item) => item.name
+      ),
+    [departments]
+  );
+
+  const getCategoryPath = (id: number) => categoryPathById.get(id) || [`#${id}`];
+  const getDepartmentPath = (id: number) => departmentPathById.get(id) || [`#${id}`];
+
+  const renderPath = (segments: string[]) => (
+    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexWrap: "wrap" }}>
+      {segments.map((segment, index) => (
+        <React.Fragment key={`${segment}-${index}`}>
+          {index > 0 && <ChevronRightIcon fontSize="small" sx={{ color: "text.disabled" }} />}
+          <Box component="span" sx={{ minWidth: 0 }}>
+            {segment}
+          </Box>
+        </React.Fragment>
+      ))}
+    </Stack>
+  );
 
   const formatCreatedAt = (value?: string | null) => (value ? new Date(value).toLocaleDateString() : "-");
 
@@ -276,7 +301,7 @@ export default function FilesPage() {
             {
               key: "category",
               label: t("category"),
-              render: (row) => formatCategoryLabel(row.categoryId)
+              render: (row) => renderPath(getCategoryPath(row.categoryId))
             },
             {
               key: "accessType",
@@ -370,13 +395,12 @@ export default function FilesPage() {
                 render={({ field }) => (
                   <Autocomplete
                     options={categories}
-                    getOptionLabel={(option) => `${"- ".repeat(Math.max(0, (option.depth || 1) - 1))}${option.title || `#${option.id}`}`}
+                    getOptionLabel={(option) => formatPath(getCategoryPath(option.id))}
                     renderOption={(props, option) => {
                       const { key, ...optionProps } = props;
-                      const label = `${"- ".repeat(Math.max(0, (option.depth || 1) - 1))}${option.title || `#${option.id}`}`;
                       return (
                         <li key={option.id} {...optionProps}>
-                          {label}
+                          {renderPath(getCategoryPath(option.id))}
                         </li>
                       );
                     }}
@@ -416,18 +440,18 @@ export default function FilesPage() {
                       <Autocomplete
                         multiple
                         options={departments}
-                        getOptionLabel={(option: any) => option.name}
+                        getOptionLabel={(option: DepartmentOption) => formatPath(getDepartmentPath(option.id))}
                         renderOption={(props, option: any) => {
                           const { key, ...optionProps } = props;
                           return (
                             <li key={option.id} {...optionProps}>
-                              {option.name}
+                              {renderPath(getDepartmentPath(option.id))}
                             </li>
                           );
                         }}
-                        value={departments.filter((dept: any) => field.value?.includes(dept.id))}
-                        isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
-                        onChange={(_, value) => field.onChange(value.map((item: any) => item.id))}
+                        value={departments.filter((dept) => field.value?.includes(dept.id))}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        onChange={(_, value) => field.onChange(value.map((item) => item.id))}
                         renderInput={(params) => <TextField {...params} label={t("allowedDepartments")} />}
                       />
                     )}

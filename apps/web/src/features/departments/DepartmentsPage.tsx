@@ -49,6 +49,7 @@ type DepartmentRow = {
   depth: number;
   created_at?: string;
   dataCount?: number;
+  dataOwnCount?: number;
 };
 
 type TreeRow = DepartmentRow & {
@@ -252,6 +253,11 @@ export default function DepartmentsPage() {
               key: "created_at",
               label: t("createdAt"),
               render: (row) => formatDateTime(row.created_at)
+            },
+            {
+              key: "dataOwnCount",
+              label: t("dataOwnCount"),
+              render: (row) => row.dataOwnCount ?? 0
             },
             {
               key: "dataCount",

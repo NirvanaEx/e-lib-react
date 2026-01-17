@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Autocomplete,
+  Box,
   Button,
   Chip,
   Divider,
@@ -16,6 +17,7 @@ import {
   Tooltip,
   Typography
 } from "@mui/material";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RestoreFromTrashIcon from "@mui/icons-material/RestoreFromTrash";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
@@ -49,6 +51,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { formatDateTime } from "../../shared/utils/date";
 import { formatBytes } from "../../shared/utils/format";
 import { getErrorMessage } from "../../shared/utils/errors";
+import { buildPathMap, formatPath } from "../../shared/utils/tree";
 
 const metadataSchema = z.object({
   sectionId: z.number().min(1),
@@ -62,6 +65,9 @@ type AccessForm = {
   accessDepartmentIds: number[];
   accessUserIds: number[];
 };
+
+type CategoryOption = { id: number; title?: string | null; parentId?: number | null };
+type DepartmentOption = { id: number; name: string; parent_id?: number | null };
 
 export default function FileDetailsPage() {
   const params = useParams();
@@ -101,8 +107,8 @@ export default function FileDetailsPage() {
   });
 
   const sections = sectionsData?.data || [];
-  const categories = categoriesData?.data || [];
-  const departments = departmentsData?.data || [];
+  const categories: CategoryOption[] = categoriesData?.data || [];
+  const departments: DepartmentOption[] = departmentsData?.data || [];
   const users = usersData?.data || [];
 
   const metadataForm = useForm<MetadataForm>({
@@ -113,6 +119,44 @@ export default function FileDetailsPage() {
   const accessForm = useForm<AccessForm>({
     defaultValues: { accessType: "public", accessDepartmentIds: [], accessUserIds: [] }
   });
+
+  const categoryPathById = React.useMemo(
+    () =>
+      buildPathMap(
+        categories,
+        (item) => item.id,
+        (item) => item.parentId ?? null,
+        (item) => item.title || `#${item.id}`
+      ),
+    [categories]
+  );
+
+  const departmentPathById = React.useMemo(
+    () =>
+      buildPathMap(
+        departments,
+        (item) => item.id,
+        (item) => item.parent_id ?? null,
+        (item) => item.name
+      ),
+    [departments]
+  );
+
+  const getCategoryPath = (id: number) => categoryPathById.get(id) || [`#${id}`];
+  const getDepartmentPath = (id: number) => departmentPathById.get(id) || [`#${id}`];
+
+  const renderPath = (segments: string[]) => (
+    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexWrap: "wrap" }}>
+      {segments.map((segment, index) => (
+        <React.Fragment key={`${segment}-${index}`}>
+          {index > 0 && <ChevronRightIcon fontSize="small" sx={{ color: "text.disabled" }} />}
+          <Box component="span" sx={{ minWidth: 0 }}>
+            {segment}
+          </Box>
+        </React.Fragment>
+      ))}
+    </Stack>
+  );
 
   React.useEffect(() => {
     if (file) {
@@ -303,13 +347,12 @@ export default function FileDetailsPage() {
                 render={({ field }) => (
                   <Autocomplete
                     options={categories}
-                    getOptionLabel={(option) => `${"- ".repeat(Math.max(0, (option.depth || 1) - 1))}${option.title || `#${option.id}`}`}
+                    getOptionLabel={(option) => formatPath(getCategoryPath(option.id))}
                     renderOption={(props, option) => {
                       const { key, ...optionProps } = props;
-                      const label = `${"- ".repeat(Math.max(0, (option.depth || 1) - 1))}${option.title || `#${option.id}`}`;
                       return (
                         <li key={option.id} {...optionProps}>
-                          {label}
+                          {renderPath(getCategoryPath(option.id))}
                         </li>
                       );
                     }}
@@ -358,18 +401,18 @@ export default function FileDetailsPage() {
                     <Autocomplete
                       multiple
                       options={departments}
-                      getOptionLabel={(option: any) => option.name}
+                      getOptionLabel={(option: DepartmentOption) => formatPath(getDepartmentPath(option.id))}
                       renderOption={(props, option: any) => {
                         const { key, ...optionProps } = props;
                         return (
                           <li key={option.id} {...optionProps}>
-                            {option.name}
+                            {renderPath(getDepartmentPath(option.id))}
                           </li>
                         );
                       }}
-                      value={departments.filter((dept: any) => field.value.includes(dept.id))}
-                      isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
-                      onChange={(_, value) => field.onChange(value.map((item: any) => item.id))}
+                      value={departments.filter((dept) => field.value.includes(dept.id))}
+                      isOptionEqualToValue={(option, value) => option.id === value.id}
+                      onChange={(_, value) => field.onChange(value.map((item) => item.id))}
                       renderInput={(params) => <TextField {...params} label={t("allowedDepartments")} />}
                     />
                   )}
