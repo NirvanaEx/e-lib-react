@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Autocomplete,
+  Box,
   Button,
   Chip,
   Dialog,
@@ -13,8 +14,10 @@ import {
   Tooltip
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
@@ -32,6 +35,7 @@ import { TranslationsEditor } from "../../shared/ui/TranslationsEditor";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../../shared/utils/errors";
+import { formatDateTime } from "../../shared/utils/date";
 
 const schema = z.object({
   parentId: z.number().nullable().optional()
@@ -45,6 +49,13 @@ type CategoryRow = {
   depth: number;
   title: string | null;
   availableLangs?: string[];
+  createdAt?: string;
+  dataCount?: number;
+};
+
+type TreeRow = CategoryRow & {
+  treeDepth: number;
+  hasChildren: boolean;
 };
 
 const defaultValues: FormValues = {
@@ -54,6 +65,8 @@ const defaultValues: FormValues = {
 export default function CategoriesPage() {
   const [open, setOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<number | null>(null);
+  const [createParentId, setCreateParentId] = React.useState<number | null>(null);
+  const [expandedIds, setExpandedIds] = React.useState<Set<number>>(new Set());
   const [confirmDelete, setConfirmDelete] = React.useState<number | null>(null);
   const [translations, setTranslations] = React.useState<any[]>([]);
   const [search, setSearch] = React.useState("");
@@ -136,16 +149,61 @@ export default function CategoriesPage() {
   const filteredParentOptions = editingId
     ? parentOptions.filter((cat) => cat.id !== editingId)
     : parentOptions;
+  const parentLabel =
+    createParentId !== null
+      ? parentOptions.find((cat) => cat.id === createParentId)?.title || `#${createParentId}`
+      : "";
 
-  const handleOpenCreate = () => {
+  const treeRows: TreeRow[] = React.useMemo(() => {
+    const rowsById = new Map(rows.map((row) => [row.id, row]));
+    const childrenMap = new Map<number | null, CategoryRow[]>();
+
+    rows.forEach((row) => {
+      const parentKey = row.parentId && rowsById.has(row.parentId) ? row.parentId : null;
+      if (!childrenMap.has(parentKey)) {
+        childrenMap.set(parentKey, []);
+      }
+      childrenMap.get(parentKey)?.push(row);
+    });
+
+    const result: TreeRow[] = [];
+    const walk = (node: CategoryRow, depth: number) => {
+      const children = childrenMap.get(node.id) || [];
+      result.push({ ...node, treeDepth: depth, hasChildren: children.length > 0 });
+      if (expandedIds.has(node.id)) {
+        children.forEach((child) => walk(child, depth + 1));
+      }
+    };
+
+    const roots = childrenMap.get(null) || [];
+    roots.forEach((root) => walk(root, 1));
+    return result;
+  }, [rows, expandedIds]);
+
+  const toggleExpanded = (id: number) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleOpenCreate = (parentId?: number | null) => {
     setEditingId(null);
-    reset(defaultValues);
+    const nextParentId = parentId ?? null;
+    setCreateParentId(nextParentId);
+    reset({ parentId: nextParentId });
     setTranslations([{ lang: "ru", title: "" }]);
     setOpen(true);
   };
 
   const handleOpenEdit = (id: number) => {
     setEditingId(id);
+    setCreateParentId(null);
     setOpen(true);
   };
 
@@ -163,7 +221,7 @@ export default function CategoriesPage() {
     }
 
     const payload = {
-      parentId: values.parentId || null,
+      parentId: (createParentId ?? values.parentId) || null,
       translations: normalizedTranslations
     };
 
@@ -179,7 +237,7 @@ export default function CategoriesPage() {
       title={t("categories")}
       subtitle={t("categoriesSubtitle")}
       action={
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenCreate()}>
           {t("newCategory")}
         </Button>
       }
@@ -198,12 +256,23 @@ export default function CategoriesPage() {
         />
       ) : (
         <DataTable
-          rows={rows}
+          rows={treeRows}
           columns={[
             {
               key: "title",
               label: t("title"),
-              render: (row) => `${"- ".repeat(Math.max(0, row.depth - 1))}${row.title || ""}`
+              render: (row) => (
+                <Stack direction="row" alignItems="center" spacing={0.5} sx={{ pl: Math.max(0, row.treeDepth - 1) * 2 }}>
+                  {row.hasChildren ? (
+                  <IconButton size="small" onClick={() => toggleExpanded(row.id)}>
+                    {expandedIds.has(row.id) ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
+                  </IconButton>
+                ) : (
+                    <Box sx={{ width: 32 }} />
+                  )}
+                  <Box sx={{ minWidth: 0 }}>{row.title || ""}</Box>
+                </Stack>
+              )
             },
             {
               key: "langs",
@@ -217,6 +286,16 @@ export default function CategoriesPage() {
               )
             },
             {
+              key: "createdAt",
+              label: t("createdAt"),
+              render: (row) => formatDateTime(row.createdAt)
+            },
+            {
+              key: "dataCount",
+              label: t("dataCount"),
+              render: (row) => row.dataCount ?? 0
+            },
+            {
               key: "actions",
               label: t("actions"),
               align: "right",
@@ -225,6 +304,11 @@ export default function CategoriesPage() {
                   <Tooltip title={t("edit")}>
                     <IconButton size="small" onClick={() => handleOpenEdit(row.id)}>
                       <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t("newCategory")}>
+                    <IconButton size="small" onClick={() => handleOpenCreate(row.id)}>
+                      <AddIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title={t("delete")}>
@@ -247,27 +331,42 @@ export default function CategoriesPage() {
         onPageSizeChange={setPageSize}
       />
 
-      <Dialog open={open} onClose={() => { setOpen(false); setEditingId(null); }} fullWidth maxWidth="md">
+      <Dialog
+        open={open}
+        onClose={() => {
+          setOpen(false);
+          setEditingId(null);
+          setCreateParentId(null);
+        }}
+        fullWidth
+        maxWidth="md"
+      >
         <DialogTitle>{editingId ? t("editCategory") : t("newCategory")}</DialogTitle>
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogContent sx={{ pt: 1 }}>
             <Stack spacing={2} sx={{ mt: 1 }}>
-              <Controller
-                control={control}
-                name="parentId"
-                render={({ field }) => (
-                  <Autocomplete
-                    options={filteredParentOptions}
-                    getOptionLabel={(option) => option.title || `#${option.id}`}
-                    value={filteredParentOptions.find((cat) => cat.id === field.value) || null}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
-                    onChange={(_, value) => field.onChange(value ? value.id : null)}
-                    renderInput={(params) => (
-                      <TextField {...params} label={t("parentCategory")} helperText={t("parentCategoryHint")} />
-                    )}
-                  />
-                )}
-              />
+              {editingId || createParentId === null ? (
+                <Controller
+                  control={control}
+                  name="parentId"
+                  render={({ field }) => (
+                    <Autocomplete
+                      options={filteredParentOptions}
+                      getOptionLabel={(option) =>
+                        `${"- ".repeat(Math.max(0, option.depth - 1))}${option.title || `#${option.id}`}`
+                      }
+                      value={filteredParentOptions.find((cat) => cat.id === field.value) || null}
+                      isOptionEqualToValue={(option, value) => option.id === value.id}
+                      onChange={(_, value) => field.onChange(value ? value.id : null)}
+                      renderInput={(params) => (
+                        <TextField {...params} label={t("parentCategory")} helperText={t("parentCategoryHint")} />
+                      )}
+                    />
+                  )}
+                />
+              ) : (
+                <TextField label={t("parentCategory")} value={parentLabel} disabled fullWidth />
+              )}
               <TranslationsEditor
                 value={translations}
                 onChange={setTranslations}
@@ -277,7 +376,15 @@ export default function CategoriesPage() {
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => { setOpen(false); setEditingId(null); }}>{t("cancel")}</Button>
+            <Button
+              onClick={() => {
+                setOpen(false);
+                setEditingId(null);
+                setCreateParentId(null);
+              }}
+            >
+              {t("cancel")}
+            </Button>
             <Button type="submit" variant="contained" disabled={createMutation.isPending || updateMutation.isPending}>
               {editingId ? t("save") : t("create")}
             </Button>
