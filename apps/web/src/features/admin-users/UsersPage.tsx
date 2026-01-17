@@ -15,6 +15,7 @@ import {
   Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import RestoreFromTrashIcon from "@mui/icons-material/RestoreFromTrash";
@@ -45,6 +46,7 @@ import { SearchField } from "../../shared/ui/SearchField";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { buildPathMap, formatPath } from "../../shared/utils/tree";
 
 const schema = z.object({
   login: z.string().min(1),
@@ -115,6 +117,32 @@ export default function UsersPage() {
 
   const roleOptions: RoleOption[] = rolesData || [];
   const departmentOptions: DepartmentOption[] = departmentsData?.data || [];
+
+  const departmentPathById = React.useMemo(
+    () =>
+      buildPathMap(
+        departmentOptions,
+        (item) => item.id,
+        (item) => item.parent_id ?? null,
+        (item) => item.name
+      ),
+    [departmentOptions]
+  );
+
+  const getDepartmentPath = (id: number) => departmentPathById.get(id) || [`#${id}`];
+
+  const renderPath = (segments: string[]) => (
+    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexWrap: "wrap" }}>
+      {segments.map((segment, index) => (
+        <React.Fragment key={`${segment}-${index}`}>
+          {index > 0 && <ChevronRightIcon fontSize="small" sx={{ color: "text.disabled" }} />}
+          <Box component="span" sx={{ minWidth: 0 }}>
+            {segment}
+          </Box>
+        </React.Fragment>
+      ))}
+    </Stack>
+  );
 
   const createMutation = useMutation({
     mutationFn: createUser,
@@ -262,7 +290,12 @@ export default function UsersPage() {
               label: t("role"),
               render: (row) => <Chip size="small" label={row.role} />
             },
-            { key: "department", label: t("department") },
+            {
+              key: "department",
+              label: t("department"),
+              render: (row) =>
+                row.department_id ? renderPath(getDepartmentPath(row.department_id)) : "-"
+            },
             {
               key: "status",
               label: t("status"),
@@ -357,7 +390,15 @@ export default function UsersPage() {
                 render={({ field }) => (
                   <Autocomplete
                     options={departmentOptions}
-                    getOptionLabel={(option) => option.name}
+                    getOptionLabel={(option) => formatPath(getDepartmentPath(option.id))}
+                    renderOption={(props, option) => {
+                      const { key, ...optionProps } = props;
+                      return (
+                        <li key={option.id} {...optionProps}>
+                          {renderPath(getDepartmentPath(option.id))}
+                        </li>
+                      );
+                    }}
                     value={departmentOptions.find((dept) => dept.id === field.value) || null}
                     isOptionEqualToValue={(option, value) => option.id === value.id}
                     onChange={(_, value) => field.onChange(value ? value.id : null)}

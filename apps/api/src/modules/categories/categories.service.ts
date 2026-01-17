@@ -89,6 +89,7 @@ export class CategoriesService {
     });
 
     let countsById = new Map<number, number>();
+    let ownCountsById = new Map<number, number>();
     if (data.length > 0) {
       const ids = data.map((item) => item.id);
       const result = await this.dbService.db.raw(
@@ -109,11 +110,21 @@ export class CategoriesService {
       );
       const rows = result?.rows || [];
       countsById = new Map(rows.map((row: any) => [Number(row.root_id), Number(row.data_count || 0)]));
+
+      const directRows = (await this.dbService.db("file_items")
+        .select("category_id")
+        .count<{ count: string }>("id as count")
+        .whereIn("category_id", ids)
+        .groupBy("category_id")) as any[];
+      ownCountsById = new Map(
+        (directRows || []).map((row: any) => [Number(row.category_id), Number(row.count || 0)])
+      );
     }
 
     const dataWithCounts = data.map((item) => ({
       ...item,
-      dataCount: countsById.get(item.id) || 0
+      dataCount: countsById.get(item.id) || 0,
+      dataOwnCount: ownCountsById.get(item.id) || 0
     }));
 
     return { data: dataWithCounts, meta: buildPaginationMeta(page, pageSize, Number(countResult?.count || 0)) };

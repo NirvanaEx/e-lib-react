@@ -32,6 +32,7 @@ export class DepartmentsService {
     const data = await query.offset((page - 1) * pageSize).limit(pageSize);
 
     let countsById = new Map<number, number>();
+    let ownCountsById = new Map<number, number>();
     if (data.length > 0) {
       const ids = data.map((item: any) => item.id);
       const result = await this.dbService.db.raw(
@@ -52,11 +53,21 @@ export class DepartmentsService {
       );
       const rows = result?.rows || [];
       countsById = new Map(rows.map((row: any) => [Number(row.root_id), Number(row.data_count || 0)]));
+
+      const directRows = (await this.dbService.db("users")
+        .select("department_id")
+        .count<{ count: string }>("id as count")
+        .whereIn("department_id", ids)
+        .groupBy("department_id")) as any[];
+      ownCountsById = new Map(
+        (directRows || []).map((row: any) => [Number(row.department_id), Number(row.count || 0)])
+      );
     }
 
     const dataWithCounts = data.map((item: any) => ({
       ...item,
-      dataCount: countsById.get(item.id) || 0
+      dataCount: countsById.get(item.id) || 0,
+      dataOwnCount: ownCountsById.get(item.id) || 0
     }));
 
     return { data: dataWithCounts, meta: buildPaginationMeta(page, pageSize, Number(countResult?.count || 0)) };
@@ -65,7 +76,7 @@ export class DepartmentsService {
   async listOptions(params: { page: number; pageSize: number; q?: string }) {
     const { page, pageSize, q } = params;
     const query = this.dbService.db("departments")
-      .select("id", "name")
+      .select("id", "name", "parent_id", "depth")
       .orderBy("name", "asc");
 
     if (q) {
