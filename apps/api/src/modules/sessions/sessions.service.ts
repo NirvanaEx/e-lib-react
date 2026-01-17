@@ -15,8 +15,8 @@ export class SessionsService {
     });
   }
 
-  async list(params: { page: number; pageSize: number; userId?: number }) {
-    const { page, pageSize, userId } = params;
+  async list(params: { page: number; pageSize: number; userId?: number; from?: string; to?: string }) {
+    const { page, pageSize, userId, from, to } = params;
     const query = this.dbService.db("sessions")
       .leftJoin("users", "users.id", "sessions.user_id")
       .select(
@@ -31,6 +31,12 @@ export class SessionsService {
 
     if (userId) {
       query.where("sessions.user_id", userId);
+    }
+    if (from) {
+      query.where("sessions.created_at", ">=", from);
+    }
+    if (to) {
+      query.where("sessions.created_at", "<=", to);
     }
 
     const countResult = await query

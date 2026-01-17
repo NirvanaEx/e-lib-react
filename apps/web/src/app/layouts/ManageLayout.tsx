@@ -6,18 +6,20 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import InsightsIcon from "@mui/icons-material/Insights";
 import SecurityIcon from "@mui/icons-material/Security";
 import { BaseLayout } from "./BaseLayout";
+import { useTranslation } from "react-i18next";
 
 export default function ManageLayout({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const items = [
-    { label: "Sections", path: "/manage/sections", icon: <FolderIcon /> },
-    { label: "Categories", path: "/manage/categories", icon: <CategoryIcon /> },
-    { label: "Files", path: "/manage/files", icon: <DescriptionIcon /> },
-    { label: "Trash", path: "/manage/trash", icon: <DeleteIcon /> },
-    { label: "Stats", path: "/manage/stats", icon: <InsightsIcon /> },
-    { label: "Audit", path: "/manage/audit", icon: <SecurityIcon /> }
+    { label: t("sections"), path: "/manage/sections", icon: <FolderIcon /> },
+    { label: t("categories"), path: "/manage/categories", icon: <CategoryIcon /> },
+    { label: t("files"), path: "/manage/files", icon: <DescriptionIcon /> },
+    { label: t("trash"), path: "/manage/trash", icon: <DeleteIcon /> },
+    { label: t("stats"), path: "/manage/stats", icon: <InsightsIcon /> },
+    { label: t("audit"), path: "/manage/audit", icon: <SecurityIcon /> }
   ];
   return (
-    <BaseLayout title="Manage" items={items}>
+    <BaseLayout title={t("manage")} items={items}>
       {children}
     </BaseLayout>
   );

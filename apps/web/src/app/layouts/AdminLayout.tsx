@@ -4,16 +4,18 @@ import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import HistoryIcon from "@mui/icons-material/History";
 import SecurityIcon from "@mui/icons-material/Security";
 import { BaseLayout } from "./BaseLayout";
+import { useTranslation } from "react-i18next";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const items = [
-    { label: "Users", path: "/admin/users", icon: <PeopleIcon /> },
-    { label: "Departments", path: "/admin/departments", icon: <AccountTreeIcon /> },
-    { label: "Sessions", path: "/admin/sessions", icon: <HistoryIcon /> },
-    { label: "Audit", path: "/admin/audit", icon: <SecurityIcon /> }
+    { label: t("users"), path: "/admin/users", icon: <PeopleIcon /> },
+    { label: t("departments"), path: "/admin/departments", icon: <AccountTreeIcon /> },
+    { label: t("sessions"), path: "/admin/sessions", icon: <HistoryIcon /> },
+    { label: t("audit"), path: "/admin/audit", icon: <SecurityIcon /> }
   ];
   return (
-    <BaseLayout title="Admin" items={items}>
+    <BaseLayout title={t("admin")} items={items}>
       {children}
     </BaseLayout>
   );

@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Button, Paper, TextField, Typography } from "@mui/material";
+import { Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,6 +7,7 @@ import { login } from "./auth.api";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../shared/ui/ToastProvider";
+import { useTranslation } from "react-i18next";
 
 const schema = z.object({
   login: z.string().min(1),
@@ -19,6 +20,7 @@ export default function LoginPage() {
   const { setAuth } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useTranslation();
   const {
     register,
     handleSubmit,
@@ -31,7 +33,7 @@ export default function LoginPage() {
       setAuth(data.accessToken, data.user);
       navigate("/user/files");
     } catch (_err) {
-      showToast({ message: "Login failed", severity: "error" });
+      showToast({ message: t("loginFailed"), severity: "error" });
     }
   };
 
@@ -41,18 +43,33 @@ export default function LoginPage() {
         minHeight: "100vh",
         display: "grid",
         placeItems: "center",
-        padding: 2
+        padding: 2,
+        background:
+          "radial-gradient(600px 380px at 15% 10%, rgba(198,138,63,0.18), transparent 70%), radial-gradient(700px 400px at 100% 0%, rgba(29,77,79,0.18), transparent 60%)"
       }}
     >
-      <Paper elevation={6} sx={{ p: 4, width: "100%", maxWidth: 420 }}>
-        <Typography variant="h5" sx={{ mb: 2 }}>
-          Sign in
-        </Typography>
+      <Paper
+        elevation={0}
+        sx={{
+          p: 4,
+          width: "100%",
+          maxWidth: 460,
+          borderRadius: 4,
+          border: "1px solid var(--border)",
+          boxShadow: "var(--shadow)"
+        }}
+      >
+        <Stack spacing={1} sx={{ mb: 3 }}>
+          <Typography variant="h4">{t("welcomeBack")}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {t("enterCredentials")}
+          </Typography>
+        </Stack>
         <form onSubmit={handleSubmit(onSubmit)}>
           <TextField
             fullWidth
             margin="normal"
-            label="Login"
+            label={t("login")}
             {...register("login")}
             error={!!errors.login}
             helperText={errors.login?.message}
@@ -61,13 +78,13 @@ export default function LoginPage() {
             fullWidth
             margin="normal"
             type="password"
-            label="Password"
+            label={t("password")}
             {...register("password")}
             error={!!errors.password}
             helperText={errors.password?.message}
           />
           <Button fullWidth variant="contained" type="submit" disabled={isSubmitting} sx={{ mt: 2 }}>
-            Sign in
+            {t("signIn")}
           </Button>
         </form>
       </Paper>

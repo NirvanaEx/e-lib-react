@@ -29,3 +29,8 @@ export async function resetUserPassword(id: number) {
   const { data } = await api.post(`/admin/users/${id}/reset-password`);
   return data;
 }
+
+export async function fetchRoles() {
+  const { data } = await api.get("/admin/roles");
+  return data;
+}

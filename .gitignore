@@ -8,4 +8,4 @@ apps/api/coverage
 apps/web/dist
 uploads/*
 !uploads/.gitkeep
-task.md
+tasks/
