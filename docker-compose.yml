@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: e-lib-db
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER:-elib}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-elib}
+      POSTGRES_DB: ${DB_NAME:-elib}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+volumes:
+  db_data:
