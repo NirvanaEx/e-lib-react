@@ -9,25 +9,28 @@ import { LoadingState } from "../../shared/ui/LoadingState";
 import { FiltersBar } from "../../shared/ui/FiltersBar";
 import { PaginationBar } from "../../shared/ui/PaginationBar";
 import { SearchField } from "../../shared/ui/SearchField";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 export default function UserFilesPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslation();
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
   const [sortBy, setSortBy] = React.useState("created_at");
   const [sortDir, setSortDir] = React.useState("desc");
+  const sectionId = Number(searchParams.get("sectionId") || 0) || undefined;
+  const categoryId = Number(searchParams.get("categoryId") || 0) || undefined;
 
   React.useEffect(() => {
     setPage(1);
-  }, [search, pageSize, sortBy, sortDir]);
+  }, [search, pageSize, sortBy, sortDir, sectionId, categoryId]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["user-files", page, pageSize, search, sortBy, sortDir],
-    queryFn: () => fetchUserFiles({ page, pageSize, q: search, sortBy, sortDir })
+    queryKey: ["user-files", page, pageSize, search, sortBy, sortDir, sectionId, categoryId],
+    queryFn: () => fetchUserFiles({ page, pageSize, q: search, sortBy, sortDir, sectionId, categoryId })
   });
 
   const rows = data?.data || [];
@@ -75,7 +78,7 @@ export default function UserFilesPage() {
               render: (row) => (
                 <Typography
                   sx={{ cursor: "pointer", color: "primary.main", fontWeight: 600 }}
-                  onClick={() => navigate(`/user/files/${row.id}`)}
+                  onClick={() => navigate(`/users/${row.id}`)}
                 >
                   {t("open")}
                 </Typography>

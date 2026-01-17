@@ -7,8 +7,7 @@ import { AuthProvider, useAuth } from "../shared/hooks/useAuth";
 import { ToastProvider } from "../shared/ui/ToastProvider";
 import LoginPage from "../features/auth/LoginPage";
 import ChangeTempPasswordPage from "../features/auth/ChangeTempPasswordPage";
-import AdminLayout from "./layouts/AdminLayout";
-import ManageLayout from "./layouts/ManageLayout";
+import DashboardLayout from "./layouts/DashboardLayout";
 import UserLayout from "./layouts/UserLayout";
 import UsersPage from "../features/admin-users/UsersPage";
 import DepartmentsPage from "../features/departments/DepartmentsPage";
@@ -23,14 +22,9 @@ import StatsPage from "../features/stats/StatsPage";
 import UserFilesPage from "../features/files/UserFilesPage";
 import UserFileDetailsPage from "../features/files/UserFileDetailsPage";
 import SettingsPage from "../features/settings/SettingsPage";
+import { getDefaultRoute, hasAccess } from "../shared/utils/access";
 
 const queryClient = new QueryClient();
-
-function getDefaultRoute(role?: string | null) {
-  if (role === "superadmin" || role === "admin") return "/admin/users";
-  if (role === "manager") return "/manage/sections";
-  return "/user/files";
-}
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { token, user } = useAuth();
@@ -41,16 +35,23 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function RequireAccess({ permissions, children }: { permissions: string[]; children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (!hasAccess(user, permissions)) return <Navigate to={getDefaultRoute(user)} replace />;
+  return <>{children}</>;
+}
+
 function RequireRole({ roles, children }: { roles: string[]; children: React.ReactNode }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  if (!roles.includes(user.role)) return <Navigate to={getDefaultRoute(user.role)} replace />;
+  if (!roles.includes(user.role)) return <Navigate to={getDefaultRoute(user)} replace />;
   return <>{children}</>;
 }
 
 function DefaultRedirect() {
   const { user } = useAuth();
-  return <Navigate to={getDefaultRoute(user?.role)} replace />;
+  return <Navigate to={getDefaultRoute(user)} replace />;
 }
 
 export default function App() {
@@ -66,141 +67,129 @@ export default function App() {
               <Route path="/change-temp-password" element={<ChangeTempPasswordPage />} />
 
               <Route
-                path="/admin/users"
+                path="/dashboard/users"
                 element={
                   <RequireAuth>
-                    <RequireRole roles={["superadmin", "admin"]}>
-                      <AdminLayout>
+                    <RequireAccess permissions={["dashboard.access", "user.read"]}>
+                      <DashboardLayout>
                         <UsersPage />
-                      </AdminLayout>
-                    </RequireRole>
+                      </DashboardLayout>
+                    </RequireAccess>
                   </RequireAuth>
                 }
               />
               <Route
-                path="/admin/departments"
+                path="/dashboard/departments"
                 element={
                   <RequireAuth>
-                    <RequireRole roles={["superadmin", "admin"]}>
-                      <AdminLayout>
+                    <RequireAccess permissions={["dashboard.access", "department.read"]}>
+                      <DashboardLayout>
                         <DepartmentsPage />
-                      </AdminLayout>
-                    </RequireRole>
+                      </DashboardLayout>
+                    </RequireAccess>
                   </RequireAuth>
                 }
               />
               <Route
-                path="/admin/sessions"
+                path="/dashboard/sessions"
                 element={
                   <RequireAuth>
-                    <RequireRole roles={["superadmin", "admin"]}>
-                      <AdminLayout>
+                    <RequireAccess permissions={["dashboard.access", "session.read"]}>
+                      <DashboardLayout>
                         <SessionsPage />
-                      </AdminLayout>
-                    </RequireRole>
+                      </DashboardLayout>
+                    </RequireAccess>
                   </RequireAuth>
                 }
               />
               <Route
-                path="/admin/audit"
+                path="/dashboard/audit"
                 element={
                   <RequireAuth>
-                    <RequireRole roles={["superadmin", "admin"]}>
-                      <AdminLayout>
-                        <AuditPage scope="admin" />
-                      </AdminLayout>
-                    </RequireRole>
+                    <RequireAccess permissions={["dashboard.access", "audit.read"]}>
+                      <DashboardLayout>
+                        <AuditPage />
+                      </DashboardLayout>
+                    </RequireAccess>
                   </RequireAuth>
                 }
               />
 
               <Route
-                path="/manage/sections"
+                path="/dashboard/sections"
                 element={
                   <RequireAuth>
-                    <RequireRole roles={["superadmin", "admin", "manager"]}>
-                      <ManageLayout>
+                    <RequireAccess permissions={["dashboard.access", "section.read"]}>
+                      <DashboardLayout>
                         <SectionsPage />
-                      </ManageLayout>
-                    </RequireRole>
+                      </DashboardLayout>
+                    </RequireAccess>
                   </RequireAuth>
                 }
               />
               <Route
-                path="/manage/categories"
+                path="/dashboard/categories"
                 element={
                   <RequireAuth>
-                    <RequireRole roles={["superadmin", "admin", "manager"]}>
-                      <ManageLayout>
+                    <RequireAccess permissions={["dashboard.access", "category.read"]}>
+                      <DashboardLayout>
                         <CategoriesPage />
-                      </ManageLayout>
-                    </RequireRole>
+                      </DashboardLayout>
+                    </RequireAccess>
                   </RequireAuth>
                 }
               />
               <Route
-                path="/manage/files"
+                path="/dashboard/files"
                 element={
                   <RequireAuth>
-                    <RequireRole roles={["superadmin", "admin", "manager"]}>
-                      <ManageLayout>
+                    <RequireAccess permissions={["dashboard.access", "file.read"]}>
+                      <DashboardLayout>
                         <FilesPage />
-                      </ManageLayout>
-                    </RequireRole>
+                      </DashboardLayout>
+                    </RequireAccess>
                   </RequireAuth>
                 }
               />
               <Route
-                path="/manage/files/:id"
+                path="/dashboard/files/:id"
                 element={
                   <RequireAuth>
-                    <RequireRole roles={["superadmin", "admin", "manager"]}>
-                      <ManageLayout>
+                    <RequireAccess permissions={["dashboard.access", "file.read"]}>
+                      <DashboardLayout>
                         <FileDetailsPage />
-                      </ManageLayout>
-                    </RequireRole>
+                      </DashboardLayout>
+                    </RequireAccess>
                   </RequireAuth>
                 }
               />
               <Route
-                path="/manage/trash"
+                path="/dashboard/trash"
                 element={
                   <RequireAuth>
-                    <RequireRole roles={["superadmin", "admin", "manager"]}>
-                      <ManageLayout>
+                    <RequireAccess permissions={["dashboard.access", "file.trash.read"]}>
+                      <DashboardLayout>
                         <TrashPage />
-                      </ManageLayout>
-                    </RequireRole>
+                      </DashboardLayout>
+                    </RequireAccess>
                   </RequireAuth>
                 }
               />
               <Route
-                path="/manage/stats"
+                path="/dashboard/stats"
                 element={
                   <RequireAuth>
-                    <RequireRole roles={["superadmin", "admin", "manager"]}>
-                      <ManageLayout>
+                    <RequireAccess permissions={["dashboard.access", "stats.read"]}>
+                      <DashboardLayout>
                         <StatsPage />
-                      </ManageLayout>
-                    </RequireRole>
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/manage/audit"
-                element={
-                  <RequireAuth>
-                    <RequireRole roles={["superadmin", "admin", "manager"]}>
-                      <ManageLayout>
-                        <AuditPage scope="manage" />
-                      </ManageLayout>
-                    </RequireRole>
+                      </DashboardLayout>
+                    </RequireAccess>
                   </RequireAuth>
                 }
               />
 
               <Route
-                path="/user/files"
+                path="/users"
                 element={
                   <RequireAuth>
                     <RequireRole roles={["superadmin", "admin", "user"]}>
@@ -212,7 +201,7 @@ export default function App() {
                 }
               />
               <Route
-                path="/user/files/:id"
+                path="/users/:id"
                 element={
                   <RequireAuth>
                     <RequireRole roles={["superadmin", "admin", "user"]}>
@@ -224,7 +213,7 @@ export default function App() {
                 }
               />
               <Route
-                path="/user/settings"
+                path="/users/settings"
                 element={
                   <RequireAuth>
                     <RequireRole roles={["superadmin", "admin", "user"]}>

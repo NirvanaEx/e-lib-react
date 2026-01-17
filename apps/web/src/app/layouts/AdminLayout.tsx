@@ -9,13 +9,13 @@ import { useTranslation } from "react-i18next";
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const items = [
-    { label: t("users"), path: "/admin/users", icon: <PeopleIcon /> },
-    { label: t("departments"), path: "/admin/departments", icon: <AccountTreeIcon /> },
-    { label: t("sessions"), path: "/admin/sessions", icon: <HistoryIcon /> },
-    { label: t("audit"), path: "/admin/audit", icon: <SecurityIcon /> }
+    { label: t("users"), path: "/dashboard/users", icon: <PeopleIcon /> },
+    { label: t("departments"), path: "/dashboard/departments", icon: <AccountTreeIcon /> },
+    { label: t("sessions"), path: "/dashboard/sessions", icon: <HistoryIcon /> },
+    { label: t("audit"), path: "/dashboard/audit", icon: <SecurityIcon /> }
   ];
   return (
-    <BaseLayout title={t("admin")} items={items}>
+    <BaseLayout title={t("dashboard")} items={items}>
       {children}
     </BaseLayout>
   );

@@ -10,6 +10,7 @@ export interface JwtPayload {
   departmentId: number | null;
   mustChangePassword: boolean;
   lang?: string | null;
+  permissions?: string[];
 }
 
 @Injectable()
@@ -29,7 +30,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       role: payload.role,
       departmentId: payload.departmentId,
       mustChangePassword: payload.mustChangePassword,
-      lang: payload.lang || null
+      lang: payload.lang || null,
+      permissions: payload.permissions || []
     };
   }
 }

@@ -25,8 +25,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { fetchFiles, createFile, deleteFile } from "./files.api";
 import { fetchSections } from "../sections/sections.api";
 import { fetchCategories } from "../categories/categories.api";
-import { fetchDepartments } from "../departments/departments.api";
-import { fetchUsers } from "../admin-users/users.api";
+import { fetchDepartmentOptions } from "../departments/departments.api";
+import { fetchUserOptions } from "../admin-users/users.api";
 import { DataTable } from "../../shared/ui/DataTable";
 import { Page } from "../../shared/ui/Page";
 import { EmptyState } from "../../shared/ui/EmptyState";
@@ -106,12 +106,12 @@ export default function FilesPage() {
 
   const { data: departmentsData } = useQuery({
     queryKey: ["departments", "options", 200],
-    queryFn: () => fetchDepartments({ page: 1, pageSize: 200 })
+    queryFn: () => fetchDepartmentOptions({ page: 1, pageSize: 200 })
   });
 
   const { data: usersData } = useQuery({
     queryKey: ["users", "options", "file-access"],
-    queryFn: () => fetchUsers({ page: 1, pageSize: 100 })
+    queryFn: () => fetchUserOptions({ page: 1, pageSize: 100 })
   });
 
   const sections: SectionOption[] = sectionsData?.data || [];
@@ -308,7 +308,7 @@ export default function FilesPage() {
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   <Tooltip title={t("open")}>
-                    <IconButton size="small" onClick={() => navigate(`/manage/files/${row.id}`)}>
+                    <IconButton size="small" onClick={() => navigate(`/dashboard/files/${row.id}`)}>
                       <OpenInNewIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -360,7 +360,7 @@ export default function FilesPage() {
                 )}
               />
               {sections.length === 0 && (
-                <Button size="small" onClick={() => navigate("/manage/sections")}>
+                <Button size="small" onClick={() => navigate("/dashboard/sections")}>
                   {t("createSection")}
                 </Button>
               )}
@@ -388,7 +388,7 @@ export default function FilesPage() {
                 )}
               />
               {categories.length === 0 && (
-                <Button size="small" onClick={() => navigate("/manage/categories")}>
+                <Button size="small" onClick={() => navigate("/dashboard/categories")}>
                   {t("createCategory")}
                 </Button>
               )}

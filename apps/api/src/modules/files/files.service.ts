@@ -781,8 +781,8 @@ export class FilesService {
     return { success: true };
   }
 
-  async listUserFiles(params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string }, user: any, preferredLang: string | null) {
-    const { page, pageSize, q, sortBy, sortDir } = params;
+  async listUserFiles(params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string; sectionId?: number; categoryId?: number }, user: any, preferredLang: string | null) {
+    const { page, pageSize, q, sortBy, sortDir, sectionId, categoryId } = params;
     const query = this.dbService.db("file_items")
       .leftJoin("file_translations", "file_items.id", "file_translations.file_item_id")
       .select(
@@ -810,6 +810,14 @@ export class FilesService {
           this.select("file_item_id").from("file_access_users").where("user_id", user.id);
         });
       });
+
+    if (sectionId) {
+      query.where("file_items.section_id", sectionId);
+    }
+
+    if (categoryId) {
+      query.where("file_items.category_id", categoryId);
+    }
 
     if (q) {
       query.whereILike("file_translations.title", `%${q}%`);

@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { changeTempPassword } from "./auth.api";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../../shared/hooks/useAuth";
+import { getDefaultRoute } from "../../shared/utils/access";
 
 const schema = z.object({
   currentPassword: z.string().min(1),
@@ -17,6 +19,7 @@ type FormValues = z.infer<typeof schema>;
 export default function ChangeTempPasswordPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user } = useAuth();
   const {
     register,
     handleSubmit,
@@ -25,7 +28,7 @@ export default function ChangeTempPasswordPage() {
 
   const onSubmit = async (values: FormValues) => {
     await changeTempPassword(values);
-    navigate("/user/files");
+    navigate(getDefaultRoute(user));
   };
 
   return (

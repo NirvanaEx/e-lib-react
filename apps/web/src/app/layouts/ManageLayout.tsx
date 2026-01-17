@@ -11,15 +11,15 @@ import { useTranslation } from "react-i18next";
 export default function ManageLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const items = [
-    { label: t("sections"), path: "/manage/sections", icon: <FolderIcon /> },
-    { label: t("categories"), path: "/manage/categories", icon: <CategoryIcon /> },
-    { label: t("files"), path: "/manage/files", icon: <DescriptionIcon /> },
-    { label: t("trash"), path: "/manage/trash", icon: <DeleteIcon /> },
-    { label: t("stats"), path: "/manage/stats", icon: <InsightsIcon /> },
-    { label: t("audit"), path: "/manage/audit", icon: <SecurityIcon /> }
+    { label: t("sections"), path: "/dashboard/sections", icon: <FolderIcon /> },
+    { label: t("categories"), path: "/dashboard/categories", icon: <CategoryIcon /> },
+    { label: t("files"), path: "/dashboard/files", icon: <DescriptionIcon /> },
+    { label: t("trash"), path: "/dashboard/trash", icon: <DeleteIcon /> },
+    { label: t("stats"), path: "/dashboard/stats", icon: <InsightsIcon /> },
+    { label: t("audit"), path: "/dashboard/audit", icon: <SecurityIcon /> }
   ];
   return (
-    <BaseLayout title={t("manage")} items={items}>
+    <BaseLayout title={t("dashboard")} items={items}>
       {children}
     </BaseLayout>
   );

@@ -23,6 +23,8 @@ import { PaginationBar } from "../../shared/ui/PaginationBar";
 import { LoadingState } from "../../shared/ui/LoadingState";
 import { formatDateTime } from "../../shared/utils/date";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../../shared/hooks/useAuth";
+import { hasAccess } from "../../shared/utils/access";
 
 const actionOptions = [
   "FILE_CREATED",
@@ -55,8 +57,9 @@ const actionOptions = [
 
 const entityOptions = ["FILE", "FILE_VERSION", "SECTION", "CATEGORY", "USER", "DEPARTMENT"];
 
-export default function AuditPage({ scope }: { scope: "admin" | "manage" }) {
+export default function AuditPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
   const [actorId, setActorId] = React.useState<number | null>(null);
@@ -72,9 +75,9 @@ export default function AuditPage({ scope }: { scope: "admin" | "manage" }) {
   }, [actorId, action, entityType, from, to, pageSize]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["audit", scope, page, pageSize, actorId, action, entityType, from, to],
+    queryKey: ["audit", page, pageSize, actorId, action, entityType, from, to],
     queryFn: () =>
-      fetchAudit(scope, {
+      fetchAudit({
         page,
         pageSize,
         actorId: actorId || undefined,
@@ -85,14 +88,17 @@ export default function AuditPage({ scope }: { scope: "admin" | "manage" }) {
       })
   });
 
+  const canReadUsers = hasAccess(user, ["user.read"]);
+
   const { data: usersData } = useQuery({
     queryKey: ["users", "options", actorSearch],
-    queryFn: () => fetchUsers({ page: 1, pageSize: 50, q: actorSearch })
+    queryFn: () => fetchUsers({ page: 1, pageSize: 50, q: actorSearch }),
+    enabled: canReadUsers
   });
 
   const rows = data?.data || [];
   const meta = data?.meta || { page, pageSize, total: 0 };
-  const userOptions = usersData?.data || [];
+  const userOptions = canReadUsers ? usersData?.data || [] : [];
 
   return (
     <Page title={t("audit")} subtitle={t("auditSubtitle")}>

@@ -8,6 +8,7 @@ import { useAuth } from "../../shared/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
+import { getDefaultRoute } from "../../shared/utils/access";
 
 const schema = z.object({
   login: z.string().min(1),
@@ -31,13 +32,7 @@ export default function LoginPage() {
     try {
       const data = await login(values);
       setAuth(data.accessToken, data.user);
-      if (data.user?.role === "superadmin" || data.user?.role === "admin") {
-        navigate("/admin/users");
-      } else if (data.user?.role === "manager") {
-        navigate("/manage/sections");
-      } else {
-        navigate("/user/files");
-      }
+      navigate(getDefaultRoute(data.user));
     } catch (_err) {
       showToast({ message: t("loginFailed"), severity: "error" });
     }
