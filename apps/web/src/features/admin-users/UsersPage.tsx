@@ -9,6 +9,8 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  Tab,
+  Tabs,
   Stack,
   TextField,
   Tooltip,
@@ -51,6 +53,7 @@ import { useNavigate } from "react-router-dom";
 import { buildPathMap, formatPath } from "../../shared/utils/tree";
 import { formatDateTime } from "../../shared/utils/date";
 import { useAuth } from "../../shared/hooks/useAuth";
+import { UserFilesPanel } from "./UserFilesPanel";
 
 const schema = z.object({
   login: z.string().min(1),
@@ -77,6 +80,7 @@ type UserRow = {
   must_change_password?: boolean;
   deleted_at?: string | null;
   created_at?: string;
+  can_submit_files?: boolean;
 };
 
 type RoleOption = { id: number; name: string; level?: number };
@@ -100,6 +104,8 @@ export default function UsersPage() {
   const resetTargetRef = React.useRef<UserRow | null>(null);
   const [confirmAction, setConfirmAction] = React.useState<null | { type: "delete" | "restore"; user: UserRow }>(null);
   const [confirmReset, setConfirmReset] = React.useState<UserRow | null>(null);
+  const [dialogTab, setDialogTab] = React.useState(0);
+  const [canSubmitFiles, setCanSubmitFiles] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
@@ -252,8 +258,10 @@ export default function UsersPage() {
         roleId: editingUser.role_id,
         departmentId: editingUser.department_id ?? null
       });
+      setCanSubmitFiles(Boolean(editingUser.can_submit_files));
     } else {
       reset(defaultValues);
+      setCanSubmitFiles(false);
     }
   }, [editingUser, reset]);
 
@@ -275,16 +283,23 @@ export default function UsersPage() {
     }
   };
 
+  const handleSaveFiles = () => {
+    if (!editingUser) return;
+    updateMutation.mutate({ id: editingUser.id, payload: { canSubmitFiles } });
+  };
+
   const rows: UserRow[] = data?.data || [];
   const meta = data?.meta || { page, pageSize, total: 0 };
 
   const openCreate = () => {
     setEditingUser(null);
+    setDialogTab(0);
     setOpen(true);
   };
 
   const openEdit = (row: UserRow) => {
     setEditingUser(row);
+    setDialogTab(0);
     setOpen(true);
   };
 
@@ -389,27 +404,52 @@ export default function UsersPage() {
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   {!row.deleted_at && canManageUser(row) && (
                     <Tooltip title={t("edit")}>
-                      <IconButton size="small" onClick={() => openEdit(row)}>
+                      <IconButton
+                        size="small"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openEdit(row);
+                        }}
+                      >
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   )}
                   {!row.deleted_at && canManageUser(row) ? (
                     <Tooltip title={t("delete")}>
-                      <IconButton size="small" color="error" onClick={() => setConfirmAction({ type: "delete", user: row })}>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setConfirmAction({ type: "delete", user: row });
+                        }}
+                      >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   ) : row.deleted_at && canManageUser(row) ? (
                     <Tooltip title={t("restore")}>
-                      <IconButton size="small" onClick={() => setConfirmAction({ type: "restore", user: row })}>
+                      <IconButton
+                        size="small"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setConfirmAction({ type: "restore", user: row });
+                        }}
+                      >
                         <RestoreFromTrashIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   ) : null}
                   {canManageUser(row) && (
                     <Tooltip title={t("resetPassword")}>
-                      <IconButton size="small" onClick={() => setConfirmReset(row)}>
+                      <IconButton
+                        size="small"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setConfirmReset(row);
+                        }}
+                      >
                         <VpnKeyIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
@@ -429,10 +469,16 @@ export default function UsersPage() {
         onPageSizeChange={setPageSize}
       />
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{editingUser ? t("editUser") : t("newUser")}</DialogTitle>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <DialogContent sx={{ pt: 1 }}>
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>{editingUser ? `${t("user")}: ${editingUser.login}` : t("newUser")}</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          {editingUser && (
+            <Tabs value={dialogTab} onChange={(_, value) => setDialogTab(value)} sx={{ mb: 2 }}>
+              <Tab label={t("user")} />
+              <Tab label={t("files")} />
+            </Tabs>
+          )}
+          {!editingUser || dialogTab === 0 ? (
             <Stack spacing={2} sx={{ mt: 1 }}>
               <TextField label={t("login")} fullWidth required {...register("login")} error={!!errors.login} />
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -496,14 +542,33 @@ export default function UsersPage() {
                 </Button>
               )}
             </Stack>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpen(false)}>{t("cancel")}</Button>
-            <Button type="submit" variant="contained" disabled={createMutation.isPending || updateMutation.isPending}>
+          ) : (
+            editingUser && (
+              <UserFilesPanel
+                user={editingUser}
+                canSubmitFiles={canSubmitFiles}
+                onChange={setCanSubmitFiles}
+              />
+            )
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)}>{t("cancel")}</Button>
+          {(!editingUser || dialogTab === 0) && (
+            <Button
+              variant="contained"
+              onClick={handleSubmit(onSubmit)}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
               {editingUser ? t("save") : t("create")}
             </Button>
-          </DialogActions>
-        </form>
+          )}
+          {editingUser && dialogTab === 1 && (
+            <Button variant="contained" onClick={handleSaveFiles} disabled={updateMutation.isPending}>
+              {t("save")}
+            </Button>
+          )}
+        </DialogActions>
       </Dialog>
 
       <ConfirmDialog

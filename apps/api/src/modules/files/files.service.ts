@@ -992,6 +992,38 @@ export class FilesService {
     return { success: true };
   }
 
+  private async assertUserCanSubmit(userId: number) {
+    const user = await this.dbService.db("users")
+      .select("id", "can_submit_files")
+      .where({ id: userId })
+      .whereNull("deleted_at")
+      .first();
+    if (!user || !user.can_submit_files) {
+      throw new ForbiddenException("File submission is not allowed");
+    }
+  }
+
+  async submitUserFile(
+    dto: { sectionId: number; categoryId: number; title: string; description?: string | null; lang: string },
+    file: Express.Multer.File,
+    actor: any
+  ) {
+    await this.assertUserCanSubmit(actor.id);
+    const title = dto.title.trim();
+    const description = dto.description?.trim() || null;
+    const payload = {
+      sectionId: dto.sectionId,
+      categoryId: dto.categoryId,
+      accessType: "restricted",
+      accessDepartmentIds: [],
+      accessUserIds: [actor.id],
+      translations: [{ lang: dto.lang, title, description }]
+    };
+    const result = await this.create(payload, actor.id);
+    await this.uploadAsset(result.id, result.currentVersionId, dto.lang, file, actor.id);
+    return result;
+  }
+
   async listUserFiles(params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string; sectionId?: number; categoryId?: number }, user: any, preferredLang: string | null) {
     const { page, pageSize, q, sortBy, sortDir, sectionId, categoryId } = params;
     const db = this.dbService.db;

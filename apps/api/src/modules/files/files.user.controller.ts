@@ -1,5 +1,8 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Query, Res } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Query, Res, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { ApiBearerAuth, ApiConsumes, ApiTags } from "@nestjs/swagger";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { diskStorage } from "multer";
+import fs from "fs";
 import { Response } from "express";
 import path from "path";
 import { User } from "../../common/decorators/user.decorator";
@@ -9,6 +12,14 @@ import { Roles } from "../../common/decorators/roles.decorator";
 import { FilesService } from "./files.service";
 import { FilesQueryDto } from "./dto/files-query.dto";
 import { DownloadDto } from "./dto/download.dto";
+import { SubmitUserFileDto } from "./dto/submit-user-file.dto";
+
+const rawUploadDir = process.env.UPLOAD_DIR || "uploads";
+const uploadDir = path.isAbsolute(rawUploadDir) ? rawUploadDir : path.resolve(process.cwd(), rawUploadDir);
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+const maxSize = Number(process.env.MAX_UPLOAD_SIZE_MB || 10) * 1024 * 1024;
 
 @ApiTags("user/files")
 @ApiBearerAuth()
@@ -45,6 +56,28 @@ export class FilesUserController {
       user,
       lang
     );
+  }
+
+  @ApiConsumes("multipart/form-data")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: diskStorage({
+        destination: uploadDir,
+        filename: (_req, file, cb) => {
+          const ext = path.extname(file.originalname);
+          cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+        }
+      }),
+      limits: { fileSize: maxSize }
+    })
+  )
+  @Post("files")
+  async submitFile(
+    @Body() body: SubmitUserFileDto,
+    @UploadedFile() file: Express.Multer.File,
+    @User() user: any
+  ) {
+    return this.filesService.submitUserFile(body, file, user);
   }
 
   @Get("files/:id")
