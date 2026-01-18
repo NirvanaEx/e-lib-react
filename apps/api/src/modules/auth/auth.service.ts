@@ -14,6 +14,27 @@ export class AuthService {
     private readonly sessionsService: SessionsService
   ) {}
 
+  private async getDepartmentPath(departmentId: number | null) {
+    if (!departmentId) return null;
+    const result = await this.dbService.db.raw(
+      `WITH RECURSIVE tree AS (
+        SELECT id, name, parent_id, depth FROM departments WHERE id = ?
+        UNION ALL
+        SELECT d.id, d.name, d.parent_id, d.depth
+        FROM departments d
+        JOIN tree t ON t.parent_id = d.id
+      )
+      SELECT id, name, depth FROM tree`,
+      [departmentId]
+    );
+    const rows = (result?.rows || [])
+      .map((row: any) => ({ name: row.name, depth: Number(row.depth) }))
+      .filter((row: any) => row.name);
+    if (!rows.length) return null;
+    rows.sort((a: any, b: any) => a.depth - b.depth);
+    return rows.map((row: any) => row.name).join("/");
+  }
+
   async login(login: string, password: string, ip: string, userAgent: string | undefined) {
     const user = await this.dbService.db("users")
       .leftJoin("roles", "roles.id", "users.role_id")
@@ -54,6 +75,7 @@ export class AuthService {
 
     await this.sessionsService.logSession(user.id, ip, userAgent || "");
 
+    const departmentPath = await this.getDepartmentPath(user.department_id);
     const token = this.jwtService.sign(
       {
         sub: user.id,
@@ -61,7 +83,7 @@ export class AuthService {
         role: user.role,
         roleLevel: user.role_level,
         departmentId: user.department_id,
-        department: user.department,
+        department: departmentPath || user.department,
         mustChangePassword: user.must_change_password,
         lang: user.lang,
         permissions
@@ -77,7 +99,7 @@ export class AuthService {
         role: user.role,
         roleLevel: user.role_level,
         departmentId: user.department_id,
-        department: user.department,
+        department: departmentPath || user.department,
         mustChangePassword: user.must_change_password,
         surname: user.surname,
         name: user.name,
@@ -138,6 +160,7 @@ export class AuthService {
       .where("role_permissions.role_id", refreshed.role_id)
       .pluck("permissions.name");
 
+    const departmentPath = await this.getDepartmentPath(refreshed.department_id);
     const token = this.jwtService.sign(
       {
         sub: refreshed.id,
@@ -145,7 +168,7 @@ export class AuthService {
         role: refreshed.role,
         roleLevel: refreshed.role_level,
         departmentId: refreshed.department_id,
-        department: refreshed.department,
+        department: departmentPath || refreshed.department,
         mustChangePassword: false,
         lang: refreshed.lang,
         permissions
@@ -161,7 +184,7 @@ export class AuthService {
         role: refreshed.role,
         roleLevel: refreshed.role_level,
         departmentId: refreshed.department_id,
-        department: refreshed.department,
+        department: departmentPath || refreshed.department,
         mustChangePassword: false,
         surname: refreshed.surname,
         name: refreshed.name,

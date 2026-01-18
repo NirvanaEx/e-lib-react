@@ -49,6 +49,22 @@ export class FilesService {
     return rows.map((row: any) => Number(row.id));
   }
 
+  private async getCategoryScopeIds(categoryId: number | null) {
+    if (!categoryId) return [];
+    const result = await this.dbService.db.raw(
+      `WITH RECURSIVE tree AS (
+        SELECT id FROM categories WHERE id = ?
+        UNION ALL
+        SELECT c.id FROM categories c
+        JOIN tree t ON c.parent_id = t.id
+      )
+      SELECT id FROM tree`,
+      [categoryId]
+    );
+    const rows = result?.rows || [];
+    return rows.map((row: any) => Number(row.id)).filter((id: number) => Number.isFinite(id));
+  }
+
   private buildMenu(sectionsRows: any[], categoriesRows: any[], preferredLang: string | null) {
     const defaultLang = this.getDefaultLang();
     const lang = normalizeLang(preferredLang) || null;
@@ -173,7 +189,11 @@ export class FilesService {
 
   async listManage(params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string }, preferredLang: string | null) {
     const { page, pageSize, q, sortBy, sortDir } = params;
-    const query = this.dbService.db("file_items")
+    const db = this.dbService.db;
+    const defaultLang = this.getDefaultLang();
+    const lang = normalizeLang(preferredLang) || null;
+    const sortLang = lang || defaultLang;
+    const query = db("file_items")
       .leftJoin("file_translations", "file_items.id", "file_translations.file_item_id")
       .leftJoin("file_versions", "file_items.current_version_id", "file_versions.id")
       .select(
@@ -197,7 +217,47 @@ export class FilesService {
 
     const direction = sortDir === "asc" ? "asc" : "desc";
     if (sortBy === "title") {
-      query.orderBy("file_translations.title", direction);
+      query.leftJoin({ sort_title_pref: "file_translations" }, function () {
+        this.on("file_items.id", "sort_title_pref.file_item_id").andOn("sort_title_pref.lang", db.raw("?", [sortLang]));
+      });
+      if (sortLang !== defaultLang) {
+        query.leftJoin({ sort_title_def: "file_translations" }, function () {
+          this.on("file_items.id", "sort_title_def.file_item_id").andOn("sort_title_def.lang", db.raw("?", [defaultLang]));
+        });
+      }
+      if (sortLang !== defaultLang) {
+        query.orderByRaw(`coalesce(??, ??) ${direction}`, ["sort_title_pref.title", "sort_title_def.title"]);
+      } else {
+        query.orderByRaw(`?? ${direction}`, ["sort_title_pref.title"]);
+      }
+    } else if (sortBy === "category") {
+      query.leftJoin("categories", "file_items.category_id", "categories.id");
+      query.leftJoin({ sort_cat_pref: "categories_translations" }, function () {
+        this.on("categories.id", "sort_cat_pref.category_id").andOn("sort_cat_pref.lang", db.raw("?", [sortLang]));
+      });
+      if (sortLang !== defaultLang) {
+        query.leftJoin({ sort_cat_def: "categories_translations" }, function () {
+          this.on("categories.id", "sort_cat_def.category_id").andOn("sort_cat_def.lang", db.raw("?", [defaultLang]));
+        });
+      }
+      if (sortLang !== defaultLang) {
+        query.orderByRaw(`coalesce(??, ??) ${direction}`, ["sort_cat_pref.title", "sort_cat_def.title"]);
+      } else {
+        query.orderByRaw(`?? ${direction}`, ["sort_cat_pref.title"]);
+      }
+    } else if (sortBy === "size") {
+      const sizeTotals = db("file_version_assets")
+        .select("file_version_id")
+        .sum<{ size: string }>("size as size")
+        .groupBy("file_version_id")
+        .as("size_totals");
+      query.leftJoin(sizeTotals, "size_totals.file_version_id", "file_items.current_version_id");
+      query.leftJoin({ size_pref: "file_version_assets" }, function () {
+        this.on("size_pref.file_version_id", "file_items.current_version_id").andOn("size_pref.lang", db.raw("?", [sortLang]));
+      });
+      query.orderByRaw(`coalesce(??, ??, 0) ${direction}`, ["size_pref.size", "size_totals.size"]);
+    } else if (sortBy === "updated_at") {
+      query.orderBy("file_items.updated_at", direction);
     } else {
       query.orderBy("file_items.created_at", direction);
     }
@@ -244,9 +304,6 @@ export class FilesService {
         });
       }
     });
-
-    const defaultLang = this.getDefaultLang();
-    const lang = normalizeLang(preferredLang) || null;
 
     const baseData = Array.from(grouped.values()).map((item) => {
       const picked = selectTranslation<FileTranslation>(item.translations, lang, defaultLang);
@@ -904,8 +961,12 @@ export class FilesService {
 
   async listUserFiles(params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string; sectionId?: number; categoryId?: number }, user: any, preferredLang: string | null) {
     const { page, pageSize, q, sortBy, sortDir, sectionId, categoryId } = params;
+    const db = this.dbService.db;
+    const defaultLang = this.getDefaultLang();
+    const lang = normalizeLang(preferredLang) || null;
+    const sortLang = lang || defaultLang;
     const departmentIds = await this.getDepartmentScopeIds(user.departmentId);
-    const query = this.dbService.db("file_items")
+    const query = db("file_items")
       .leftJoin("file_translations", "file_items.id", "file_translations.file_item_id")
       .select(
         "file_items.id",
@@ -939,7 +1000,12 @@ export class FilesService {
     }
 
     if (categoryId) {
-      query.where("file_items.category_id", categoryId);
+      const categoryIds = await this.getCategoryScopeIds(categoryId);
+      if (categoryIds.length) {
+        query.whereIn("file_items.category_id", categoryIds);
+      } else {
+        query.where("file_items.category_id", categoryId);
+      }
     }
 
     if (q) {
@@ -948,7 +1014,47 @@ export class FilesService {
 
     const direction = sortDir === "asc" ? "asc" : "desc";
     if (sortBy === "title") {
-      query.orderBy("file_translations.title", direction);
+      query.leftJoin({ sort_title_pref: "file_translations" }, function () {
+        this.on("file_items.id", "sort_title_pref.file_item_id").andOn("sort_title_pref.lang", db.raw("?", [sortLang]));
+      });
+      if (sortLang !== defaultLang) {
+        query.leftJoin({ sort_title_def: "file_translations" }, function () {
+          this.on("file_items.id", "sort_title_def.file_item_id").andOn("sort_title_def.lang", db.raw("?", [defaultLang]));
+        });
+      }
+      if (sortLang !== defaultLang) {
+        query.orderByRaw(`coalesce(??, ??) ${direction}`, ["sort_title_pref.title", "sort_title_def.title"]);
+      } else {
+        query.orderByRaw(`?? ${direction}`, ["sort_title_pref.title"]);
+      }
+    } else if (sortBy === "category") {
+      query.leftJoin("categories", "file_items.category_id", "categories.id");
+      query.leftJoin({ sort_cat_pref: "categories_translations" }, function () {
+        this.on("categories.id", "sort_cat_pref.category_id").andOn("sort_cat_pref.lang", db.raw("?", [sortLang]));
+      });
+      if (sortLang !== defaultLang) {
+        query.leftJoin({ sort_cat_def: "categories_translations" }, function () {
+          this.on("categories.id", "sort_cat_def.category_id").andOn("sort_cat_def.lang", db.raw("?", [defaultLang]));
+        });
+      }
+      if (sortLang !== defaultLang) {
+        query.orderByRaw(`coalesce(??, ??) ${direction}`, ["sort_cat_pref.title", "sort_cat_def.title"]);
+      } else {
+        query.orderByRaw(`?? ${direction}`, ["sort_cat_pref.title"]);
+      }
+    } else if (sortBy === "size") {
+      const sizeTotals = db("file_version_assets")
+        .select("file_version_id")
+        .sum<{ size: string }>("size as size")
+        .groupBy("file_version_id")
+        .as("size_totals");
+      query.leftJoin(sizeTotals, "size_totals.file_version_id", "file_items.current_version_id");
+      query.leftJoin({ size_pref: "file_version_assets" }, function () {
+        this.on("size_pref.file_version_id", "file_items.current_version_id").andOn("size_pref.lang", db.raw("?", [sortLang]));
+      });
+      query.orderByRaw(`coalesce(??, ??, 0) ${direction}`, ["size_pref.size", "size_totals.size"]);
+    } else if (sortBy === "updated_at") {
+      query.orderBy("file_items.updated_at", direction);
     } else if (sortBy === "popular") {
       query.orderBy("file_items.created_at", "desc");
     } else {
@@ -996,9 +1102,6 @@ export class FilesService {
         });
       }
     });
-
-    const defaultLang = this.getDefaultLang();
-    const lang = normalizeLang(preferredLang) || null;
 
     const baseData = Array.from(grouped.values()).map((item) => {
       const picked = selectTranslation<FileTranslation>(item.translations, lang, defaultLang);

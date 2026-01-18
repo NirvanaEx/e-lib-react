@@ -3,6 +3,15 @@ import { Box, ButtonBase, Collapse, IconButton, List, ListItemButton, ListItemIc
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
+import SellOutlinedIcon from "@mui/icons-material/SellOutlined";
+import BookmarkBorderOutlinedIcon from "@mui/icons-material/BookmarkBorderOutlined";
+import LocalMallOutlinedIcon from "@mui/icons-material/LocalMallOutlined";
+import LoyaltyOutlinedIcon from "@mui/icons-material/LoyaltyOutlined";
+import LocalActivityOutlinedIcon from "@mui/icons-material/LocalActivityOutlined";
+import StyleOutlinedIcon from "@mui/icons-material/StyleOutlined";
+import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
+import LocalPlayOutlinedIcon from "@mui/icons-material/LocalPlayOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { useQuery } from "@tanstack/react-query";
@@ -133,7 +142,7 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
       backgroundColor: "rgba(29, 77, 79, 0.16)"
     }
   };
-  const rootIconSx = {
+  const menuIconSx = {
     width: 28,
     height: 28,
     borderRadius: "50%",
@@ -141,6 +150,22 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
     placeItems: "center",
     backgroundColor: "rgba(29, 77, 79, 0.12)",
     color: "primary.main"
+  };
+  const categoryLevelIcons = [
+    LocalOfferOutlinedIcon,
+    LabelOutlinedIcon,
+    SellOutlinedIcon,
+    BookmarkBorderOutlinedIcon,
+    LocalMallOutlinedIcon,
+    LoyaltyOutlinedIcon,
+    LocalActivityOutlinedIcon,
+    StyleOutlinedIcon,
+    ConfirmationNumberOutlinedIcon,
+    LocalPlayOutlinedIcon
+  ];
+  const renderCategoryIcon = (depth: number) => {
+    const Icon = categoryLevelIcons[Math.min(depth, categoryLevelIcons.length - 1)];
+    return <Icon fontSize="small" />;
   };
 
   const renderCategoryTree = (parentKey: string, depth: number) => {
@@ -157,13 +182,9 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
           }}
           sx={{ ...itemSx, pr: 0.5, justifyContent: collapsed ? "center" : "flex-start" }}
         >
-          {depth === 0 && (
-            <ListItemIcon sx={{ minWidth: collapsed ? 0 : 40, mr: collapsed ? 0 : 1 }}>
-              <Box sx={rootIconSx}>
-                <LocalOfferOutlinedIcon fontSize="small" />
-              </Box>
-            </ListItemIcon>
-          )}
+          <ListItemIcon sx={{ minWidth: collapsed ? 0 : 40, mr: collapsed ? 0 : 1 }}>
+            <Box sx={menuIconSx}>{renderCategoryIcon(depth)}</Box>
+          </ListItemIcon>
           {!collapsed && (
             <ListItemText
               primary={
@@ -228,7 +249,7 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
                   sx={{ ...itemSx, justifyContent: collapsed ? "center" : "flex-start" }}
                 >
                   <ListItemIcon sx={{ minWidth: collapsed ? 0 : 40, mr: collapsed ? 0 : 1 }}>
-                    <Box sx={rootIconSx}>
+                    <Box sx={menuIconSx}>
                       <FolderOutlinedIcon fontSize="small" />
                     </Box>
                   </ListItemIcon>
