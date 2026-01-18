@@ -107,19 +107,28 @@ export default function FilesPage() {
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
-  const [sortBy, setSortBy] = React.useState("created_at");
-  const [sortDir, setSortDir] = React.useState("desc");
+  const [sort, setSort] = React.useState<{ key: string | null; direction: "asc" | "desc" | null }>({
+    key: null,
+    direction: null
+  });
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { t, i18n } = useTranslation();
 
   React.useEffect(() => {
     setPage(1);
-  }, [search, pageSize, sortBy, sortDir]);
+  }, [search, pageSize, sort.key, sort.direction]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["files", page, pageSize, search, sortBy, sortDir],
-    queryFn: () => fetchFiles({ page, pageSize, q: search, sortBy, sortDir })
+    queryKey: ["files", page, pageSize, search, sort.key, sort.direction],
+    queryFn: () =>
+      fetchFiles({
+        page,
+        pageSize,
+        q: search,
+        sortBy: sort.direction ? sort.key || undefined : undefined,
+        sortDir: sort.direction || undefined
+      })
   });
   const { data: infoFile, isLoading: infoLoading } = useQuery({
     queryKey: ["file", infoId],
@@ -401,14 +410,6 @@ export default function FilesPage() {
     >
       <FiltersBar>
         <SearchField value={search} onChange={setSearch} placeholder={t("searchFiles")} />
-        <Select size="small" value={sortBy} onChange={(event) => setSortBy(String(event.target.value))}>
-          <MenuItem value="created_at">{t("sortByDate")}</MenuItem>
-          <MenuItem value="title">{t("sortByTitle")}</MenuItem>
-        </Select>
-        <Select size="small" value={sortDir} onChange={(event) => setSortDir(String(event.target.value))}>
-          <MenuItem value="desc">{t("desc")}</MenuItem>
-          <MenuItem value="asc">{t("asc")}</MenuItem>
-        </Select>
       </FiltersBar>
 
       {isLoading ? (
@@ -419,8 +420,12 @@ export default function FilesPage() {
         <DataTable
           rows={rows}
           onRowClick={(row) => setInfoId(row.id)}
+          sort={sort}
+          onSortChange={(key, direction) =>
+            setSort(direction ? { key, direction } : { key: null, direction: null })
+          }
           columns={[
-            { key: "title", label: t("title") },
+            { key: "title", label: t("title"), sortable: true, sortKey: "title" },
             {
               key: "section",
               label: t("section"),
@@ -429,7 +434,9 @@ export default function FilesPage() {
             {
               key: "category",
               label: t("category"),
-              render: (row) => renderPath(getCategoryPath(row.categoryId))
+              render: (row) => renderPath(getCategoryPath(row.categoryId)),
+              sortable: true,
+              sortKey: "category"
             },
             {
               key: "accessType",
@@ -458,17 +465,23 @@ export default function FilesPage() {
               render: (row) => {
                 const size = resolveRowSize(row);
                 return size === null || size === undefined ? "-" : formatBytes(size);
-              }
+              },
+              sortable: true,
+              sortKey: "size"
             },
             {
               key: "createdAt",
               label: t("createdAt"),
-              render: (row) => formatDateTime(row.createdAt)
+              render: (row) => formatDateTime(row.createdAt),
+              sortable: true,
+              sortKey: "created_at"
             },
             {
               key: "updatedAt",
               label: t("updatedAt"),
-              render: (row) => formatDateTime(row.updatedAt)
+              render: (row) => formatDateTime(row.updatedAt),
+              sortable: true,
+              sortKey: "updated_at"
             },
             {
               key: "download",

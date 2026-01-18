@@ -7,8 +7,6 @@ import { AuditService } from "../audit/audit.service";
 
 type CategoryTranslation = { lang: Lang; title: string };
 
-const MAX_DEPTH = 10;
-
 @Injectable()
 export class CategoriesService {
   constructor(
@@ -16,6 +14,11 @@ export class CategoriesService {
     private readonly config: ConfigService,
     private readonly auditService: AuditService
   ) {}
+
+  private getMaxDepth() {
+    const raw = Number(this.config.get<string>("MAX_TREE_DEPTH", "5"));
+    return Number.isFinite(raw) && raw > 0 ? raw : 5;
+  }
 
   async list(params: { page: number; pageSize: number; q?: string }, preferredLang: string | null) {
     const { page, pageSize, q } = params;
@@ -169,13 +172,14 @@ export class CategoriesService {
 
   async create(dto: any, actorId: number) {
     return this.dbService.db.transaction(async (trx) => {
+      const maxDepth = this.getMaxDepth();
       let depth = 1;
       if (dto.parentId) {
         const parent = await trx("categories").where({ id: dto.parentId }).first();
         if (!parent) throw new BadRequestException("Parent not found");
         depth = parent.depth + 1;
       }
-      if (depth > MAX_DEPTH) throw new BadRequestException("Max depth exceeded");
+      if (depth > maxDepth) throw new BadRequestException("Max depth exceeded");
 
       const [id] = await trx("categories")
         .insert({
@@ -206,6 +210,7 @@ export class CategoriesService {
 
   async update(id: number, dto: any, actorId: number) {
     return this.dbService.db.transaction(async (trx) => {
+      const maxDepth = this.getMaxDepth();
       const current = await trx("categories").where({ id }).first();
       if (!current) throw new NotFoundException();
 
@@ -222,7 +227,7 @@ export class CategoriesService {
           newDepth = 1;
         }
 
-        if (newDepth > MAX_DEPTH) throw new BadRequestException("Max depth exceeded");
+        if (newDepth > maxDepth) throw new BadRequestException("Max depth exceeded");
 
         const descendants = await trx
           .raw(
@@ -241,9 +246,9 @@ export class CategoriesService {
           throw new BadRequestException("Invalid parent");
         }
 
-        const maxDepth = Math.max(...descendants.map((d: any) => d.depth));
+        const maxDescendantDepth = Math.max(...descendants.map((d: any) => d.depth));
         const diff = newDepth - current.depth;
-        if (maxDepth + diff > MAX_DEPTH) {
+        if (maxDescendantDepth + diff > maxDepth) {
           throw new BadRequestException("Max depth exceeded");
         }
 

@@ -8,8 +8,6 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
-  MenuItem,
-  Select,
   Stack,
   Tooltip,
   Typography
@@ -38,8 +36,10 @@ export default function UserFilesPage() {
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
-  const [sortBy, setSortBy] = React.useState("created_at");
-  const [sortDir, setSortDir] = React.useState("desc");
+  const [sort, setSort] = React.useState<{ key: string | null; direction: "asc" | "desc" | null }>({
+    key: null,
+    direction: null
+  });
   const [downloadTarget, setDownloadTarget] = React.useState<{
     id: number;
     title: string | null;
@@ -52,19 +52,27 @@ export default function UserFilesPage() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [search, pageSize, sortBy, sortDir, sectionId, categoryId]);
+  }, [search, pageSize, sort.key, sort.direction, sectionId, categoryId]);
 
   const resetFilters = () => {
     setSearch("");
-    setSortBy("created_at");
-    setSortDir("desc");
+    setSort({ key: null, direction: null });
     setPage(1);
     setSearchParams(new URLSearchParams(), { replace: true });
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ["user-files", page, pageSize, search, sortBy, sortDir, sectionId, categoryId],
-    queryFn: () => fetchUserFiles({ page, pageSize, q: search, sortBy, sortDir, sectionId, categoryId })
+    queryKey: ["user-files", page, pageSize, search, sort.key, sort.direction, sectionId, categoryId],
+    queryFn: () =>
+      fetchUserFiles({
+        page,
+        pageSize,
+        q: search,
+        sortBy: sort.direction ? sort.key || undefined : undefined,
+        sortDir: sort.direction || undefined,
+        sectionId,
+        categoryId
+      })
   });
   const { data: detailsData, isLoading: detailsLoading } = useQuery({
     queryKey: ["user-file-details", detailsId],
@@ -180,15 +188,6 @@ export default function UserFilesPage() {
             </IconButton>
           </span>
         </Tooltip>
-        <Select size="small" value={sortBy} onChange={(event) => setSortBy(String(event.target.value))}>
-          <MenuItem value="created_at">{t("sortByDate")}</MenuItem>
-          <MenuItem value="title">{t("sortByTitle")}</MenuItem>
-          <MenuItem value="popular">{t("sortByPopular")}</MenuItem>
-        </Select>
-        <Select size="small" value={sortDir} onChange={(event) => setSortDir(String(event.target.value))}>
-          <MenuItem value="desc">{t("desc")}</MenuItem>
-          <MenuItem value="asc">{t("asc")}</MenuItem>
-        </Select>
       </FiltersBar>
 
       {isLoading ? (
@@ -199,10 +198,17 @@ export default function UserFilesPage() {
         <DataTable
           rows={rows}
           onRowClick={(row) => setDetailsId(row.id)}
+          sort={sort}
+          onSortChange={(key, direction) =>
+            setSort(direction ? { key, direction } : { key: null, direction: null })
+          }
+          sortIconVariant="chevron"
           columns={[
             {
               key: "title",
               label: t("title"),
+              sortable: true,
+              sortKey: "title",
               render: (row) => (
                 <Box component="span" sx={{ color: "text.primary" }}>
                   {row.title || t("file")}
@@ -220,7 +226,9 @@ export default function UserFilesPage() {
             {
               key: "category",
               label: t("category"),
-              render: (row) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-")
+              render: (row) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-"),
+              sortable: true,
+              sortKey: "category"
             },
             {
               key: "accessType",
@@ -249,17 +257,23 @@ export default function UserFilesPage() {
               render: (row) => {
                 const size = resolveRowSize(row);
                 return size === null || size === undefined ? "-" : formatBytes(size);
-              }
+              },
+              sortable: true,
+              sortKey: "size"
             },
             {
               key: "createdAt",
               label: t("createdAt"),
-              render: (row) => formatDateTime(row.createdAt)
+              render: (row) => formatDateTime(row.createdAt),
+              sortable: true,
+              sortKey: "created_at"
             },
             {
               key: "updatedAt",
               label: t("updatedAt"),
-              render: (row) => formatDateTime(row.updatedAt)
+              render: (row) => formatDateTime(row.updatedAt),
+              sortable: true,
+              sortKey: "updated_at"
             },
             {
               key: "download",

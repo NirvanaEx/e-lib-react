@@ -1,16 +1,21 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { DatabaseService } from "../../db/database.service";
 import { buildPaginationMeta } from "../../common/utils/pagination";
 import { AuditService } from "../audit/audit.service";
-
-const MAX_DEPTH = 10;
 
 @Injectable()
 export class DepartmentsService {
   constructor(
     private readonly dbService: DatabaseService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly config: ConfigService
   ) {}
+
+  private getMaxDepth() {
+    const raw = Number(this.config.get<string>("MAX_TREE_DEPTH", "5"));
+    return Number.isFinite(raw) && raw > 0 ? raw : 5;
+  }
 
   async list(params: { page: number; pageSize: number; q?: string }) {
     const { page, pageSize, q } = params;
@@ -96,6 +101,7 @@ export class DepartmentsService {
 
   async create(dto: { name: string; parentId?: number | null }, actorId: number) {
     return this.dbService.db.transaction(async (trx) => {
+      const maxDepth = this.getMaxDepth();
       let depth = 1;
       if (dto.parentId) {
         const parent = await trx("departments").where({ id: dto.parentId }).first();
@@ -103,7 +109,7 @@ export class DepartmentsService {
         depth = parent.depth + 1;
       }
 
-      if (depth > MAX_DEPTH) {
+      if (depth > maxDepth) {
         throw new BadRequestException("Max depth exceeded");
       }
 
@@ -131,6 +137,7 @@ export class DepartmentsService {
 
   async update(id: number, dto: { name?: string; parentId?: number | null }, actorId: number) {
     return this.dbService.db.transaction(async (trx) => {
+      const maxDepth = this.getMaxDepth();
       const current = await trx("departments").where({ id }).first();
       if (!current) throw new NotFoundException();
 
@@ -147,7 +154,7 @@ export class DepartmentsService {
           newDepth = 1;
         }
 
-        if (newDepth > MAX_DEPTH) {
+        if (newDepth > maxDepth) {
           throw new BadRequestException("Max depth exceeded");
         }
 
@@ -168,9 +175,9 @@ export class DepartmentsService {
           throw new BadRequestException("Invalid parent");
         }
 
-        const maxDepth = Math.max(...descendants.map((d: any) => d.depth));
+        const maxDescendantDepth = Math.max(...descendants.map((d: any) => d.depth));
         const diff = newDepth - current.depth;
-        if (maxDepth + diff > MAX_DEPTH) {
+        if (maxDescendantDepth + diff > maxDepth) {
           throw new BadRequestException("Max depth exceeded");
         }
 
