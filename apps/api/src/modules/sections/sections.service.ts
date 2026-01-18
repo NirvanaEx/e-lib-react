@@ -71,14 +71,35 @@ export class SectionsService {
     const defaultLang = normalizeLang(this.config.get<string>("DEFAULT_DATA_LANG", "ru")) || "ru";
     const lang = normalizeLang(preferredLang) || null;
 
-    const data = Array.from(grouped.values()).map((item) => {
+    const baseData = Array.from(grouped.values()).map((item) => {
       const picked = selectTranslation<SectionTranslation>(item.translations, lang, defaultLang);
       return {
         id: item.id,
         title: picked?.title || null,
-        availableLangs: getAvailableLangs(item.translations)
+        availableLangs: getAvailableLangs(item.translations),
+        createdAt: item.created_at,
+        updatedAt: item.updated_at
       };
     });
+
+    const ids = baseData.map((item) => item.id);
+    let countsById = new Map<number, number>();
+    if (ids.length > 0) {
+      const countRows = (await this.dbService.db("file_items")
+        .select("section_id")
+        .count<{ count: string }>("id as count")
+        .whereIn("section_id", ids)
+        .whereNull("deleted_at")
+        .groupBy("section_id")) as any[];
+      countsById = new Map(
+        (countRows || []).map((row: any) => [Number(row.section_id), Number(row.count || 0)])
+      );
+    }
+
+    const data = baseData.map((item) => ({
+      ...item,
+      filesCount: countsById.get(item.id) || 0
+    }));
 
     return {
       data,
@@ -176,6 +197,17 @@ export class SectionsService {
   }
 
   async remove(id: number, actorId: number) {
+    const exists = await this.dbService.db("sections").where({ id }).first();
+    if (!exists) throw new NotFoundException();
+
+    const hasFiles = await this.dbService.db("file_items")
+      .where({ section_id: id })
+      .whereNull("deleted_at")
+      .first();
+    if (hasFiles) {
+      throw new BadRequestException("Section has files");
+    }
+
     await this.dbService.db("sections").where({ id }).delete();
     await this.dbService.db("sections_translations").where({ section_id: id }).delete();
 

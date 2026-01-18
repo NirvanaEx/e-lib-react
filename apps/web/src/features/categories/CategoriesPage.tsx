@@ -287,11 +287,6 @@ export default function CategoriesPage() {
               )
             },
             {
-              key: "createdAt",
-              label: t("createdAt"),
-              render: (row) => formatDateTime(row.createdAt)
-            },
-            {
               key: "dataOwnCount",
               label: t("dataOwnCount"),
               render: (row) => row.dataOwnCount ?? 0
@@ -302,19 +297,24 @@ export default function CategoriesPage() {
               render: (row) => row.dataCount ?? 0
             },
             {
+              key: "createdAt",
+              label: t("createdAt"),
+              render: (row) => formatDateTime(row.createdAt)
+            },
+            {
               key: "actions",
               label: t("actions"),
               align: "right",
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
-                  <Tooltip title={t("edit")}>
-                    <IconButton size="small" onClick={() => handleOpenEdit(row.id)}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
                   <Tooltip title={t("newCategory")}>
                     <IconButton size="small" onClick={() => handleOpenCreate(row.id)}>
                       <AddIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t("edit")}>
+                    <IconButton size="small" onClick={() => handleOpenEdit(row.id)}>
+                      <EditIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title={t("delete")}>

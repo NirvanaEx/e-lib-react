@@ -17,15 +17,23 @@ export class SessionsService {
 
   async list(params: { page: number; pageSize: number; userId?: number; from?: string; to?: string }) {
     const { page, pageSize, userId, from, to } = params;
+    const lastActivitySubquery = this.dbService.db("audit_logs")
+      .select("actor_user_id")
+      .max("created_at as last_activity")
+      .groupBy("actor_user_id")
+      .as("last_activity");
+
     const query = this.dbService.db("sessions")
       .leftJoin("users", "users.id", "sessions.user_id")
+      .leftJoin(lastActivitySubquery, "last_activity.actor_user_id", "sessions.user_id")
       .select(
         "sessions.id",
         "sessions.user_id",
         "sessions.ip",
         "sessions.user_agent",
         "sessions.created_at",
-        "users.login"
+        "users.login",
+        "last_activity.last_activity"
       )
       .orderBy("sessions.created_at", "desc");
 

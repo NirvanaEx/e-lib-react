@@ -45,6 +45,9 @@ import { useNavigate } from "react-router-dom";
 import { getErrorMessage } from "../../shared/utils/errors";
 import { buildPathMap, formatPath } from "../../shared/utils/tree";
 import { getFilenameFromDisposition } from "../../shared/utils/download";
+import { formatBytes } from "../../shared/utils/format";
+import { FileDetailsPanel } from "./FileDetailsPanel";
+import { formatDateTime } from "../../shared/utils/date";
 
 const schema = z.object({
   sectionId: z.number().min(1),
@@ -62,6 +65,9 @@ type FileRow = {
   sectionId: number;
   categoryId: number;
   createdAt?: string | null;
+  updatedAt?: string | null;
+  currentAssetSize?: number | null;
+  availableAssetSizes?: Array<{ lang: string; size: number }>;
   accessType: string;
   currentVersionId?: number | null;
   availableLangs?: string[];
@@ -86,6 +92,7 @@ export default function FilesPage() {
   const navigate = useNavigate();
   const [open, setOpen] = React.useState(false);
   const [confirmTrash, setConfirmTrash] = React.useState<number | null>(null);
+  const [detailsId, setDetailsId] = React.useState<number | null>(null);
   const [translations, setTranslations] = React.useState<any[]>([]);
   const [initialFile, setInitialFile] = React.useState<File | null>(null);
   const [initialLang, setInitialLang] = React.useState("ru");
@@ -94,6 +101,7 @@ export default function FilesPage() {
     id: number;
     title: string | null;
     langs: string[];
+    sizes: Record<string, number>;
   } | null>(null);
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
@@ -102,7 +110,7 @@ export default function FilesPage() {
   const [sortDir, setSortDir] = React.useState("desc");
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   React.useEffect(() => {
     setPage(1);
@@ -194,8 +202,16 @@ export default function FilesPage() {
     </Stack>
   );
 
-  const formatCreatedAt = (value?: string | null) => (value ? new Date(value).toLocaleDateString() : "-");
   const languageOptions = ["ru", "en", "uz"];
+  const currentLang = (i18n.language || "ru").split("-")[0];
+
+  const resolveRowSize = (row: FileRow) => {
+    const sizes = row.availableAssetSizes || [];
+    const direct = sizes.find((item) => item.lang === currentLang)?.size;
+    if (direct !== undefined) return direct;
+    if (sizes.length === 1) return sizes[0].size;
+    return row.currentAssetSize ?? null;
+  };
 
   const createMutation = useMutation({
     mutationFn: createFile
@@ -385,9 +401,22 @@ export default function FilesPage() {
               }
             },
             {
+              key: "size",
+              label: t("fileSize"),
+              render: (row) => {
+                const size = resolveRowSize(row);
+                return size === null || size === undefined ? "-" : formatBytes(size);
+              }
+            },
+            {
               key: "createdAt",
               label: t("createdAt"),
-              render: (row) => formatCreatedAt(row.createdAt)
+              render: (row) => formatDateTime(row.createdAt)
+            },
+            {
+              key: "updatedAt",
+              label: t("updatedAt"),
+              render: (row) => formatDateTime(row.updatedAt)
             },
             {
               key: "download",
@@ -396,6 +425,10 @@ export default function FilesPage() {
               render: (row) => {
                 const langs = row.availableAssetLangs || row.availableLangs || [];
                 const disabled = langs.length === 0;
+                const sizes = (row.availableAssetSizes || []).reduce<Record<string, number>>((acc, item) => {
+                  acc[item.lang] = item.size;
+                  return acc;
+                }, {});
                 return (
                   <Tooltip title={disabled ? t("noAssets") : t("download")}>
                     <span>
@@ -404,7 +437,7 @@ export default function FilesPage() {
                         disabled={disabled}
                         onClick={() => {
                           if (langs.length > 1) {
-                            setDownloadTarget({ id: row.id, title: row.title, langs });
+                            setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
                             return;
                           }
                           const lang = langs[0];
@@ -425,7 +458,7 @@ export default function FilesPage() {
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   <Tooltip title={t("open")}>
-                    <IconButton size="small" onClick={() => navigate(`/dashboard/files/${row.id}`)}>
+                    <IconButton size="small" onClick={() => setDetailsId(row.id)}>
                       <OpenInNewIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -683,6 +716,15 @@ export default function FilesPage() {
         onCancel={() => setConfirmTrash(null)}
       />
 
+      <Dialog open={!!detailsId} onClose={() => setDetailsId(null)} fullWidth maxWidth="lg" scroll="paper">
+        <DialogContent sx={{ pt: 2 }}>
+          {detailsId && <FileDetailsPanel fileId={detailsId} variant="dialog" />}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailsId(null)}>{t("cancel")}</Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog open={!!downloadTarget} onClose={() => setDownloadTarget(null)} fullWidth maxWidth="xs">
         <DialogTitle>{t("download")}</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
@@ -697,7 +739,9 @@ export default function FilesPage() {
                   setDownloadTarget(null);
                 }}
               >
-                {lang.toUpperCase()}
+                {downloadTarget?.sizes?.[lang]
+                  ? `${lang.toUpperCase()} · ${formatBytes(downloadTarget.sizes[lang])}`
+                  : lang.toUpperCase()}
               </Button>
             ))}
           </Stack>

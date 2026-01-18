@@ -24,6 +24,7 @@ import UserFilesPage from "../features/files/UserFilesPage";
 import UserFileDetailsPage from "../features/files/UserFileDetailsPage";
 import SettingsPage from "../features/settings/SettingsPage";
 import { getDefaultRoute, hasAccess } from "../shared/utils/access";
+import i18n from "./i18n";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,16 @@ function DefaultRedirect() {
 }
 
 export default function App() {
+  React.useEffect(() => {
+    const handleLanguageChange = () => {
+      queryClient.invalidateQueries();
+    };
+    i18n.on("languageChanged", handleLanguageChange);
+    return () => {
+      i18n.off("languageChanged", handleLanguageChange);
+    };
+  }, []);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />

@@ -47,6 +47,7 @@ import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { buildPathMap, formatPath } from "../../shared/utils/tree";
+import { formatDateTime } from "../../shared/utils/date";
 
 const schema = z.object({
   login: z.string().min(1),
@@ -305,6 +306,11 @@ export default function UsersPage() {
                 ) : (
                   <Chip size="small" color="success" label={t("active")} />
                 )
+            },
+            {
+              key: "created_at",
+              label: t("createdAt"),
+              render: (row) => formatDateTime(row.created_at)
             },
             {
               key: "actions",
