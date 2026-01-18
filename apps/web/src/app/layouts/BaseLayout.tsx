@@ -105,6 +105,27 @@ export function BaseLayout({
   const dashboardLink = panelLinks.find((panel) => panel.key === "dashboard");
   const userLink = panelLinks.find((panel) => panel.key === "user");
   const switchLink = currentPanel === "dashboard" ? userLink : dashboardLink;
+  const userDisplayName = React.useMemo(() => {
+    if (!user) return null;
+    const surname = user.surname?.trim();
+    const nameInitial = user.name?.trim().charAt(0);
+    const patronymicInitial = user.patronymic?.trim().charAt(0);
+    const initials = [nameInitial, patronymicInitial]
+      .filter(Boolean)
+      .map((ch) => ch?.toUpperCase())
+      .join(".");
+    if (surname) {
+      return initials ? `${surname} ${initials}.` : surname;
+    }
+    if (initials) {
+      return `${initials}.`;
+    }
+    return user.login || null;
+  }, [user]);
+  const showRoleChip = Boolean(
+    user?.role &&
+      (!userDisplayName || user.role.toLowerCase() !== userDisplayName.toLowerCase())
+  );
 
   const defaultSidebarHeader = collapsed ? (
     <Box sx={{ mb: 2, display: "flex", justifyContent: "center" }}>
@@ -330,16 +351,18 @@ export function BaseLayout({
                     sx={{ fontWeight: 600 }}
                   />
                 )}
-                {user.role && (
+                {showRoleChip && user?.role && (
                   <Chip
                     label={user.role}
                     size="small"
                     sx={{ textTransform: "capitalize", fontWeight: 600, backgroundColor: "rgba(29, 77, 79, 0.12)" }}
                   />
                 )}
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {user.login}
-                </Typography>
+                {userDisplayName && (
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {userDisplayName}
+                  </Typography>
+                )}
               </Stack>
             )}
             <Tooltip title={t("logout")}>
