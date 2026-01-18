@@ -114,6 +114,7 @@ export class FilesService {
         "file_items.current_version_id",
         "file_items.deleted_at",
         "file_items.created_at",
+        "file_items.updated_at",
         "file_translations.lang",
         "file_translations.title",
         "file_translations.description"
@@ -146,6 +147,7 @@ export class FilesService {
       access_type: string;
       current_version_id: number | null;
       created_at: string;
+      updated_at: string;
       translations: FileTranslation[];
     };
 
@@ -159,6 +161,7 @@ export class FilesService {
           access_type: row.access_type,
           current_version_id: row.current_version_id,
           created_at: row.created_at,
+          updated_at: row.updated_at,
           translations: []
         });
       }
@@ -184,6 +187,7 @@ export class FilesService {
         accessType: item.access_type,
         currentVersionId: item.current_version_id,
         createdAt: item.created_at,
+        updatedAt: item.updated_at,
         title: picked?.title || null,
         description: picked?.description || null,
         availableLangs: getAvailableLangs(item.translations)
@@ -192,23 +196,47 @@ export class FilesService {
 
     const versionIds = baseData.map((item) => item.currentVersionId).filter(Boolean) as number[];
     const assetLangsByVersion = new Map<number, Set<string>>();
+    const assetSizesByVersion = new Map<number, number>();
+    const assetSizesByLang = new Map<number, Map<string, number>>();
     if (versionIds.length > 0) {
       const assetRows = await this.dbService.db("file_version_assets")
-        .select("file_version_id", "lang")
+        .select("file_version_id", "lang", "size")
         .whereIn("file_version_id", versionIds);
       assetRows.forEach((row: any) => {
         if (!assetLangsByVersion.has(row.file_version_id)) {
           assetLangsByVersion.set(row.file_version_id, new Set<string>());
         }
         assetLangsByVersion.get(row.file_version_id)?.add(row.lang);
+        if (!assetSizesByLang.has(row.file_version_id)) {
+          assetSizesByLang.set(row.file_version_id, new Map<string, number>());
+        }
+        assetSizesByLang.get(row.file_version_id)?.set(row.lang, Number(row.size || 0));
+      });
+
+      const sizeRows = (await this.dbService.db("file_version_assets")
+        .select("file_version_id")
+        .sum<{ size: string }>("size as size")
+        .whereIn("file_version_id", versionIds)
+        .groupBy("file_version_id")) as any[];
+      sizeRows.forEach((row: any) => {
+        assetSizesByVersion.set(row.file_version_id, Number(row.size || 0));
       });
     }
 
     const data = baseData.map((item) => {
       const langs = item.currentVersionId ? Array.from(assetLangsByVersion.get(item.currentVersionId) || []) : [];
+      const sizes =
+        item.currentVersionId && assetSizesByLang.has(item.currentVersionId)
+          ? Array.from(assetSizesByLang.get(item.currentVersionId) || new Map()).map(([lang, size]) => ({
+              lang,
+              size
+            }))
+          : [];
       return {
         ...item,
-        availableAssetLangs: langs.sort()
+        availableAssetLangs: langs.sort(),
+        availableAssetSizes: sizes.sort((a, b) => a.lang.localeCompare(b.lang)),
+        currentAssetSize: item.currentVersionId ? assetSizesByVersion.get(item.currentVersionId) || 0 : 0
       };
     });
 

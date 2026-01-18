@@ -98,6 +98,14 @@ export class UsersService {
       throw new BadRequestException("Login already exists");
     }
 
+    const departmentId = dto.departmentId || null;
+    if (departmentId) {
+      const department = await this.dbService.db("departments").where({ id: departmentId }).first();
+      if (!department) {
+        throw new BadRequestException("Department not found");
+      }
+    }
+
     const tempPassword = generateTempPassword();
     const hash = await bcrypt.hash(tempPassword, 10);
 
@@ -110,7 +118,7 @@ export class UsersService {
         name: dto.name,
         patronymic: dto.patronymic || null,
         role_id: dto.roleId,
-        department_id: dto.departmentId || null,
+        department_id: departmentId,
         must_change_password: true,
         lang: dto.lang || "ru",
         created_at: this.dbService.db.fn.now(),
@@ -144,6 +152,16 @@ export class UsersService {
       }
     }
 
+    if (dto.departmentId !== undefined) {
+      const departmentId = dto.departmentId || null;
+      if (departmentId) {
+        const department = await this.dbService.db("departments").where({ id: departmentId }).first();
+        if (!department) {
+          throw new BadRequestException("Department not found");
+        }
+      }
+    }
+
     await this.dbService
       .db("users")
       .update({
@@ -152,7 +170,7 @@ export class UsersService {
         name: dto.name ?? user.name,
         patronymic: dto.patronymic ?? user.patronymic,
         role_id: dto.roleId ?? user.role_id,
-        department_id: dto.departmentId ?? user.department_id,
+        department_id: dto.departmentId !== undefined ? dto.departmentId || null : user.department_id,
         lang: dto.lang ?? user.lang,
         updated_at: this.dbService.db.fn.now()
       })

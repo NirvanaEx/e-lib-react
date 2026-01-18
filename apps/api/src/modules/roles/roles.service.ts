@@ -6,7 +6,7 @@ export class RolesService {
   constructor(private readonly dbService: DatabaseService) {}
 
   async list() {
-    return this.dbService.db("roles").select("id", "name").orderBy("id");
+    return this.dbService.db("roles").select("id", "name", "created_at", "updated_at").orderBy("id");
   }
 
   async create(name: string) {

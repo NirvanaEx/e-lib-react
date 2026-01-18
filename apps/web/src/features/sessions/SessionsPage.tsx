@@ -87,6 +87,11 @@ export default function SessionsPage() {
               key: "created_at",
               label: t("time"),
               render: (row: any) => formatDateTime(row.created_at)
+            },
+            {
+              key: "last_activity",
+              label: t("lastActivity"),
+              render: (row: any) => formatDateTime(row.last_activity)
             }
           ]}
         />

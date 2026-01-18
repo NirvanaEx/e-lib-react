@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Box,
   Button,
   Checkbox,
   Dialog,
@@ -9,18 +8,21 @@ import {
   DialogTitle,
   Divider,
   FormControlLabel,
-  Paper,
   Stack,
   TextField,
   Typography
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Page } from "../../shared/ui/Page";
+import { DataTable } from "../../shared/ui/DataTable";
+import { EmptyState } from "../../shared/ui/EmptyState";
+import { LoadingState } from "../../shared/ui/LoadingState";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
 import { createRole, fetchPermissions, fetchRolePermissions, fetchRoles, updateRolePermissions } from "./roles.api";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { hasAccess } from "../../shared/utils/access";
+import { formatDateTime } from "../../shared/utils/date";
 
 type Role = { id: number; name: string };
 type Permission = { id: number; name: string };
@@ -33,6 +35,7 @@ export default function RolesPage() {
   const [selectedRoleId, setSelectedRoleId] = React.useState<number | null>(null);
   const [selectedPermissions, setSelectedPermissions] = React.useState<string[]>([]);
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [permissionsOpen, setPermissionsOpen] = React.useState(false);
   const [newRoleName, setNewRoleName] = React.useState("");
 
   const canUpdate = hasAccess(user, ["role.update"]);
@@ -51,11 +54,7 @@ export default function RolesPage() {
   const roles: Role[] = rolesData || [];
   const permissions: Permission[] = permissionsData || [];
 
-  React.useEffect(() => {
-    if (!selectedRoleId && roles.length > 0) {
-      setSelectedRoleId(roles[0].id);
-    }
-  }, [roles, selectedRoleId]);
+  const selectedRole = roles.find((role) => role.id === selectedRoleId) || null;
 
   const { data: rolePermissionsData, isLoading: rolePermissionsLoading } = useQuery({
     queryKey: ["role-permissions", selectedRoleId],
@@ -81,11 +80,8 @@ export default function RolesPage() {
 
   const createMutation = useMutation({
     mutationFn: (payload: { name: string }) => createRole(payload),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
-      if (data?.id) {
-        setSelectedRoleId(data.id);
-      }
       setNewRoleName("");
       setCreateOpen(false);
       showToast({ message: t("roleCreated"), severity: "success" });
@@ -112,65 +108,80 @@ export default function RolesPage() {
     );
   };
 
-  const handleSave = () => {
-    if (!selectedRoleId) return;
-    updateMutation.mutate({ roleId: selectedRoleId, permissions: selectedPermissions });
-  };
-
   const handleCreateRole = () => {
     const trimmed = newRoleName.trim();
     if (!trimmed) return;
     createMutation.mutate({ name: trimmed });
   };
 
+  const handleOpenPermissions = (roleId: number) => {
+    setSelectedRoleId(roleId);
+    setPermissionsOpen(true);
+  };
+
+  const handleClosePermissions = () => {
+    setPermissionsOpen(false);
+    setSelectedRoleId(null);
+    setSelectedPermissions([]);
+  };
+
+  const handleSavePermissions = () => {
+    if (!selectedRoleId) return;
+    updateMutation.mutate({ roleId: selectedRoleId, permissions: selectedPermissions });
+  };
+
   return (
-    <Page title={t("roles")} subtitle={t("rolesSubtitle")}>
-      <Stack direction={{ xs: "column", lg: "row" }} spacing={2}>
-        <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)", minWidth: 240 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-            <Typography variant="subtitle2">{t("roles")}</Typography>
-            {canCreate && (
-              <Button size="small" variant="contained" onClick={() => setCreateOpen(true)}>
-                {t("newRole")}
-              </Button>
-            )}
-          </Stack>
-          {rolesLoading ? (
-            <Typography variant="body2" color="text.secondary">
-              {t("loading")}
-            </Typography>
-          ) : roles.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              {t("noRoles")}
-            </Typography>
-          ) : (
-            <Stack spacing={1}>
-              {roles.map((role) => (
-                <Button
-                  key={role.id}
-                  size="small"
-                  fullWidth
-                  variant={selectedRoleId === role.id ? "contained" : "outlined"}
-                  onClick={() => setSelectedRoleId(role.id)}
-                  sx={{ textTransform: "none", justifyContent: "flex-start", borderRadius: 2 }}
-                >
-                  {role.name}
-                </Button>
-              ))}
-            </Stack>
-          )}
-        </Paper>
+    <Page
+      title={t("roles")}
+      subtitle={t("rolesSubtitle")}
+      action={
+        canCreate ? (
+          <Button variant="contained" onClick={() => setCreateOpen(true)}>
+            {t("newRole")}
+          </Button>
+        ) : null
+      }
+    >
+      {rolesLoading ? (
+        <LoadingState rows={6} />
+      ) : roles.length === 0 ? (
+        <EmptyState title={t("noRoles")} subtitle={t("rolesSubtitle")} />
+      ) : (
+        <DataTable
+          rows={roles}
+          columns={[
+            { key: "name", label: t("role") },
+            {
+              key: "created_at",
+              label: t("createdAt"),
+              render: (row) => formatDateTime(row.created_at)
+            },
+            {
+              key: "updated_at",
+              label: t("updatedAt"),
+              render: (row) => formatDateTime(row.updated_at)
+            },
+            {
+              key: "actions",
+              label: t("actions"),
+              align: "right",
+              render: (row) => (
+                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                  <Button size="small" variant="outlined" onClick={() => handleOpenPermissions(row.id)}>
+                    {t("managePermissions")}
+                  </Button>
+                </Stack>
+              )
+            }
+          ]}
+        />
+      )}
 
-        <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)", flex: 1 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-            <Typography variant="subtitle2">{t("permissions")}</Typography>
-            {canUpdate && (
-              <Button variant="contained" onClick={handleSave} disabled={updateMutation.isPending || !selectedRoleId}>
-                {t("savePermissions")}
-              </Button>
-            )}
-          </Stack>
-
+      <Dialog open={permissionsOpen} onClose={handleClosePermissions} fullWidth maxWidth="md">
+        <DialogTitle>
+          {selectedRole ? `${t("permissions")} · ${selectedRole.name}` : t("permissions")}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
           {!selectedRoleId ? (
             <Typography variant="body2" color="text.secondary">
               {t("selectRole")}
@@ -179,14 +190,18 @@ export default function RolesPage() {
             <Typography variant="body2" color="text.secondary">
               {t("loading")}
             </Typography>
+          ) : groupedPermissions.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              {t("noPermissions")}
+            </Typography>
           ) : (
-            <Stack spacing={2}>
+            <Stack spacing={2} sx={{ mt: 1 }}>
               {groupedPermissions.map((group) => (
-                <Box key={group.group}>
+                <Stack key={group.group} spacing={1}>
                   <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.16em" }}>
                     {group.group}
                   </Typography>
-                  <Divider sx={{ my: 1 }} />
+                  <Divider />
                   <Stack spacing={0.5}>
                     {group.items.map((permission) => (
                       <FormControlLabel
@@ -202,12 +217,22 @@ export default function RolesPage() {
                       />
                     ))}
                   </Stack>
-                </Box>
+                </Stack>
               ))}
             </Stack>
           )}
-        </Paper>
-      </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClosePermissions}>{t("cancel")}</Button>
+          <Button
+            variant="contained"
+            onClick={handleSavePermissions}
+            disabled={!canUpdate || updateMutation.isPending || !selectedRoleId}
+          >
+            {t("savePermissions")}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle>{t("newRole")}</DialogTitle>

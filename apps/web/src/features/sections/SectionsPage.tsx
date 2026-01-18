@@ -17,6 +17,7 @@ import { TranslationsEditor } from "../../shared/ui/TranslationsEditor";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../../shared/utils/errors";
+import { formatDateTime } from "../../shared/utils/date";
 
 export default function SectionsPage() {
   const [open, setOpen] = React.useState(false);
@@ -153,6 +154,21 @@ export default function SectionsPage() {
                   ))}
                 </Stack>
               )
+            },
+            {
+              key: "filesCount",
+              label: t("filesCount"),
+              render: (row) => row.filesCount ?? 0
+            },
+            {
+              key: "createdAt",
+              label: t("createdAt"),
+              render: (row) => formatDateTime(row.createdAt)
+            },
+            {
+              key: "updatedAt",
+              label: t("updatedAt"),
+              render: (row) => formatDateTime(row.updatedAt)
             },
             {
               key: "actions",
