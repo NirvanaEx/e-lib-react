@@ -322,6 +322,7 @@ export default function UsersPage() {
             {
               key: "name",
               label: t("fullName"),
+              sortValue: (row) => `${row.surname} ${row.name}${row.patronymic ? ` ${row.patronymic}` : ""}`.trim(),
               render: (row) => `${row.surname} ${row.name}${row.patronymic ? ` ${row.patronymic}` : ""}`
             },
             {
@@ -333,6 +334,8 @@ export default function UsersPage() {
               key: "department",
               label: t("department"),
               minWidth: 220,
+              sortValue: (row) =>
+                row.department_id ? formatPath(getDepartmentPath(row.department_id)) : "",
               render: (row) =>
                 row.department_id ? renderPath(getDepartmentPath(row.department_id)) : "-"
             },
@@ -340,6 +343,7 @@ export default function UsersPage() {
               key: "status",
               label: t("status"),
               width: 120,
+              sortValue: (row) => (row.deleted_at ? 1 : 0),
               render: (row) =>
                 row.deleted_at ? (
                   <Chip size="small" color="warning" label={t("deleted")} />
@@ -358,6 +362,7 @@ export default function UsersPage() {
               label: t("connectionStatus"),
               align: "center",
               width: 90,
+              sortValue: (row) => (row.must_change_password ? 0 : 1),
               render: (row) => (
                 <Tooltip title={row.must_change_password ? t("statusDisconnected") : t("statusConnected")}>
                   <Box
@@ -379,6 +384,7 @@ export default function UsersPage() {
               width: 120,
               headerSx: { pr: 1 },
               cellSx: { pr: 1 },
+              sortable: false,
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   {!row.deleted_at && canManageUser(row) && (

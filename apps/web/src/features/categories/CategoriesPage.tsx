@@ -74,6 +74,10 @@ export default function CategoriesPage() {
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
+  const [sort, setSort] = React.useState<{ key: string | null; direction: "asc" | "desc" | null }>({
+    key: null,
+    direction: null
+  });
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { t } = useTranslation();
@@ -172,6 +176,14 @@ export default function CategoriesPage() {
       childrenMap.get(parentKey)?.push(row);
     });
 
+    const sortRootsByTitle = (items: CategoryRow[]) => {
+      if (sort.key !== "title" || !sort.direction) return items;
+      const sorted = [...items].sort((a, b) =>
+        String(a.title || "").localeCompare(String(b.title || ""), undefined, { numeric: true, sensitivity: "base" })
+      );
+      return sort.direction === "asc" ? sorted : sorted.reverse();
+    };
+
     const result: TreeRow[] = [];
     const walk = (node: CategoryRow, depth: number) => {
       const children = childrenMap.get(node.id) || [];
@@ -181,10 +193,10 @@ export default function CategoriesPage() {
       }
     };
 
-    const roots = childrenMap.get(null) || [];
+    const roots = sortRootsByTitle(childrenMap.get(null) || []);
     roots.forEach((root) => walk(root, 1));
     return result;
-  }, [rows, expandedIds]);
+  }, [rows, expandedIds, sort]);
 
   const defaultExpandedIds = React.useMemo(() => {
     const childrenByParent = new Map<number, number>();
@@ -280,10 +292,15 @@ export default function CategoriesPage() {
       ) : (
         <DataTable
           rows={treeRows}
+          sort={sort}
+          onSortChange={(key, direction) =>
+            setSort(direction ? { key, direction } : { key: null, direction: null })
+          }
           columns={[
             {
               key: "title",
               label: t("title"),
+              sortable: true,
               render: (row) => (
                 <Stack direction="row" alignItems="center" spacing={0.5} sx={{ pl: Math.max(0, row.treeDepth - 1) * 2 }}>
                   {row.hasChildren ? (
@@ -300,6 +317,7 @@ export default function CategoriesPage() {
             {
               key: "langs",
               label: t("languages"),
+              sortable: false,
               render: (row) => (
                 <Stack direction="row" spacing={1}>
                   {(row.availableLangs || []).map((lang: string) => (
@@ -311,22 +329,26 @@ export default function CategoriesPage() {
             {
               key: "dataOwnCount",
               label: t("dataOwnCount"),
+              sortable: false,
               render: (row) => row.dataOwnCount ?? 0
             },
             {
               key: "dataCount",
               label: t("dataCount"),
+              sortable: false,
               render: (row) => row.dataCount ?? 0
             },
             {
               key: "createdAt",
               label: t("createdAt"),
+              sortable: false,
               render: (row) => formatDateTime(row.createdAt)
             },
             {
               key: "actions",
               label: t("actions"),
               align: "right",
+              sortable: false,
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   <Tooltip title={t("newCategory")}>

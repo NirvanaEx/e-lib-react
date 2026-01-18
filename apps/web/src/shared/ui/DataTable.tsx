@@ -28,6 +28,7 @@ export type Column<T> = {
   cellSx?: SxProps<Theme>;
   sortable?: boolean;
   sortKey?: string;
+  sortValue?: (row: T) => string | number | null;
 };
 
 export function DataTable<T extends { id: number | string }>({
@@ -49,6 +50,14 @@ export function DataTable<T extends { id: number | string }>({
   reverseSortIcons?: boolean;
   sortIconVariant?: "arrow" | "chevron";
 }) {
+  const [internalSort, setInternalSort] = React.useState<{ key: string | null; direction: "asc" | "desc" | null }>({
+    key: null,
+    direction: null
+  });
+  const isControlledSort = Boolean(onSortChange);
+  const activeSort = sort ?? internalSort;
+  const updateSort = onSortChange ?? ((key: string, direction: "asc" | "desc" | null) => setInternalSort({ key: direction ? key : null, direction }));
+
   const isChevronIcons = sortIconVariant === "chevron";
   const BaseAscIcon = isChevronIcons ? KeyboardArrowUpIcon : ArrowUpwardIcon;
   const BaseDescIcon = isChevronIcons ? KeyboardArrowDownIcon : ArrowDownwardIcon;
@@ -62,6 +71,37 @@ export function DataTable<T extends { id: number | string }>({
   ) : (
     <UnfoldMoreIcon fontSize="inherit" />
   );
+
+  const rowsToRender = React.useMemo(() => {
+    if (isControlledSort || !activeSort.key || !activeSort.direction) return rows;
+    const column = columns.find((col) => (col.sortKey || String(col.key)) === activeSort.key);
+    if (!column) return rows;
+    const getValue =
+      column.sortValue ??
+      ((row: T) => {
+        const key = column.sortKey || column.key;
+        return (row as any)[key];
+      });
+    const normalize = (value: unknown) => {
+      if (value === null || value === undefined) return null;
+      if (typeof value === "boolean") return value ? 1 : 0;
+      if (typeof value === "number") return value;
+      return String(value).toLowerCase();
+    };
+    const compare = (a: T, b: T) => {
+      const aVal = normalize(getValue(a));
+      const bVal = normalize(getValue(b));
+      if (aVal === null && bVal === null) return 0;
+      if (aVal === null) return 1;
+      if (bVal === null) return -1;
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return aVal - bVal;
+      }
+      return String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: "base" });
+    };
+    const sorted = [...rows].sort(compare);
+    return activeSort.direction === "asc" ? sorted : sorted.reverse();
+  }, [rows, columns, activeSort, isControlledSort]);
 
   return (
     <TableContainer
@@ -77,13 +117,13 @@ export function DataTable<T extends { id: number | string }>({
           <TableRow>
             {columns.map((col) => {
               const key = col.sortKey || String(col.key);
-              const sortable = Boolean(col.sortable || col.sortKey);
-              const isActive = sort?.key === key;
-              const direction = isActive ? sort?.direction : null;
+              const sortable = col.sortable ?? Boolean(col.sortKey || col.sortValue || !isControlledSort);
+              const isActive = activeSort.key === key;
+              const direction = isActive ? activeSort.direction : null;
               const handleSort = () => {
-                if (!sortable || !onSortChange) return;
+                if (!sortable) return;
                 const nextDirection = !isActive || direction === null ? "asc" : direction === "asc" ? "desc" : null;
-                onSortChange(key, nextDirection);
+                updateSort(key, nextDirection);
               };
               const sortIcon = !sortable ? null : direction === "asc" ? (
                 <AscIcon fontSize="inherit" />
@@ -126,7 +166,7 @@ export function DataTable<T extends { id: number | string }>({
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((row) => (
+          {rowsToRender.map((row) => (
             <TableRow
               key={rowKey ? rowKey(row) : row.id}
               hover

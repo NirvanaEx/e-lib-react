@@ -147,6 +147,26 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
   const getCategoryPath = (id: number) => categoryPathById.get(id) || [`#${id}`];
   const getDepartmentPath = (id: number) => departmentPathById.get(id) || [`#${id}`];
 
+  const sortedCategories = React.useMemo(() => {
+    const items = [...categories];
+    return items.sort((a, b) =>
+      formatPath(getCategoryPath(a.id)).localeCompare(formatPath(getCategoryPath(b.id)), undefined, {
+        numeric: true,
+        sensitivity: "base"
+      })
+    );
+  }, [categories, getCategoryPath]);
+
+  const sortedDepartments = React.useMemo(() => {
+    const items = [...departments];
+    return items.sort((a, b) =>
+      formatPath(getDepartmentPath(a.id)).localeCompare(formatPath(getDepartmentPath(b.id)), undefined, {
+        numeric: true,
+        sensitivity: "base"
+      })
+    );
+  }, [departments, getDepartmentPath]);
+
   const renderPath = (segments: string[]) => (
     <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexWrap: "wrap" }}>
       {segments.map((segment, index) => (
@@ -344,7 +364,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                 name="categoryId"
                 render={({ field }) => (
                   <Autocomplete
-                    options={categories}
+                    options={sortedCategories}
                     getOptionLabel={(option) => formatPath(getCategoryPath(option.id))}
                     renderOption={(props, option) => {
                       const { key, ...optionProps } = props;
@@ -354,7 +374,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                         </li>
                       );
                     }}
-                    value={categories.find((cat: any) => cat.id === field.value) || null}
+                    value={sortedCategories.find((cat: any) => cat.id === field.value) || null}
                     isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
                     onChange={(_, value: any | null) => field.onChange(value ? value.id : 0)}
                     renderInput={(params) => <TextField {...params} label={t("category")} required />}
@@ -399,7 +419,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                   render={({ field }) => (
                     <Autocomplete
                       multiple
-                      options={departments}
+                      options={sortedDepartments}
                       getOptionLabel={(option: DepartmentOption) => formatPath(getDepartmentPath(option.id))}
                       renderOption={(props, option: any) => {
                         const { key, ...optionProps } = props;
@@ -409,7 +429,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                           </li>
                         );
                       }}
-                      value={departments.filter((dept) => field.value.includes(dept.id))}
+                      value={sortedDepartments.filter((dept) => field.value.includes(dept.id))}
                       isOptionEqualToValue={(option, value) => option.id === value.id}
                       onChange={(_, value) => field.onChange(value.map((item) => item.id))}
                       renderInput={(params) => <TextField {...params} label={t("allowedDepartments")} />}

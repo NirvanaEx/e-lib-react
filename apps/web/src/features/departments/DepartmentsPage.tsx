@@ -73,6 +73,10 @@ export default function DepartmentsPage() {
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
+  const [sort, setSort] = React.useState<{ key: string | null; direction: "asc" | "desc" | null }>({
+    key: null,
+    direction: null
+  });
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { t } = useTranslation();
@@ -187,6 +191,14 @@ export default function DepartmentsPage() {
       childrenMap.get(parentKey)?.push(row);
     });
 
+    const sortRootsByName = (items: DepartmentRow[]) => {
+      if (sort.key !== "name" || !sort.direction) return items;
+      const sorted = [...items].sort((a, b) =>
+        String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true, sensitivity: "base" })
+      );
+      return sort.direction === "asc" ? sorted : sorted.reverse();
+    };
+
     const result: TreeRow[] = [];
     const walk = (node: DepartmentRow, depth: number) => {
       const children = childrenMap.get(node.id) || [];
@@ -196,10 +208,10 @@ export default function DepartmentsPage() {
       }
     };
 
-    const roots = childrenMap.get(null) || [];
+    const roots = sortRootsByName(childrenMap.get(null) || []);
     roots.forEach((root) => walk(root, 1));
     return result;
-  }, [rows, expandedIds]);
+  }, [rows, expandedIds, sort]);
 
   const defaultExpandedIds = React.useMemo(() => {
     const childrenByParent = new Map<number, number>();
@@ -255,10 +267,15 @@ export default function DepartmentsPage() {
       ) : (
         <DataTable
           rows={treeRows}
+          sort={sort}
+          onSortChange={(key, direction) =>
+            setSort(direction ? { key, direction } : { key: null, direction: null })
+          }
           columns={[
             {
               key: "name",
               label: t("name"),
+              sortable: true,
               render: (row) => (
                 <Stack direction="row" alignItems="center" spacing={0.5} sx={{ pl: Math.max(0, row.treeDepth - 1) * 2 }}>
                   {row.hasChildren ? (
@@ -275,37 +292,42 @@ export default function DepartmentsPage() {
             {
               key: "created_at",
               label: t("createdAt"),
+              sortable: false,
               render: (row) => formatDateTime(row.created_at)
             },
             {
               key: "updated_at",
               label: t("updatedAt"),
+              sortable: false,
               render: (row) => formatDateTime(row.updated_at)
             },
             {
               key: "dataOwnCount",
               label: t("dataOwnCount"),
+              sortable: false,
               render: (row) => row.dataOwnCount ?? 0
             },
             {
               key: "dataCount",
               label: t("dataCount"),
+              sortable: false,
               render: (row) => row.dataCount ?? 0
             },
             {
               key: "actions",
               label: t("actions"),
               align: "right",
+              sortable: false,
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
-                  <Tooltip title={t("edit")}>
-                    <IconButton size="small" onClick={() => setEditing(row)}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
                   <Tooltip title={t("newDepartment")}>
                     <IconButton size="small" onClick={() => handleOpenCreate(row.id)}>
                       <AddIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t("edit")}>
+                    <IconButton size="small" onClick={() => setEditing(row)}>
+                      <EditIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title={t("delete")}>

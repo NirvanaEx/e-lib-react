@@ -214,6 +214,26 @@ export default function FilesPage() {
   const getCategoryPath = (id: number) => categoryPathById.get(id) || [`#${id}`];
   const getDepartmentPath = (id: number) => departmentPathById.get(id) || [`#${id}`];
 
+  const sortedCategories = React.useMemo(() => {
+    const items = [...categories];
+    return items.sort((a, b) =>
+      formatPath(getCategoryPath(a.id)).localeCompare(formatPath(getCategoryPath(b.id)), undefined, {
+        numeric: true,
+        sensitivity: "base"
+      })
+    );
+  }, [categories, getCategoryPath]);
+
+  const sortedDepartments = React.useMemo(() => {
+    const items = [...departments];
+    return items.sort((a, b) =>
+      formatPath(getDepartmentPath(a.id)).localeCompare(formatPath(getDepartmentPath(b.id)), undefined, {
+        numeric: true,
+        sensitivity: "base"
+      })
+    );
+  }, [departments, getDepartmentPath]);
+
   const renderPath = (segments: string[]) => (
     <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexWrap: "wrap" }}>
       {segments.map((segment, index) => (
@@ -442,7 +462,16 @@ export default function FilesPage() {
               key: "accessType",
               label: t("access"),
               render: (row) => (
-                <Chip size="small" label={row.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")} />
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    borderColor: row.accessType === "restricted" ? "warning.main" : "success.main",
+                    color: row.accessType === "restricted" ? "warning.main" : "success.main",
+                    fontWeight: 600
+                  }}
+                  label={row.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}
+                />
               )
             },
             {
@@ -500,6 +529,8 @@ export default function FilesPage() {
                       <IconButton
                         size="small"
                         disabled={disabled}
+                        color={disabled ? "default" : "primary"}
+                        sx={disabled ? undefined : { backgroundColor: "rgba(29, 77, 79, 0.12)" }}
                         onClick={(event) => {
                           event.stopPropagation();
                           if (langs.length > 1) {
@@ -521,6 +552,7 @@ export default function FilesPage() {
               key: "actions",
               label: t("actions"),
               align: "right",
+              sortable: false,
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   <Tooltip title={t("edit")}>
@@ -598,7 +630,7 @@ export default function FilesPage() {
                 name="categoryId"
                 render={({ field }) => (
                   <Autocomplete
-                    options={categories}
+                    options={sortedCategories}
                     getOptionLabel={(option) => formatPath(getCategoryPath(option.id))}
                     renderOption={(props, option) => {
                       const { key, ...optionProps } = props;
@@ -608,7 +640,7 @@ export default function FilesPage() {
                         </li>
                       );
                     }}
-                    value={categories.find((cat) => cat.id === field.value) || null}
+                    value={sortedCategories.find((cat) => cat.id === field.value) || null}
                     isOptionEqualToValue={(option, value) => option.id === value.id}
                     onChange={(_, value) => field.onChange(value ? value.id : 0)}
                     renderInput={(params) => <TextField {...params} label={t("category")} required />}
@@ -643,7 +675,7 @@ export default function FilesPage() {
                     render={({ field }) => (
                       <Autocomplete
                         multiple
-                        options={departments}
+                        options={sortedDepartments}
                         getOptionLabel={(option: DepartmentOption) => formatPath(getDepartmentPath(option.id))}
                         renderOption={(props, option: any) => {
                           const { key, ...optionProps } = props;
@@ -653,7 +685,7 @@ export default function FilesPage() {
                             </li>
                           );
                         }}
-                        value={departments.filter((dept) => field.value?.includes(dept.id))}
+                        value={sortedDepartments.filter((dept) => field.value?.includes(dept.id))}
                         isOptionEqualToValue={(option, value) => option.id === value.id}
                         onChange={(_, value) => field.onChange(value.map((item) => item.id))}
                         renderInput={(params) => <TextField {...params} label={t("allowedDepartments")} />}
@@ -817,7 +849,16 @@ export default function FilesPage() {
               <Box>
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                   <Typography variant="subtitle2">{t("access")}</Typography>
-                  <Chip size="small" label={infoFile?.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")} />
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      borderColor: infoFile?.accessType === "restricted" ? "warning.main" : "success.main",
+                      color: infoFile?.accessType === "restricted" ? "warning.main" : "success.main",
+                      fontWeight: 600
+                    }}
+                    label={infoFile?.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}
+                  />
                 </Stack>
                 {infoFile?.accessType === "restricted" && (
                   <Stack spacing={1}>
