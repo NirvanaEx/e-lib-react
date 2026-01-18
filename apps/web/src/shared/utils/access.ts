@@ -7,6 +7,7 @@ const dashboardRoutes = [
   { path: "/dashboard/sessions", permission: "session.read" },
   { path: "/dashboard/sections", permission: "section.read" },
   { path: "/dashboard/categories", permission: "category.read" },
+  { path: "/dashboard/requests", permission: "file.read" },
   { path: "/dashboard/files", permission: "file.read" },
   { path: "/dashboard/stats", permission: "stats.read" },
   { path: "/dashboard/audit", permission: "audit.read" }
@@ -21,10 +22,15 @@ export function hasAccess(user: AuthUser | null, permissions: string[]) {
 
 export function getDefaultRoute(user: AuthUser | null) {
   if (!user) return "/login";
+  return "/users";
+}
+
+export function getDashboardRoute(user: AuthUser | null) {
+  if (!user) return "/dashboard/users";
   const userPermissions = user.permissions || [];
   if (userPermissions.includes("dashboard.access")) {
     const match = dashboardRoutes.find((route) => userPermissions.includes(route.permission));
     if (match) return match.path;
   }
-  return "/users";
+  return "/dashboard/users";
 }

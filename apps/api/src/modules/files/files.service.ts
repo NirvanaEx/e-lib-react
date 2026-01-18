@@ -220,8 +220,11 @@ export class FilesService {
     }
   }
 
-  async listManage(params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string }, preferredLang: string | null) {
-    const { page, pageSize, q, sortBy, sortDir } = params;
+  async listManage(
+    params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string; createdBy?: number },
+    preferredLang: string | null
+  ) {
+    const { page, pageSize, q, sortBy, sortDir, createdBy } = params;
     const db = this.dbService.db;
     const defaultLang = this.getDefaultLang();
     const lang = normalizeLang(preferredLang) || null;
@@ -243,6 +246,10 @@ export class FilesService {
         "file_translations.description"
       )
       .whereNull("file_items.deleted_at");
+
+    if (createdBy) {
+      query.where("file_items.created_by", createdBy);
+    }
 
     if (q) {
       query.whereILike("file_translations.title", `%${q}%`);
@@ -361,7 +368,8 @@ export class FilesService {
     if (versionIds.length > 0) {
       const assetRows = await this.dbService.db("file_version_assets")
         .select("file_version_id", "lang", "size")
-        .whereIn("file_version_id", versionIds);
+        .whereIn("file_version_id", versionIds)
+        .whereNull("deleted_at");
       assetRows.forEach((row: any) => {
         if (!assetLangsByVersion.has(row.file_version_id)) {
           assetLangsByVersion.set(row.file_version_id, new Set<string>());
@@ -377,6 +385,7 @@ export class FilesService {
         .select("file_version_id")
         .sum<{ size: string }>("size as size")
         .whereIn("file_version_id", versionIds)
+        .whereNull("deleted_at")
         .groupBy("file_version_id")) as any[];
       sizeRows.forEach((row: any) => {
         assetSizesByVersion.set(row.file_version_id, Number(row.size || 0));
@@ -591,23 +600,21 @@ export class FilesService {
       await trx("file_access_departments").where({ file_item_id: fileItemId }).delete();
       await trx("file_access_users").where({ file_item_id: fileItemId }).delete();
 
-      if (dto.accessType === "restricted") {
-        if (dto.accessDepartmentIds && dto.accessDepartmentIds.length > 0) {
-          await trx("file_access_departments").insert(
-            dto.accessDepartmentIds.map((id: number) => ({
-              file_item_id: fileItemId,
-              department_id: id
-            }))
-          );
-        }
-        if (dto.accessUserIds && dto.accessUserIds.length > 0) {
-          await trx("file_access_users").insert(
-            dto.accessUserIds.map((id: number) => ({
-              file_item_id: fileItemId,
-              user_id: id
-            }))
-          );
-        }
+      if (dto.accessDepartmentIds && dto.accessDepartmentIds.length > 0) {
+        await trx("file_access_departments").insert(
+          dto.accessDepartmentIds.map((id: number) => ({
+            file_item_id: fileItemId,
+            department_id: id
+          }))
+        );
+      }
+      if (dto.accessUserIds && dto.accessUserIds.length > 0) {
+        await trx("file_access_users").insert(
+          dto.accessUserIds.map((id: number) => ({
+            file_item_id: fileItemId,
+            user_id: id
+          }))
+        );
       }
     });
 
@@ -649,18 +656,244 @@ export class FilesService {
 
   async listTrash(params: { page: number; pageSize: number; q?: string }, preferredLang: string | null) {
     const { page, pageSize, q } = params;
-    const query = this.dbService.db("file_items")
+    const db = this.dbService.db;
+    const defaultLang = this.getDefaultLang();
+    const lang = normalizeLang(preferredLang) || null;
+    const resolvedLang = lang || defaultLang;
+
+    const applyTitleJoins = (query: any, tableAlias = "file_items") => {
+      query
+        .leftJoin({ ft_pref: "file_translations" }, function (this: any) {
+          this.on(`${tableAlias}.id`, "ft_pref.file_item_id").andOn("ft_pref.lang", db.raw("?", [resolvedLang]));
+        })
+        .leftJoin({ ft_def: "file_translations" }, function (this: any) {
+          this.on(`${tableAlias}.id`, "ft_def.file_item_id").andOn("ft_def.lang", db.raw("?", [defaultLang]));
+        });
+    };
+
+    const filesQuery = db("file_items")
+      .modify((queryBuilder) => applyTitleJoins(queryBuilder))
+      .whereNotNull("file_items.deleted_at")
+      .select(
+        db.raw("'file' as type"),
+        "file_items.id as id",
+        "file_items.id as file_id",
+        db.raw("null::int as version_id"),
+        db.raw("null::int as version_number"),
+        db.raw("null::text as asset_lang"),
+        db.raw("null::text as asset_name"),
+        db.raw("coalesce(??, ??) as title", ["ft_pref.title", "ft_def.title"]),
+        "file_items.deleted_at as deleted_at"
+      );
+
+    if (q) {
+      filesQuery.whereRaw("coalesce(??, ??) ILIKE ?", ["ft_pref.title", "ft_def.title", `%${q}%`]);
+    }
+
+    const versionsQuery = db("file_versions")
+      .leftJoin("file_items", "file_versions.file_item_id", "file_items.id")
+      .modify((queryBuilder) => applyTitleJoins(queryBuilder))
+      .whereNotNull("file_versions.deleted_at")
+      .select(
+        db.raw("'version' as type"),
+        "file_versions.id as id",
+        "file_items.id as file_id",
+        "file_versions.id as version_id",
+        "file_versions.version_number as version_number",
+        db.raw("null::text as asset_lang"),
+        db.raw("null::text as asset_name"),
+        db.raw("coalesce(??, ??) as title", ["ft_pref.title", "ft_def.title"]),
+        "file_versions.deleted_at as deleted_at"
+      );
+
+    if (q) {
+      versionsQuery.whereRaw("coalesce(??, ??) ILIKE ?", ["ft_pref.title", "ft_def.title", `%${q}%`]);
+    }
+
+    const assetsQuery = db("file_version_assets")
+      .leftJoin("file_versions", "file_version_assets.file_version_id", "file_versions.id")
+      .leftJoin("file_items", "file_versions.file_item_id", "file_items.id")
+      .modify((queryBuilder) => applyTitleJoins(queryBuilder))
+      .whereNotNull("file_version_assets.deleted_at")
+      .select(
+        db.raw("'asset' as type"),
+        "file_version_assets.id as id",
+        "file_items.id as file_id",
+        "file_versions.id as version_id",
+        "file_versions.version_number as version_number",
+        "file_version_assets.lang as asset_lang",
+        "file_version_assets.original_name as asset_name",
+        db.raw("coalesce(??, ??) as title", ["ft_pref.title", "ft_def.title"]),
+        "file_version_assets.deleted_at as deleted_at"
+      );
+
+    if (q) {
+      assetsQuery.where((builder: any) => {
+        builder.whereRaw("coalesce(??, ??) ILIKE ?", ["ft_pref.title", "ft_def.title", `%${q}%`]);
+        builder.orWhereRaw("file_version_assets.original_name ILIKE ?", [`%${q}%`]);
+      });
+    }
+
+    const unionQuery = db.unionAll([filesQuery, versionsQuery, assetsQuery], true);
+    const countResult = await db
+      .from(unionQuery.as("trash"))
+      .count<{ count: string }>("* as count")
+      .first();
+    const rows = await db
+      .from(unionQuery.as("trash"))
+      .orderBy("deleted_at", "desc")
+      .offset((page - 1) * pageSize)
+      .limit(pageSize);
+
+    const data = rows.map((row: any) => ({
+      id: row.id,
+      type: row.type,
+      title: row.title || null,
+      deletedAt: row.deleted_at,
+      fileId: row.file_id || null,
+      versionId: row.version_id || null,
+      versionNumber: row.version_number || null,
+      assetLang: row.asset_lang || null,
+      assetName: row.asset_name || null
+    }));
+
+    return { data, meta: buildPaginationMeta(page, pageSize, Number(countResult?.count || 0)) };
+  }
+
+  async listUserOwnFiles(
+    params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string },
+    user: any,
+    preferredLang: string | null
+  ) {
+    const result = await this.listManage(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        q: params.q,
+        sortBy: params.sortBy,
+        sortDir: params.sortDir,
+        createdBy: user.id
+      },
+      preferredLang
+    );
+    const fileIds = (result.data || []).map((item: any) => item.id);
+    const departmentIds = await this.getDepartmentScopeIds(user.departmentId);
+    const accessUserIds = fileIds.length
+      ? await this.dbService.db("file_access_users")
+          .whereIn("file_item_id", fileIds)
+          .where("user_id", user.id)
+          .pluck("file_item_id")
+      : [];
+    const accessDepartmentIds =
+      fileIds.length && departmentIds.length
+        ? await this.dbService.db("file_access_departments")
+            .whereIn("file_item_id", fileIds)
+            .whereIn("department_id", departmentIds)
+            .pluck("file_item_id")
+        : [];
+    const accessUserSet = new Set<number>(accessUserIds.map((id: number) => Number(id)));
+    const accessDepartmentSet = new Set<number>(accessDepartmentIds.map((id: number) => Number(id)));
+    const canDownloadRestricted = Boolean(user?.permissions?.includes("file.download.restricted"));
+    const favoriteIds = fileIds.length
+      ? await this.dbService.db("file_favorites").whereIn("file_item_id", fileIds).where("user_id", user.id).pluck("file_item_id")
+      : [];
+    const favoriteSet = new Set(favoriteIds.map((id: any) => String(id)));
+
+    const data = (result.data || []).map((item: any) => ({
+      ...item,
+      canDownload:
+        item.accessType === "public" ||
+        canDownloadRestricted ||
+        accessUserSet.has(item.id) ||
+        accessDepartmentSet.has(item.id),
+      isFavorite: favoriteSet.has(String(item.id))
+    }));
+
+    return { data, meta: result.meta };
+  }
+
+  async listUserFavorites(
+    params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string },
+    user: any,
+    preferredLang: string | null
+  ) {
+    const { page, pageSize, q, sortBy, sortDir } = params;
+    const db = this.dbService.db;
+    const defaultLang = this.getDefaultLang();
+    const lang = normalizeLang(preferredLang) || null;
+    const sortLang = lang || defaultLang;
+    const departmentIds = await this.getDepartmentScopeIds(user.departmentId);
+    const query = db("file_items")
+      .innerJoin("file_favorites", function () {
+        this.on("file_items.id", "file_favorites.file_item_id").andOn("file_favorites.user_id", db.raw("?", [user.id]));
+      })
       .leftJoin("file_translations", "file_items.id", "file_translations.file_item_id")
       .select(
         "file_items.id",
-        "file_items.deleted_at",
+        "file_items.section_id",
+        "file_items.category_id",
+        "file_items.access_type",
+        "file_items.current_version_id",
+        "file_items.created_at",
+        "file_items.updated_at",
         "file_translations.lang",
         "file_translations.title",
         "file_translations.description"
       )
-      .whereNotNull("file_items.deleted_at");
+      .whereNull("file_items.deleted_at");
 
-    if (q) query.whereILike("file_translations.title", `%${q}%`);
+    if (q) {
+      query.whereILike("file_translations.title", `%${q}%`);
+    }
+
+    const direction = sortDir === "asc" ? "asc" : "desc";
+    if (sortBy === "title") {
+      query.leftJoin({ sort_title_pref: "file_translations" }, function () {
+        this.on("file_items.id", "sort_title_pref.file_item_id").andOn("sort_title_pref.lang", db.raw("?", [sortLang]));
+      });
+      if (sortLang !== defaultLang) {
+        query.leftJoin({ sort_title_def: "file_translations" }, function () {
+          this.on("file_items.id", "sort_title_def.file_item_id").andOn("sort_title_def.lang", db.raw("?", [defaultLang]));
+        });
+      }
+      if (sortLang !== defaultLang) {
+        query.orderByRaw(`coalesce(??, ??) ${direction}`, ["sort_title_pref.title", "sort_title_def.title"]);
+      } else {
+        query.orderByRaw(`?? ${direction}`, ["sort_title_pref.title"]);
+      }
+    } else if (sortBy === "category") {
+      query.leftJoin("categories", "file_items.category_id", "categories.id");
+      query.leftJoin({ sort_cat_pref: "categories_translations" }, function () {
+        this.on("categories.id", "sort_cat_pref.category_id").andOn("sort_cat_pref.lang", db.raw("?", [sortLang]));
+      });
+      if (sortLang !== defaultLang) {
+        query.leftJoin({ sort_cat_def: "categories_translations" }, function () {
+          this.on("categories.id", "sort_cat_def.category_id").andOn("sort_cat_def.lang", db.raw("?", [defaultLang]));
+        });
+      }
+      if (sortLang !== defaultLang) {
+        query.orderByRaw(`coalesce(??, ??) ${direction}`, ["sort_cat_pref.title", "sort_cat_def.title"]);
+      } else {
+        query.orderByRaw(`?? ${direction}`, ["sort_cat_pref.title"]);
+      }
+    } else if (sortBy === "size") {
+      const sizeTotals = db("file_version_assets")
+        .select("file_version_id")
+        .sum<{ size: string }>("size as size")
+        .groupBy("file_version_id")
+        .as("size_totals");
+      query.leftJoin(sizeTotals, "size_totals.file_version_id", "file_items.current_version_id");
+      query.leftJoin({ size_pref: "file_version_assets" }, function () {
+        this.on("size_pref.file_version_id", "file_items.current_version_id").andOn("size_pref.lang", db.raw("?", [sortLang]));
+      });
+      query.orderByRaw(`coalesce(??, ??, 0) ${direction}`, ["size_pref.size", "size_totals.size"]);
+    } else if (sortBy === "updated_at") {
+      query.orderBy("file_items.updated_at", direction);
+    } else if (sortBy === "popular") {
+      query.orderBy("file_items.created_at", "desc");
+    } else {
+      query.orderBy("file_items.created_at", direction);
+    }
 
     const countResult = await query
       .clone()
@@ -670,33 +903,158 @@ export class FilesService {
       .first();
     const rows = await query.offset((page - 1) * pageSize).limit(pageSize);
 
-    type TrashRow = { id: number; deleted_at: string | null; translations: FileTranslation[] };
-    const grouped = new Map<number, TrashRow>();
+    type UserFileRow = {
+      id: number;
+      section_id: number;
+      category_id: number;
+      access_type: string;
+      current_version_id: number | null;
+      created_at: string;
+      updated_at: string;
+      translations: FileTranslation[];
+    };
+    const grouped = new Map<number, UserFileRow>();
     rows.forEach((row: any) => {
       if (!grouped.has(row.id)) {
-        grouped.set(row.id, { id: row.id, deleted_at: row.deleted_at, translations: [] });
+        grouped.set(row.id, {
+          id: row.id,
+          section_id: row.section_id,
+          category_id: row.category_id,
+          access_type: row.access_type,
+          current_version_id: row.current_version_id,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          translations: []
+        });
       }
       const current = grouped.get(row.id);
       if (row.lang && current) {
-        current.translations.push({ lang: row.lang, title: row.title, description: row.description });
+        current.translations.push({
+          lang: row.lang,
+          title: row.title,
+          description: row.description
+        });
       }
     });
 
-    const defaultLang = this.getDefaultLang();
-    const lang = normalizeLang(preferredLang) || null;
-
-    const data = Array.from(grouped.values()).map((item) => {
+    const baseData = Array.from(grouped.values()).map((item) => {
       const picked = selectTranslation<FileTranslation>(item.translations, lang, defaultLang);
       return {
         id: item.id,
+        sectionId: item.section_id,
+        categoryId: item.category_id,
+        accessType: item.access_type,
+        createdAt: item.created_at,
+        updatedAt: item.updated_at,
         title: picked?.title || null,
         description: picked?.description || null,
         availableLangs: getAvailableLangs(item.translations),
-        deletedAt: item.deleted_at
+        currentVersionId: item.current_version_id,
+        isFavorite: true
+      };
+    });
+
+    const versionIds = baseData.map((item) => item.currentVersionId).filter(Boolean) as number[];
+    const assetLangsByVersion = new Map<number, Set<string>>();
+    const assetSizesByVersion = new Map<number, number>();
+    const assetSizesByLang = new Map<number, Map<string, number>>();
+    if (versionIds.length > 0) {
+      const assetRows = await this.dbService.db("file_version_assets")
+        .select("file_version_id", "lang", "size")
+        .whereIn("file_version_id", versionIds)
+        .whereNull("deleted_at");
+      assetRows.forEach((row: any) => {
+        if (!assetLangsByVersion.has(row.file_version_id)) {
+          assetLangsByVersion.set(row.file_version_id, new Set<string>());
+        }
+        assetLangsByVersion.get(row.file_version_id)?.add(row.lang);
+        if (!assetSizesByLang.has(row.file_version_id)) {
+          assetSizesByLang.set(row.file_version_id, new Map<string, number>());
+        }
+        assetSizesByLang.get(row.file_version_id)?.set(row.lang, Number(row.size || 0));
+      });
+
+      const sizeRows = (await this.dbService.db("file_version_assets")
+        .select("file_version_id")
+        .sum<{ size: string }>("size as size")
+        .whereIn("file_version_id", versionIds)
+        .whereNull("deleted_at")
+        .groupBy("file_version_id")) as any[];
+      sizeRows.forEach((row: any) => {
+        assetSizesByVersion.set(row.file_version_id, Number(row.size || 0));
+      });
+    }
+
+    const fileIds = baseData.map((item) => item.id);
+    const accessUserIds = fileIds.length
+      ? await db("file_access_users").whereIn("file_item_id", fileIds).where("user_id", user.id).pluck("file_item_id")
+      : [];
+    const accessDepartmentIds =
+      fileIds.length && departmentIds.length
+        ? await db("file_access_departments")
+            .whereIn("file_item_id", fileIds)
+            .whereIn("department_id", departmentIds)
+            .pluck("file_item_id")
+        : [];
+    const accessUserSet = new Set<number>(accessUserIds.map((id: number) => Number(id)));
+    const accessDepartmentSet = new Set<number>(accessDepartmentIds.map((id: number) => Number(id)));
+    const canDownloadRestricted = Boolean(user?.permissions?.includes("file.download.restricted"));
+    const favoriteIds = fileIds.length
+      ? await db("file_favorites").whereIn("file_item_id", fileIds).where("user_id", user.id).pluck("file_item_id")
+      : [];
+    const favoriteSet = new Set(favoriteIds.map((id: any) => String(id)));
+
+    const data = baseData.map((item) => {
+      const langs = item.currentVersionId ? Array.from(assetLangsByVersion.get(item.currentVersionId) || []) : [];
+      const sizes =
+        item.currentVersionId && assetSizesByLang.has(item.currentVersionId)
+          ? Array.from(assetSizesByLang.get(item.currentVersionId) || new Map()).map(([lang, size]) => ({
+              lang,
+              size
+            }))
+          : [];
+      const canDownload =
+        item.accessType === "public" ||
+        canDownloadRestricted ||
+        accessUserSet.has(item.id) ||
+        accessDepartmentSet.has(item.id);
+      return {
+        ...item,
+        canDownload,
+        isFavorite: favoriteSet.has(String(item.id)),
+        availableAssetLangs: langs.sort(),
+        availableAssetSizes: sizes.sort((a, b) => a.lang.localeCompare(b.lang)),
+        currentAssetSize: item.currentVersionId ? assetSizesByVersion.get(item.currentVersionId) || 0 : 0
       };
     });
 
     return { data, meta: buildPaginationMeta(page, pageSize, Number(countResult?.count || 0)) };
+  }
+
+  async addFavorite(fileItemId: number, user: any) {
+    const file = await this.dbService.db("file_items")
+      .where({ id: fileItemId })
+      .whereNull("deleted_at")
+      .first();
+    if (!file) throw new NotFoundException();
+
+    await this.dbService.db("file_favorites")
+      .insert({
+        file_item_id: fileItemId,
+        user_id: user.id,
+        created_at: this.dbService.db.fn.now()
+      })
+      .onConflict(["file_item_id", "user_id"])
+      .ignore();
+
+    return { success: true };
+  }
+
+  async removeFavorite(fileItemId: number, user: any) {
+    await this.dbService.db("file_favorites")
+      .where({ file_item_id: fileItemId, user_id: user.id })
+      .delete();
+    return { success: true };
   }
 
   async forceDelete(fileItemId: number, actorId?: number) {
@@ -749,6 +1107,7 @@ export class FilesService {
     const assets = versionIds.length
       ? await this.dbService.db("file_version_assets")
           .whereIn("file_version_id", versionIds)
+          .whereNull("deleted_at")
           .select(
             "id",
             "file_version_id",
@@ -880,9 +1239,12 @@ export class FilesService {
       throw new BadRequestException("Cannot delete last version");
     }
 
-    await this.dbService.db("file_versions")
-      .where({ id: versionId })
-      .update({ deleted_at: this.dbService.db.fn.now() });
+    const now = this.dbService.db.fn.now();
+    await this.dbService.db("file_versions").where({ id: versionId }).update({ deleted_at: now });
+    await this.dbService.db("file_version_assets")
+      .where({ file_version_id: versionId })
+      .whereNull("deleted_at")
+      .update({ deleted_at: now, updated_at: now });
 
     await this.auditService.log({
       actorUserId: actorId,
@@ -900,11 +1262,68 @@ export class FilesService {
       .first();
     if (!version) throw new NotFoundException();
 
+    const now = this.dbService.db.fn.now();
     await this.dbService.db("file_versions").update({ deleted_at: null }).where({ id: versionId });
+    await this.dbService.db("file_version_assets")
+      .where({ file_version_id: versionId })
+      .update({ deleted_at: null, updated_at: now });
 
     await this.auditService.log({
       actorUserId: actorId,
       action: "FILE_VERSION_RESTORED",
+      entityType: "FILE_VERSION",
+      entityId: versionId
+    });
+
+    return { success: true };
+  }
+
+  async restoreVersionById(versionId: number, actorId: number) {
+    const version = await this.dbService.db("file_versions").where({ id: versionId }).first();
+    if (!version) throw new NotFoundException();
+
+    const now = this.dbService.db.fn.now();
+    await this.dbService.db("file_versions").update({ deleted_at: null }).where({ id: versionId });
+    await this.dbService.db("file_version_assets")
+      .where({ file_version_id: versionId })
+      .update({ deleted_at: null, updated_at: now });
+
+    await this.auditService.log({
+      actorUserId: actorId,
+      action: "FILE_VERSION_RESTORED",
+      entityType: "FILE_VERSION",
+      entityId: versionId
+    });
+
+    return { success: true };
+  }
+
+  async forceDeleteVersion(versionId: number, actorId: number) {
+    const version = await this.dbService.db("file_versions").where({ id: versionId }).first();
+    if (!version) throw new NotFoundException();
+
+    const file = await this.dbService.db("file_items").where({ id: version.file_item_id }).first();
+    if (file?.current_version_id === versionId) {
+      throw new BadRequestException("Cannot delete current version");
+    }
+
+    const assets = await this.dbService.db("file_version_assets")
+      .where({ file_version_id: versionId })
+      .select("path");
+    for (const asset of assets) {
+      if (asset.path) {
+        await this.deleteFileSafe(asset.path);
+      }
+    }
+
+    await this.dbService.db.transaction(async (trx) => {
+      await trx("file_version_assets").where({ file_version_id: versionId }).delete();
+      await trx("file_versions").where({ id: versionId }).delete();
+    });
+
+    await this.auditService.log({
+      actorUserId: actorId,
+      action: "FILE_VERSION_FORCE_DELETED",
       entityType: "FILE_VERSION",
       entityId: versionId
     });
@@ -940,12 +1359,31 @@ export class FilesService {
     await this.ensureUploadDir(path.dirname(newPath));
     await fs.rename(file.path, newPath);
 
+    const now = this.dbService.db.fn.now();
     const existing = await this.dbService.db("file_version_assets")
       .where({ file_version_id: versionId, lang })
       .first();
     if (existing) {
       await this.deleteFileSafe(existing.path);
-      await this.dbService.db("file_version_assets").where({ id: existing.id }).delete();
+      await this.dbService.db("file_version_assets")
+        .where({ id: existing.id })
+        .update({
+          original_name: file.originalname,
+          mime: file.mimetype,
+          size: file.size,
+          path: newPath,
+          checksum: null,
+          deleted_at: null,
+          updated_at: now
+        });
+      await this.auditService.log({
+        actorUserId: actorId,
+        action: "FILE_ASSET_UPLOADED",
+        entityType: "FILE_VERSION",
+        entityId: versionId,
+        meta: { lang, size: file.size, originalName: file.originalname }
+      });
+      return { id: existing.id };
     }
 
     const [asset] = await this.dbService.db("file_version_assets")
@@ -956,8 +1394,8 @@ export class FilesService {
         mime: file.mimetype,
         size: file.size,
         path: newPath,
-        created_at: this.dbService.db.fn.now(),
-        updated_at: this.dbService.db.fn.now()
+        created_at: now,
+        updated_at: now
       })
       .returning("id");
 
@@ -978,8 +1416,11 @@ export class FilesService {
       .first();
     if (!asset) throw new NotFoundException();
 
-    await this.deleteFileSafe(asset.path);
-    await this.dbService.db("file_version_assets").where({ id: assetId }).delete();
+    if (!asset.deleted_at) {
+      await this.dbService.db("file_version_assets")
+        .where({ id: assetId })
+        .update({ deleted_at: this.dbService.db.fn.now(), updated_at: this.dbService.db.fn.now() });
+    }
 
     await this.auditService.log({
       actorUserId: actorId,
@@ -992,36 +1433,39 @@ export class FilesService {
     return { success: true };
   }
 
-  private async assertUserCanSubmit(userId: number) {
-    const user = await this.dbService.db("users")
-      .select("id", "can_submit_files")
-      .where({ id: userId })
-      .whereNull("deleted_at")
-      .first();
-    if (!user || !user.can_submit_files) {
-      throw new ForbiddenException("File submission is not allowed");
-    }
+  async restoreAsset(assetId: number, actorId: number) {
+    const asset = await this.dbService.db("file_version_assets").where({ id: assetId }).first();
+    if (!asset) throw new NotFoundException();
+
+    await this.dbService.db("file_version_assets")
+      .where({ id: assetId })
+      .update({ deleted_at: null, updated_at: this.dbService.db.fn.now() });
+
+    await this.auditService.log({
+      actorUserId: actorId,
+      action: "FILE_ASSET_RESTORED",
+      entityType: "FILE_VERSION_ASSET",
+      entityId: assetId
+    });
+
+    return { success: true };
   }
 
-  async submitUserFile(
-    dto: { sectionId: number; categoryId: number; title: string; description?: string | null; lang: string },
-    file: Express.Multer.File,
-    actor: any
-  ) {
-    await this.assertUserCanSubmit(actor.id);
-    const title = dto.title.trim();
-    const description = dto.description?.trim() || null;
-    const payload = {
-      sectionId: dto.sectionId,
-      categoryId: dto.categoryId,
-      accessType: "restricted",
-      accessDepartmentIds: [],
-      accessUserIds: [actor.id],
-      translations: [{ lang: dto.lang, title, description }]
-    };
-    const result = await this.create(payload, actor.id);
-    await this.uploadAsset(result.id, result.currentVersionId, dto.lang, file, actor.id);
-    return result;
+  async forceDeleteAsset(assetId: number, actorId: number) {
+    const asset = await this.dbService.db("file_version_assets").where({ id: assetId }).first();
+    if (!asset) throw new NotFoundException();
+
+    await this.deleteFileSafe(asset.path);
+    await this.dbService.db("file_version_assets").where({ id: assetId }).delete();
+
+    await this.auditService.log({
+      actorUserId: actorId,
+      action: "FILE_ASSET_FORCE_DELETED",
+      entityType: "FILE_VERSION_ASSET",
+      entityId: assetId
+    });
+
+    return { success: true };
   }
 
   async listUserFiles(params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string; sectionId?: number; categoryId?: number }, user: any, preferredLang: string | null) {
@@ -1045,20 +1489,7 @@ export class FilesService {
         "file_translations.title",
         "file_translations.description"
       )
-      .whereNull("file_items.deleted_at")
-      .where((builder) => {
-        builder.where("file_items.access_type", "public");
-        if (departmentIds.length) {
-          builder.orWhereIn("file_items.id", function () {
-            this.select("file_item_id")
-              .from("file_access_departments")
-              .whereIn("department_id", departmentIds);
-          });
-        }
-        builder.orWhereIn("file_items.id", function () {
-          this.select("file_item_id").from("file_access_users").where("user_id", user.id);
-        });
-      });
+      .whereNull("file_items.deleted_at");
 
     if (sectionId) {
       query.where("file_items.section_id", sectionId);
@@ -1191,7 +1622,8 @@ export class FilesService {
     if (versionIds.length > 0) {
       const assetRows = await this.dbService.db("file_version_assets")
         .select("file_version_id", "lang", "size")
-        .whereIn("file_version_id", versionIds);
+        .whereIn("file_version_id", versionIds)
+        .whereNull("deleted_at");
       assetRows.forEach((row: any) => {
         if (!assetLangsByVersion.has(row.file_version_id)) {
           assetLangsByVersion.set(row.file_version_id, new Set<string>());
@@ -1207,11 +1639,27 @@ export class FilesService {
         .select("file_version_id")
         .sum<{ size: string }>("size as size")
         .whereIn("file_version_id", versionIds)
+        .whereNull("deleted_at")
         .groupBy("file_version_id")) as any[];
       sizeRows.forEach((row: any) => {
         assetSizesByVersion.set(row.file_version_id, Number(row.size || 0));
       });
     }
+
+    const fileIds = baseData.map((item) => item.id);
+    const accessUserIds = fileIds.length
+      ? await db("file_access_users").whereIn("file_item_id", fileIds).where("user_id", user.id).pluck("file_item_id")
+      : [];
+    const accessDepartmentIds =
+      fileIds.length && departmentIds.length
+        ? await db("file_access_departments")
+            .whereIn("file_item_id", fileIds)
+            .whereIn("department_id", departmentIds)
+            .pluck("file_item_id")
+        : [];
+    const accessUserSet = new Set<number>(accessUserIds.map((id: number) => Number(id)));
+    const accessDepartmentSet = new Set<number>(accessDepartmentIds.map((id: number) => Number(id)));
+    const canDownloadRestricted = Boolean(user?.permissions?.includes("file.download.restricted"));
 
     const data = baseData.map((item) => {
       const langs = item.currentVersionId ? Array.from(assetLangsByVersion.get(item.currentVersionId) || []) : [];
@@ -1222,8 +1670,14 @@ export class FilesService {
               size
             }))
           : [];
+      const canDownload =
+        item.accessType === "public" ||
+        canDownloadRestricted ||
+        accessUserSet.has(item.id) ||
+        accessDepartmentSet.has(item.id);
       return {
         ...item,
+        canDownload,
         availableAssetLangs: langs.sort(),
         availableAssetSizes: sizes.sort((a, b) => a.lang.localeCompare(b.lang)),
         currentAssetSize: item.currentVersionId ? assetSizesByVersion.get(item.currentVersionId) || 0 : 0
@@ -1263,6 +1717,7 @@ export class FilesService {
 
     const assets = await this.dbService.db("file_version_assets")
       .where({ file_version_id: rows[0].current_version_id })
+      .whereNull("deleted_at")
       .select("id", "lang", "original_name", "size", "mime");
 
     const availableAssetLangs = assets.map((asset: any) => asset.lang).filter(Boolean);
@@ -1317,6 +1772,7 @@ export class FilesService {
 
     const assets = await this.dbService.db("file_version_assets")
       .where({ file_version_id: file.current_version_id })
+      .whereNull("deleted_at")
       .select("id", "lang", "path", "original_name", "mime");
     if (!assets.length) throw new NotFoundException("No assets");
 

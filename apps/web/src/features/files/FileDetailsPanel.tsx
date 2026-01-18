@@ -5,12 +5,10 @@ import {
   Button,
   Chip,
   Divider,
-  FormControlLabel,
   IconButton,
   MenuItem,
   Paper,
   Stack,
-  Switch,
   Tab,
   Tabs,
   TextField,
@@ -32,8 +30,7 @@ import {
   updateFile,
   updateAccess,
   deleteVersion,
-  restoreVersion,
-  deleteAsset
+  restoreVersion
 } from "./files.api";
 import { fetchSections } from "../sections/sections.api";
 import { fetchCategories } from "../categories/categories.api";
@@ -77,13 +74,14 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { t } = useTranslation();
+  const languageOptions = ["ru", "en", "uz"];
   const [tab, setTab] = React.useState(0);
   const [translations, setTranslations] = React.useState<any[]>([]);
   const [comment, setComment] = React.useState("");
-  const [copyFromCurrent, setCopyFromCurrent] = React.useState(false);
-  const [uploadState, setUploadState] = React.useState<Record<number, { lang: string; file: File | null }>>({});
+  const [newVersionAssets, setNewVersionAssets] = React.useState<Array<{ lang: string; file: File | null }>>([
+    { lang: "ru", file: null }
+  ]);
   const [confirmVersion, setConfirmVersion] = React.useState<null | { type: "delete" | "restore"; versionId: number }>(null);
-  const [confirmAsset, setConfirmAsset] = React.useState<null | { versionId: number; assetId: number }>(null);
 
   const { data: file } = useQuery({ queryKey: ["file", fileId], queryFn: () => fetchFile(fileId) });
   const { data: versions } = useQuery({ queryKey: ["versions", fileId], queryFn: () => fetchVersions(fileId) });
@@ -216,14 +214,54 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
   });
 
   const createVersionMutation = useMutation({
-    mutationFn: () => createVersion(fileId, { comment, copyFromCurrent }),
+    mutationFn: async () => {
+      const assets = newVersionAssets.filter((item) => item.file);
+      if (assets.length === 0 || assets.length !== newVersionAssets.length) {
+        throw new Error("file_required");
+      }
+      const used = new Set<string>();
+      for (const asset of assets) {
+        if (used.has(asset.lang)) {
+          throw new Error("language_duplicate");
+        }
+        used.add(asset.lang);
+      }
+      const version = await createVersion(fileId, { comment });
+      const versionId = version?.id ?? version?.versionId;
+      if (!versionId) {
+        throw new Error("version_create_failed");
+      }
+      try {
+        for (const asset of assets) {
+          const form = new FormData();
+          form.append("lang", asset.lang);
+          form.append("file", asset.file as File);
+          await uploadAsset(fileId, versionId, form);
+        }
+      } catch (error) {
+        await deleteVersion(fileId, versionId).catch(() => null);
+        throw error;
+      }
+      return version;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["versions", fileId] });
+      queryClient.invalidateQueries({ queryKey: ["files"] });
       setComment("");
-      setCopyFromCurrent(false);
+      setNewVersionAssets([{ lang: "ru", file: null }]);
       showToast({ message: t("versionCreated"), severity: "success" });
     },
-    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
+    onError: (error: any) => {
+      if (String(error?.message || "") === "file_required") {
+        showToast({ message: t("selectFileForLang"), severity: "error" });
+        return;
+      }
+      if (String(error?.message || "") === "language_duplicate") {
+        showToast({ message: t("languageDuplicate"), severity: "error" });
+        return;
+      }
+      showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" });
+    }
   });
 
   const setCurrentMutation = useMutation({
@@ -253,37 +291,6 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
     },
     onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
   });
-
-  const uploadMutation = useMutation({
-    mutationFn: async ({ versionId, lang, file }: { versionId: number; lang: string; file: File }) => {
-      const form = new FormData();
-      form.append("lang", lang);
-      form.append("file", file);
-      return uploadAsset(fileId, versionId, form);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["versions", fileId] });
-      queryClient.invalidateQueries({ queryKey: ["files"] });
-      showToast({ message: t("assetUploaded"), severity: "success" });
-    },
-    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
-  });
-
-  const deleteAssetMutation = useMutation({
-    mutationFn: ({ versionId, assetId }: { versionId: number; assetId: number }) => deleteAsset(fileId, versionId, assetId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["versions", fileId] });
-      queryClient.invalidateQueries({ queryKey: ["files"] });
-      showToast({ message: t("assetDeleted"), severity: "success" });
-    },
-    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
-  });
-
-  const handleUpload = (versionId: number) => {
-    const current = uploadState[versionId];
-    if (!current?.file || !current?.lang) return;
-    uploadMutation.mutate({ versionId, lang: current.lang, file: current.file });
-  };
 
   const handleSaveMetadata = metadataForm.handleSubmit((values) => {
     if (!values.sectionId) {
@@ -318,10 +325,32 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
   const handleSaveAccess = accessForm.handleSubmit((values) => {
     updateAccessMutation.mutate({
       accessType: values.accessType,
-      accessDepartmentIds: values.accessType === "restricted" ? values.accessDepartmentIds : [],
-      accessUserIds: values.accessType === "restricted" ? values.accessUserIds : []
+      accessDepartmentIds: values.accessDepartmentIds,
+      accessUserIds: values.accessUserIds
     });
   });
+
+  const handleCreateVersion = () => {
+    if (!newVersionAssets.length || newVersionAssets.some((item) => !item.file)) {
+      showToast({ message: t("selectFileForLang"), severity: "error" });
+      return;
+    }
+    const used = new Set<string>();
+    for (const asset of newVersionAssets) {
+      if (used.has(asset.lang)) {
+        showToast({ message: t("languageDuplicate"), severity: "error" });
+        return;
+      }
+      used.add(asset.lang);
+    }
+    createVersionMutation.mutate();
+  };
+
+  const handleAddLanguageFile = () => {
+    const used = new Set(newVersionAssets.map((item) => item.lang));
+    const nextLang = languageOptions.find((lang) => !used.has(lang)) || languageOptions[0];
+    setNewVersionAssets((prev) => [...prev, { lang: nextLang, file: null }]);
+  };
 
   const content = (
     <>
@@ -477,13 +506,80 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                 value={comment}
                 onChange={(event) => setComment(event.target.value)}
               />
-              <FormControlLabel
-                control={<Switch checked={copyFromCurrent} onChange={(event) => setCopyFromCurrent(event.target.checked)} />}
-                label={t("copyAssetsFromCurrent")}
-              />
-              <Button variant="contained" onClick={() => createVersionMutation.mutate()} disabled={createVersionMutation.isPending}>
-                {t("createVersion")}
-              </Button>
+              <Stack spacing={2}>
+                {newVersionAssets.map((asset, index) => (
+                  <Stack
+                    key={`${asset.lang}-${index}`}
+                    direction={{ xs: "column", md: "row" }}
+                    spacing={2}
+                    alignItems={{ md: "center" }}
+                  >
+                    <TextField
+                      select
+                      label={t("language")}
+                      value={asset.lang}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setNewVersionAssets((prev) =>
+                          prev.map((item, idx) => (idx === index ? { ...item, lang: value } : item))
+                        );
+                      }}
+                      sx={{ minWidth: 120 }}
+                    >
+                      {languageOptions.map((lang) => (
+                        <MenuItem
+                          key={lang}
+                          value={lang}
+                          disabled={newVersionAssets.some((item, idx) => idx !== index && item.lang === lang)}
+                        >
+                          {lang.toUpperCase()}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    <Button component="label" variant="outlined" startIcon={<UploadFileIcon />}>
+                      {asset.file ? asset.file.name : t("selectFile")}
+                      <input
+                        type="file"
+                        hidden
+                        onChange={(event) =>
+                          setNewVersionAssets((prev) =>
+                            prev.map((item, idx) =>
+                              idx === index ? { ...item, file: event.target.files?.[0] || null } : item
+                            )
+                          )
+                        }
+                      />
+                    </Button>
+                    {newVersionAssets.length > 1 && (
+                      <Tooltip title={t("delete")}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => setNewVersionAssets((prev) => prev.filter((_, idx) => idx !== index))}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Stack>
+                ))}
+                <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
+                  <Button
+                    variant="outlined"
+                    onClick={handleAddLanguageFile}
+                    disabled={newVersionAssets.length >= languageOptions.length}
+                  >
+                    {t("addLanguageFile")}
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={handleCreateVersion}
+                    disabled={createVersionMutation.isPending || newVersionAssets.some((item) => !item.file)}
+                  >
+                    {t("createVersion")}
+                  </Button>
+                </Stack>
+              </Stack>
             </Stack>
           </Paper>
 
@@ -538,63 +634,15 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                       </Typography>
                     ) : (
                       (version.assets || []).map((asset: any) => (
-                        <Stack key={asset.id} direction="row" spacing={2} alignItems="center" justifyContent="space-between">
-                          <Stack direction="row" spacing={2} alignItems="center">
-                            <Chip size="small" label={asset.lang.toUpperCase()} />
-                            <Typography variant="body2">{asset.originalName}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {formatBytes(asset.size)}
-                            </Typography>
-                          </Stack>
-                          <Tooltip title={t("delete")}>
-                            <IconButton size="small" color="error" onClick={() => setConfirmAsset({ versionId: version.id, assetId: asset.id })}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                        <Stack key={asset.id} direction="row" spacing={2} alignItems="center">
+                          <Chip size="small" label={asset.lang.toUpperCase()} />
+                          <Typography variant="body2">{asset.originalName}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {formatBytes(asset.size)}
+                          </Typography>
                         </Stack>
                       ))
                     )}
-                  </Stack>
-
-                  <Divider />
-
-                  <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
-                    <TextField
-                      select
-                      label={t("language")}
-                      value={uploadState[version.id]?.lang || "ru"}
-                      onChange={(event) =>
-                        setUploadState((prev) => ({
-                          ...prev,
-                          [version.id]: { lang: event.target.value, file: prev[version.id]?.file || null }
-                        }))
-                      }
-                      sx={{ minWidth: 120 }}
-                    >
-                      <MenuItem value="ru">RU</MenuItem>
-                      <MenuItem value="en">EN</MenuItem>
-                      <MenuItem value="uz">UZ</MenuItem>
-                    </TextField>
-                    <Button component="label" variant="outlined" startIcon={<UploadFileIcon />}>
-                      {t("selectFile")}
-                      <input
-                        type="file"
-                        hidden
-                        onChange={(event) =>
-                          setUploadState((prev) => ({
-                            ...prev,
-                            [version.id]: { lang: prev[version.id]?.lang || "ru", file: event.target.files?.[0] || null }
-                          }))
-                        }
-                      />
-                    </Button>
-                    <Button
-                      variant="contained"
-                      onClick={() => handleUpload(version.id)}
-                      disabled={!uploadState[version.id]?.file || uploadMutation.isPending}
-                    >
-                      {t("upload")}
-                    </Button>
                   </Stack>
                 </Stack>
               </Paper>
@@ -618,20 +666,6 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
           setConfirmVersion(null);
         }}
         onCancel={() => setConfirmVersion(null)}
-      />
-
-      <ConfirmDialog
-        open={!!confirmAsset}
-        title={t("confirmDelete")}
-        description={t("confirmDeleteAsset")}
-        confirmLabel={t("delete")}
-        onConfirm={() => {
-          if (confirmAsset) {
-            deleteAssetMutation.mutate({ versionId: confirmAsset.versionId, assetId: confirmAsset.assetId });
-            setConfirmAsset(null);
-          }
-        }}
-        onCancel={() => setConfirmAsset(null)}
       />
     </>
   );

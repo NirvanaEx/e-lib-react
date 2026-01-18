@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
+import React, { createContext, useContext, useMemo, useState, useEffect, useCallback } from "react";
+import axios from "axios";
 import i18n from "../../app/i18n";
+import { me } from "../../features/auth/auth.api";
 
 export type AuthUser = {
   id: number;
@@ -8,6 +10,10 @@ export type AuthUser = {
   roleLevel?: number;
   departmentId?: number | null;
   department?: string | null;
+  name?: string | null;
+  surname?: string | null;
+  patronymic?: string | null;
+  fullName?: string | null;
   mustChangePassword?: boolean;
   lang?: string | null;
   permissions?: string[];
@@ -37,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  const setAuth = (newToken: string, newUser: AuthUser) => {
+  const setAuth = useCallback((newToken: string, newUser: AuthUser) => {
     localStorage.setItem("token", newToken);
     localStorage.setItem("user", JSON.stringify(newUser));
     setToken(newToken);
@@ -46,9 +52,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("lang", newUser.lang);
       i18n.changeLanguage(newUser.lang);
     }
-  };
+  }, []);
 
-  const updateUser = (patch: Partial<AuthUser>) => {
+  const updateUser = useCallback((patch: Partial<AuthUser>) => {
     setUser((prev) => {
       if (!prev) return prev;
       const next = { ...prev, ...patch };
@@ -59,16 +65,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return next;
     });
-  };
+  }, []);
 
-  const clearAuth = () => {
+  const clearAuth = useCallback(() => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setToken(null);
     setUser(null);
-  };
+  }, []);
 
-  const value = useMemo(() => ({ token, user, setAuth, updateUser, clearAuth }), [token, user]);
+  useEffect(() => {
+    if (!token) return;
+    if (user?.mustChangePassword) return;
+    let cancelled = false;
+
+    const refreshUser = async () => {
+      try {
+        const data = await me();
+        if (cancelled || !data?.user) return;
+        setAuth(token, data.user);
+      } catch (error) {
+        if (cancelled) return;
+        if (axios.isAxiosError(error)) {
+          const status = error.response?.status;
+          if (status === 401) {
+            clearAuth();
+          }
+        }
+      }
+    };
+
+    refreshUser();
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refreshUser();
+      }
+    };
+    window.addEventListener("focus", refreshUser);
+    document.addEventListener("visibilitychange", handleVisibility);
+    const interval = window.setInterval(refreshUser, 60000);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refreshUser);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.clearInterval(interval);
+    };
+  }, [token, setAuth, clearAuth]);
+
+  const value = useMemo(() => ({ token, user, setAuth, updateUser, clearAuth }), [token, user, setAuth, updateUser, clearAuth]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

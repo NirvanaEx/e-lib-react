@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -193,5 +194,43 @@ export class FilesController {
   @Access("file.force_delete")
   async forceDelete(@Param("id", ParseIntPipe) id: number, @User() actor: any) {
     return this.filesService.forceDelete(id, actor.id);
+  }
+
+  @Post("trash/:type/:id/restore")
+  @Access("file.restore")
+  async restoreTrashItem(
+    @Param("type") type: string,
+    @Param("id", ParseIntPipe) id: number,
+    @User() actor: any
+  ) {
+    if (type === "file") {
+      return this.filesService.restore(id, actor.id);
+    }
+    if (type === "version") {
+      return this.filesService.restoreVersionById(id, actor.id);
+    }
+    if (type === "asset") {
+      return this.filesService.restoreAsset(id, actor.id);
+    }
+    throw new BadRequestException("Unsupported trash item type");
+  }
+
+  @Delete("trash/:type/:id")
+  @Access("file.force_delete")
+  async forceDeleteTrashItem(
+    @Param("type") type: string,
+    @Param("id", ParseIntPipe) id: number,
+    @User() actor: any
+  ) {
+    if (type === "file") {
+      return this.filesService.forceDelete(id, actor.id);
+    }
+    if (type === "version") {
+      return this.filesService.forceDeleteVersion(id, actor.id);
+    }
+    if (type === "asset") {
+      return this.filesService.forceDeleteAsset(id, actor.id);
+    }
+    throw new BadRequestException("Unsupported trash item type");
   }
 }

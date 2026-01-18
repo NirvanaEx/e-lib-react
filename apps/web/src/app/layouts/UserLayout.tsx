@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import { fetchMenu } from "../../features/files/files.api";
 import { useSearchParams } from "react-router-dom";
 import { SettingsDialog } from "../../features/settings/SettingsDialog";
+import { LibraryPanelSwitch } from "./LibraryPanelSwitch";
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -52,12 +53,14 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   );
 
   const sidebarContent = ({ collapsed }: { collapsed: boolean }) => <UserSidebarMenu collapsed={collapsed} />;
+  const sidebarFooter = ({ collapsed }: { collapsed: boolean }) => <LibraryPanelSwitch collapsed={collapsed} />;
   return (
     <>
       <BaseLayout
         title={t("user")}
         items={items}
         sidebarContent={sidebarContent}
+        sidebarFooter={sidebarFooter}
         settingsAction={() => setSettingsOpen(true)}
         headerTitle={null}
         sidebarHeader={null}

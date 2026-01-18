@@ -77,6 +77,16 @@ export async function fetchTrash(params: { page: number; pageSize: number; q?: s
   return data;
 }
 
+export async function restoreTrashItem(payload: { id: number; type: "file" | "version" | "asset" }) {
+  const { data } = await api.post(`/dashboard/trash/${payload.type}/${payload.id}/restore`);
+  return data;
+}
+
+export async function forceDeleteTrashItem(payload: { id: number; type: "file" | "version" | "asset" }) {
+  const { data } = await api.delete(`/dashboard/trash/${payload.type}/${payload.id}`);
+  return data;
+}
+
 export async function forceDelete(id: number) {
   const { data } = await api.delete(`/dashboard/trash/${id}`);
   return data;
@@ -101,9 +111,73 @@ export async function fetchMenu() {
   return data;
 }
 
-export async function submitUserFile(payload: FormData) {
-  const { data } = await api.post("/user/files", payload, {
+export async function fetchMyFiles(params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string }) {
+  const { data } = await api.get("/user/my-files", { params });
+  return data;
+}
+
+export async function fetchUserFavorites(params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string }) {
+  const { data } = await api.get("/user/favorites", { params });
+  return data;
+}
+
+export async function fetchUserRequests(params: { page: number; pageSize: number; status?: string; scope?: string; q?: string }) {
+  const { data } = await api.get("/user/requests", { params });
+  return data;
+}
+
+export async function fetchUserRequestAccessOptions() {
+  const { data } = await api.get("/user/requests/access-options");
+  return data;
+}
+
+export async function createUserRequest(payload: any) {
+  const { data } = await api.post("/user/requests", payload);
+  return data;
+}
+
+export async function uploadUserRequestAsset(requestId: number, payload: FormData) {
+  const { data } = await api.post(`/user/requests/${requestId}/assets`, payload, {
     headers: { "Content-Type": "multipart/form-data" }
   });
   return data;
+}
+
+export async function cancelUserRequest(requestId: number) {
+  const { data } = await api.post(`/user/requests/${requestId}/cancel`);
+  return data;
+}
+
+export async function addUserFavorite(fileId: number) {
+  const { data } = await api.post(`/user/favorites/${fileId}`);
+  return data;
+}
+
+export async function removeUserFavorite(fileId: number) {
+  const { data } = await api.delete(`/user/favorites/${fileId}`);
+  return data;
+}
+
+export async function fetchDashboardRequests(params: { page: number; pageSize: number; status?: string; scope?: string; q?: string }) {
+  const { data } = await api.get("/dashboard/requests", { params });
+  return data;
+}
+
+export async function approveDashboardRequest(requestId: number) {
+  const { data } = await api.post(`/dashboard/requests/${requestId}/approve`);
+  return data;
+}
+
+export async function rejectDashboardRequest(requestId: number, payload?: { reason?: string | null }) {
+  const { data } = await api.post(`/dashboard/requests/${requestId}/reject`, payload || {});
+  return data;
+}
+
+export async function fetchDashboardRequestAssets(requestId: number) {
+  const { data } = await api.get(`/dashboard/requests/${requestId}/assets`);
+  return data;
+}
+
+export async function downloadDashboardRequestAsset(requestId: number, assetId: number) {
+  return api.get(`/dashboard/requests/${requestId}/assets/${assetId}/download`, { responseType: "blob" });
 }

@@ -21,6 +21,8 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DownloadIcon from "@mui/icons-material/Download";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import PublicIcon from "@mui/icons-material/Public";
+import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
@@ -293,6 +295,18 @@ export default function FilesPage() {
     return row.currentAssetSize ?? null;
   };
 
+  const accessIcon = (accessType: string) => (
+    <Tooltip title={accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
+      <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+        {accessType === "restricted" ? (
+          <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
+        ) : (
+          <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
+        )}
+      </Box>
+    </Tooltip>
+  );
+
   const createMutation = useMutation({
     mutationFn: createFile
   });
@@ -445,10 +459,11 @@ export default function FilesPage() {
             setSort(direction ? { key, direction } : { key: null, direction: null })
           }
           columns={[
-            { key: "title", label: t("title"), sortable: true, sortKey: "title" },
+            { key: "title", label: t("title"), sortable: true, sortKey: "title", minWidth: 320 },
             {
               key: "section",
               label: t("section"),
+              minWidth: 120,
               render: (row) => formatSectionLabel(row.sectionId)
             },
             {
@@ -456,27 +471,20 @@ export default function FilesPage() {
               label: t("category"),
               render: (row) => renderPath(getCategoryPath(row.categoryId)),
               sortable: true,
-              sortKey: "category"
+              sortKey: "category",
+              minWidth: 280
             },
             {
               key: "accessType",
               label: t("access"),
-              render: (row) => (
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  sx={{
-                    borderColor: row.accessType === "restricted" ? "warning.main" : "success.main",
-                    color: row.accessType === "restricted" ? "warning.main" : "success.main",
-                    fontWeight: 600
-                  }}
-                  label={row.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}
-                />
-              )
+              align: "center",
+              width: 48,
+              render: (row) => accessIcon(row.accessType)
             },
             {
               key: "langs",
               label: t("languages"),
+              minWidth: 100,
               render: (row) => {
                 const langs = row.availableAssetLangs || row.availableLangs || [];
                 return (
@@ -491,6 +499,7 @@ export default function FilesPage() {
             {
               key: "size",
               label: t("fileSize"),
+              width: 80,
               render: (row) => {
                 const size = resolveRowSize(row);
                 return size === null || size === undefined ? "-" : formatBytes(size);
@@ -501,6 +510,7 @@ export default function FilesPage() {
             {
               key: "createdAt",
               label: t("createdAt"),
+              width: 120,
               render: (row) => formatDateTime(row.createdAt),
               sortable: true,
               sortKey: "created_at"
@@ -508,6 +518,7 @@ export default function FilesPage() {
             {
               key: "updatedAt",
               label: t("updatedAt"),
+              width: 120,
               render: (row) => formatDateTime(row.updatedAt),
               sortable: true,
               sortKey: "updated_at"
@@ -516,6 +527,7 @@ export default function FilesPage() {
               key: "download",
               label: t("download"),
               align: "center",
+              width: 56,
               render: (row) => {
                 const langs = row.availableAssetLangs || row.availableLangs || [];
                 const disabled = langs.length === 0;
@@ -553,6 +565,7 @@ export default function FilesPage() {
               label: t("actions"),
               align: "right",
               sortable: false,
+              width: 96,
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   <Tooltip title={t("edit")}>

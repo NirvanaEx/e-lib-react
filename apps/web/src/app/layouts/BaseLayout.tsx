@@ -2,6 +2,7 @@ import React from "react";
 import {
   AppBar,
   Box,
+  Badge,
   Button,
   Chip,
   Divider,
@@ -34,13 +35,14 @@ import i18n from "../i18n";
 import { changeLanguage } from "../../features/settings/settings.api";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
-import { getDefaultRoute, hasAccess } from "../../shared/utils/access";
+import { getDashboardRoute, getDefaultRoute, hasAccess } from "../../shared/utils/access";
 import { acceptUserContentPage, fetchUserContentPage } from "../../features/content-pages/content-pages.api";
 
 export type NavItem = {
   label: string;
   path: string;
   icon?: React.ReactNode;
+  badge?: number | string;
 };
 
 export type NavSection = {
@@ -137,7 +139,7 @@ export function BaseLayout({
   const panelLinks = React.useMemo(() => {
     const links: { key: string; label: string; path: string }[] = [];
     if (hasAccess(user, ["dashboard.access"])) {
-      links.push({ key: "dashboard", label: t("dashboard"), path: getDefaultRoute(user) });
+      links.push({ key: "dashboard", label: t("dashboard"), path: getDashboardRoute(user) });
     }
     if (user?.role === "superadmin" || user?.role === "admin" || user?.role === "manager" || user?.role === "user") {
       links.push({ key: "user", label: t("user"), path: "/users" });
@@ -151,19 +153,34 @@ export function BaseLayout({
   const switchLink = currentPanel === "dashboard" ? userLink : dashboardLink;
   const userDisplayName = React.useMemo(() => {
     if (!user) return null;
-    const surname = user.surname?.trim();
-    const nameInitial = user.name?.trim().charAt(0);
-    const patronymicInitial = user.patronymic?.trim().charAt(0);
-    const initials = [nameInitial, patronymicInitial]
-      .filter(Boolean)
-      .map((ch) => ch?.toUpperCase())
-      .join(".");
-    if (surname) {
-      return initials ? `${surname} ${initials}.` : surname;
+    const buildShortName = (surname?: string | null, name?: string | null, patronymic?: string | null) => {
+      const cleanSurname = surname?.trim();
+      const nameInitial = name?.trim().charAt(0);
+      const patronymicInitial = patronymic?.trim().charAt(0);
+      const initials = [nameInitial, patronymicInitial]
+        .filter(Boolean)
+        .map((ch) => ch?.toUpperCase())
+        .join(".");
+      if (cleanSurname) {
+        return initials ? `${cleanSurname} ${initials}.` : cleanSurname;
+      }
+      if (initials) {
+        return `${initials}.`;
+      }
+      return null;
+    };
+
+    const direct = buildShortName(user.surname, user.name, user.patronymic);
+    if (direct) return direct;
+
+    const fullName = user.fullName?.trim();
+    if (fullName) {
+      const [surname, name, patronymic] = fullName.split(/\s+/);
+      const fromFull = buildShortName(surname, name, patronymic);
+      if (fromFull) return fromFull;
+      return surname || fullName;
     }
-    if (initials) {
-      return `${initials}.`;
-    }
+
     return user.login || null;
   }, [user]);
   const showRoleChip = Boolean(
@@ -213,7 +230,8 @@ export function BaseLayout({
         px: collapsed ? 1.5 : 2.5,
         pb: 2.5,
         pt: sidebarPaddingTop ?? 2.5,
-        height: "100%",
+        flex: 1,
+        minHeight: 0,
         display: "flex",
         flexDirection: "column",
         background:
@@ -221,7 +239,15 @@ export function BaseLayout({
       }}
     >
       {resolvedSidebarHeader}
-      <Box sx={{ flex: 1, overflow: "auto", pr: collapsed ? 0 : 0.5 }}>
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflow: "auto",
+          mx: collapsed ? -1.5 : -2.5,
+          px: collapsed ? 1.5 : 2.5
+        }}
+      >
         {hasNavItems && (
           <List>
             {(sections && sections.length > 0 ? sections : [{ label: "", items }]).map((section) => (
@@ -237,6 +263,31 @@ export function BaseLayout({
                 )}
                 {section.items.map((item) => {
                   const active = pathname.startsWith(item.path);
+                  const badgeValue =
+                    item.badge === undefined || item.badge === null
+                      ? null
+                      : typeof item.badge === "number"
+                      ? item.badge
+                      : Number.isNaN(Number(item.badge))
+                      ? item.badge
+                      : Number(item.badge);
+                  const badgeLabel =
+                    badgeValue === null
+                      ? null
+                      : typeof badgeValue === "number"
+                      ? badgeValue > 9
+                        ? "9+"
+                        : String(badgeValue)
+                      : String(badgeValue);
+                  const showBadge = badgeLabel !== null && badgeLabel !== "0";
+                  const iconNode =
+                    item.icon && collapsed && showBadge ? (
+                      <Badge color="error" badgeContent={badgeLabel}>
+                        {item.icon}
+                      </Badge>
+                    ) : (
+                      item.icon
+                    );
                   const button = (
                     <ListItemButton
                       key={item.path}
@@ -264,7 +315,7 @@ export function BaseLayout({
                             color: active ? "primary.main" : "text.secondary"
                           }}
                         >
-                          {item.icon}
+                          {iconNode}
                         </ListItemIcon>
                       )}
                       {!collapsed && (
@@ -275,6 +326,11 @@ export function BaseLayout({
                             </Typography>
                           }
                         />
+                      )}
+                      {!collapsed && showBadge && (
+                        <Box sx={{ ml: "auto" }}>
+                          <Chip size="small" label={badgeLabel} color="error" sx={{ fontWeight: 700 }} />
+                        </Box>
                       )}
                     </ListItemButton>
                   );
@@ -299,7 +355,7 @@ export function BaseLayout({
         )}
       </Box>
       {resolvedSidebarFooter && (
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: "auto", pt: 2 }}>
           <Divider sx={{ mb: 2 }} />
           {resolvedSidebarFooter}
         </Box>
@@ -432,12 +488,12 @@ export function BaseLayout({
           ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: "block", md: "none" },
-            "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth }
+            "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth, overflow: "hidden" }
           }}
         >
           <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
             {sidebarTopNode === null ? null : sidebarTopNode ?? <Toolbar />}
-            <Box sx={{ flex: 1 }}>{drawerContent}</Box>
+            <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>{drawerContent}</Box>
           </Box>
         </Drawer>
         <Drawer
@@ -447,14 +503,15 @@ export function BaseLayout({
             "& .MuiDrawer-paper": {
               boxSizing: "border-box",
               width: effectiveDrawerWidth,
-              borderRight: "1px solid var(--border)"
+              borderRight: "1px solid var(--border)",
+              overflow: "hidden"
             }
           }}
           open
         >
           <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
             {sidebarTopNode === null ? null : sidebarTopNode ?? <Toolbar />}
-            <Box sx={{ flex: 1 }}>{drawerContent}</Box>
+            <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>{drawerContent}</Box>
           </Box>
         </Drawer>
       </Box>
