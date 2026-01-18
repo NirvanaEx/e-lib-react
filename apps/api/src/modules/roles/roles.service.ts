@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../../db/database.service";
 
 @Injectable()
@@ -6,22 +6,38 @@ export class RolesService {
   constructor(private readonly dbService: DatabaseService) {}
 
   async list() {
-    return this.dbService.db("roles").select("id", "name", "created_at", "updated_at").orderBy("id");
+    return this.dbService.db("roles").select("id", "name", "level", "created_at", "updated_at").orderBy("id");
   }
 
-  async create(name: string) {
+  async create(name: string, actorId: number, level?: number) {
+    const actor = await this.dbService.db("users")
+      .leftJoin("roles", "roles.id", "users.role_id")
+      .select("roles.name as role", "roles.level as level")
+      .where("users.id", actorId)
+      .first();
+    if (!actor || actor.role !== "superadmin") {
+      throw new ForbiddenException("Only superadmin can create roles");
+    }
+
     const trimmed = name.trim();
     const existing = await this.dbService.db("roles").whereRaw("lower(name) = lower(?)", [trimmed]).first();
     if (existing) {
       throw new BadRequestException("Role already exists");
     }
 
-    const [id] = await this.dbService.db("roles").insert({ name: trimmed }).returning("id");
+    const nextLevel = Number.isFinite(level) ? Number(level) : 1;
+    if (nextLevel < 1 || nextLevel >= Number(actor.level || 0)) {
+      throw new BadRequestException("Invalid role level");
+    }
+
+    const [id] = await this.dbService.db("roles").insert({ name: trimmed, level: nextLevel }).returning("id");
     return { id: id.id || id };
   }
 
   async listPermissions() {
-    return this.dbService.db("permissions").select("id", "name").orderBy("name");
+    return this.dbService.db("permissions")
+      .select("id", "name", "description_en", "description_ru", "description_uz")
+      .orderBy("name");
   }
 
   async getRolePermissions(roleId: number) {
@@ -38,7 +54,16 @@ export class RolesService {
     return { roleId, permissions };
   }
 
-  async updateRolePermissions(roleId: number, permissionNames: string[]) {
+  async updateRolePermissions(roleId: number, permissionNames: string[], actorId: number) {
+    const actor = await this.dbService.db("users")
+      .leftJoin("roles", "roles.id", "users.role_id")
+      .select("roles.name as role", "roles.level as level")
+      .where("users.id", actorId)
+      .first();
+    if (!actor || actor.role !== "superadmin") {
+      throw new ForbiddenException("Only superadmin can update roles");
+    }
+
     const role = await this.dbService.db("roles").where({ id: roleId }).first();
     if (!role) throw new NotFoundException();
 

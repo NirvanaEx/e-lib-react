@@ -5,7 +5,7 @@ export async function fetchRoles() {
   return data;
 }
 
-export async function createRole(payload: { name: string }) {
+export async function createRole(payload: { name: string; level?: number }) {
   const { data } = await api.post("/dashboard/roles", payload);
   return data;
 }

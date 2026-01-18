@@ -7,6 +7,7 @@ export interface JwtPayload {
   sub: number;
   login: string;
   role: string;
+  roleLevel?: number;
   departmentId: number | null;
   department?: string | null;
   mustChangePassword: boolean;
@@ -29,6 +30,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       id: payload.sub,
       login: payload.login,
       role: payload.role,
+      roleLevel: payload.roleLevel,
       departmentId: payload.departmentId,
       department: payload.department || null,
       mustChangePassword: payload.mustChangePassword,

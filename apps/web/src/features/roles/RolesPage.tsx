@@ -24,11 +24,17 @@ import { useAuth } from "../../shared/hooks/useAuth";
 import { hasAccess } from "../../shared/utils/access";
 import { formatDateTime } from "../../shared/utils/date";
 
-type Role = { id: number; name: string };
-type Permission = { id: number; name: string };
+type Role = { id: number; name: string; level?: number };
+type Permission = {
+  id: number;
+  name: string;
+  description_en?: string | null;
+  description_ru?: string | null;
+  description_uz?: string | null;
+};
 
 export default function RolesPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showToast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -37,9 +43,11 @@ export default function RolesPage() {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [permissionsOpen, setPermissionsOpen] = React.useState(false);
   const [newRoleName, setNewRoleName] = React.useState("");
+  const [newRoleLevel, setNewRoleLevel] = React.useState(10);
 
-  const canUpdate = hasAccess(user, ["role.update"]);
-  const canCreate = hasAccess(user, ["role.add"]);
+  const isSuperadmin = user?.role === "superadmin";
+  const canUpdate = isSuperadmin && hasAccess(user, ["role.update"]);
+  const canCreate = isSuperadmin && hasAccess(user, ["role.add"]);
 
   const { data: rolesData, isLoading: rolesLoading } = useQuery({
     queryKey: ["roles"],
@@ -79,26 +87,37 @@ export default function RolesPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (payload: { name: string }) => createRole(payload),
+    mutationFn: (payload: { name: string; level?: number }) => createRole(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
       setNewRoleName("");
+      setNewRoleLevel(10);
       setCreateOpen(false);
       showToast({ message: t("roleCreated"), severity: "success" });
     },
     onError: () => showToast({ message: t("roleCreateFailed"), severity: "error" })
   });
 
+  const resolveDescription = React.useCallback(
+    (permission: Permission) => {
+      const lang = (i18n.language || "ru").split("-")[0];
+      if (lang === "en") return permission.description_en || permission.description_ru || permission.description_uz || "";
+      if (lang === "uz") return permission.description_uz || permission.description_ru || permission.description_en || "";
+      return permission.description_ru || permission.description_en || permission.description_uz || "";
+    },
+    [i18n.language]
+  );
+
   const groupedPermissions = React.useMemo(() => {
-    const groups = new Map<string, string[]>();
+    const groups = new Map<string, Permission[]>();
     permissions.forEach((permission) => {
       const [group] = permission.name.split(".");
       const key = group || "other";
       if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)?.push(permission.name);
+      groups.get(key)?.push(permission);
     });
     return Array.from(groups.entries())
-      .map(([group, items]) => ({ group, items: items.sort() }))
+      .map(([group, items]) => ({ group, items: items.sort((a, b) => a.name.localeCompare(b.name)) }))
       .sort((a, b) => a.group.localeCompare(b.group));
   }, [permissions]);
 
@@ -111,7 +130,7 @@ export default function RolesPage() {
   const handleCreateRole = () => {
     const trimmed = newRoleName.trim();
     if (!trimmed) return;
-    createMutation.mutate({ name: trimmed });
+    createMutation.mutate({ name: trimmed, level: newRoleLevel });
   };
 
   const handleOpenPermissions = (roleId: number) => {
@@ -151,6 +170,7 @@ export default function RolesPage() {
           rows={roles}
           columns={[
             { key: "name", label: t("role") },
+            { key: "level", label: t("roleLevel"), render: (row) => row.level ?? "-" },
             {
               key: "created_at",
               label: t("createdAt"),
@@ -203,19 +223,33 @@ export default function RolesPage() {
                   </Typography>
                   <Divider />
                   <Stack spacing={0.5}>
-                    {group.items.map((permission) => (
+                    {group.items.map((permission) => {
+                      const description = resolveDescription(permission);
+                      return (
                       <FormControlLabel
-                        key={permission}
+                        key={permission.name}
                         control={
                           <Checkbox
-                            checked={selectedPermissions.includes(permission)}
-                            onChange={() => togglePermission(permission)}
+                            checked={selectedPermissions.includes(permission.name)}
+                            onChange={() => togglePermission(permission.name)}
                             disabled={!canUpdate}
                           />
                         }
-                        label={permission}
+                        label={
+                          <Stack spacing={0.2}>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {permission.name}
+                            </Typography>
+                            {description && (
+                              <Typography variant="caption" color="text.secondary">
+                                {description}
+                              </Typography>
+                            )}
+                          </Stack>
+                        }
                       />
-                    ))}
+                    );
+                  })}
                   </Stack>
                 </Stack>
               ))}
@@ -237,14 +271,25 @@ export default function RolesPage() {
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle>{t("newRole")}</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
-          <TextField
-            fullWidth
-            label={t("roleName")}
-            required
-            value={newRoleName}
-            onChange={(event) => setNewRoleName(event.target.value)}
-            sx={{ mt: 1 }}
-          />
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              fullWidth
+              label={t("roleName")}
+              required
+              value={newRoleName}
+              onChange={(event) => setNewRoleName(event.target.value)}
+            />
+            <TextField
+              fullWidth
+              type="number"
+              label={t("roleLevel")}
+              required
+              value={newRoleLevel}
+              onChange={(event) => setNewRoleLevel(Number(event.target.value || 1))}
+              inputProps={{ min: 1, max: 99 }}
+              helperText={t("roleLevelHint")}
+            />
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCreateOpen(false)}>{t("cancel")}</Button>

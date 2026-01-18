@@ -48,6 +48,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { buildPathMap, formatPath } from "../../shared/utils/tree";
 import { formatDateTime } from "../../shared/utils/date";
+import { useAuth } from "../../shared/hooks/useAuth";
 
 const schema = z.object({
   login: z.string().min(1),
@@ -68,6 +69,7 @@ type UserRow = {
   patronymic?: string | null;
   role: string;
   role_id: number;
+  role_level?: number;
   department?: string | null;
   department_id?: number | null;
   must_change_password?: boolean;
@@ -75,7 +77,7 @@ type UserRow = {
   created_at?: string;
 };
 
-type RoleOption = { id: number; name: string };
+type RoleOption = { id: number; name: string; level?: number };
 
 type DepartmentOption = { id: number; name: string; parent_id?: number | null; depth?: number };
 
@@ -101,6 +103,7 @@ export default function UsersPage() {
   const { showToast } = useToast();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   React.useEffect(() => {
     setPage(1);
@@ -119,6 +122,23 @@ export default function UsersPage() {
 
   const roleOptions: RoleOption[] = rolesData || [];
   const departmentOptions: DepartmentOption[] = departmentsData?.data || [];
+
+  const actorLevel = React.useMemo(() => {
+    if (user?.role === "superadmin") return Number.MAX_SAFE_INTEGER;
+    const byName = roleOptions.find((role) => role.name === user?.role);
+    return user?.roleLevel ?? byName?.level ?? 0;
+  }, [roleOptions, user?.role, user?.roleLevel]);
+
+  const availableRoleOptions = React.useMemo(() => {
+    if (user?.role === "superadmin") return roleOptions;
+    return roleOptions.filter((role) => (role.level ?? 0) < actorLevel);
+  }, [roleOptions, user?.role, actorLevel]);
+
+  const canManageUser = (row: UserRow) => {
+    if (user?.role === "superadmin") return true;
+    const targetLevel = row.role_level ?? 0;
+    return actorLevel > targetLevel;
+  };
 
   const departmentPathById = React.useMemo(
     () =>
@@ -319,31 +339,33 @@ export default function UsersPage() {
               align: "right",
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
-                  {!row.deleted_at && (
+                  {!row.deleted_at && canManageUser(row) && (
                     <Tooltip title={t("edit")}>
                       <IconButton size="small" onClick={() => openEdit(row)}>
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   )}
-                  {!row.deleted_at ? (
+                  {!row.deleted_at && canManageUser(row) ? (
                     <Tooltip title={t("delete")}>
                       <IconButton size="small" color="error" onClick={() => setConfirmAction({ type: "delete", user: row })}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                  ) : (
+                  ) : row.deleted_at && canManageUser(row) ? (
                     <Tooltip title={t("restore")}>
                       <IconButton size="small" onClick={() => setConfirmAction({ type: "restore", user: row })}>
                         <RestoreFromTrashIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
+                  ) : null}
+                  {canManageUser(row) && (
+                    <Tooltip title={t("resetPassword")}>
+                      <IconButton size="small" onClick={() => setConfirmReset(row)}>
+                        <VpnKeyIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   )}
-                  <Tooltip title={t("resetPassword")}>
-                    <IconButton size="small" onClick={() => setConfirmReset(row)}>
-                      <VpnKeyIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
                 </Stack>
               )
             }
@@ -375,9 +397,9 @@ export default function UsersPage() {
                 name="roleId"
                 render={({ field }) => (
                   <Autocomplete
-                    options={roleOptions}
+                    options={availableRoleOptions}
                     getOptionLabel={(option) => option.name}
-                    value={roleOptions.find((role) => role.id === field.value) || null}
+                    value={availableRoleOptions.find((role) => role.id === field.value) || null}
                     isOptionEqualToValue={(option, value) => option.id === value.id}
                     onChange={(_, value) => field.onChange(value ? value.id : 0)}
                     renderInput={(params) => (
