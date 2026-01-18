@@ -147,6 +147,7 @@ export default function SectionsPage() {
             {
               key: "langs",
               label: t("languages"),
+              sortValue: (row) => (row.availableLangs || []).join(","),
               render: (row) => (
                 <Stack direction="row" spacing={1}>
                   {(row.availableLangs || []).map((lang: string) => (
@@ -174,6 +175,7 @@ export default function SectionsPage() {
               key: "actions",
               label: t("actions"),
               align: "right",
+              sortable: false,
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   <Tooltip title={t("edit")}>

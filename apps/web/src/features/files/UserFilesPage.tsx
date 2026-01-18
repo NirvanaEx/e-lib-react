@@ -234,7 +234,16 @@ export default function UserFilesPage() {
               key: "accessType",
               label: t("access"),
               render: (row) => (
-                <Chip size="small" label={row.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")} />
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    borderColor: row.accessType === "restricted" ? "warning.main" : "success.main",
+                    color: row.accessType === "restricted" ? "warning.main" : "success.main",
+                    fontWeight: 600
+                  }}
+                  label={row.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}
+                />
               )
             },
             {
@@ -289,21 +298,23 @@ export default function UserFilesPage() {
                 return (
                 <Tooltip title={disabled ? t("noAssets") : t("download")}>
                   <span>
-                    <IconButton
-                      size="small"
-                      disabled={disabled}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (langs.length > 1) {
-                          setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
-                          return;
-                        }
-                        const lang = langs[0];
-                        downloadMutation.mutate({ id: row.id, lang, title: row.title });
-                        }}
-                      >
-                        <DownloadIcon fontSize="small" />
-                      </IconButton>
+                  <IconButton
+                    size="small"
+                    disabled={disabled}
+                    color={disabled ? "default" : "primary"}
+                    sx={disabled ? undefined : { backgroundColor: "rgba(29, 77, 79, 0.12)" }}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (langs.length > 1) {
+                        setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
+                        return;
+                      }
+                      const lang = langs[0];
+                      downloadMutation.mutate({ id: row.id, lang, title: row.title });
+                    }}
+                  >
+                    <DownloadIcon fontSize="small" />
+                  </IconButton>
                     </span>
                   </Tooltip>
                 );
@@ -368,6 +379,12 @@ export default function UserFilesPage() {
                   <Typography variant="subtitle2">{t("access")}</Typography>
                   <Chip
                     size="small"
+                    variant="outlined"
+                    sx={{
+                      borderColor: detailsData?.accessType === "restricted" ? "warning.main" : "success.main",
+                      color: detailsData?.accessType === "restricted" ? "warning.main" : "success.main",
+                      fontWeight: 600
+                    }}
                     label={detailsData?.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}
                   />
                 </Stack>

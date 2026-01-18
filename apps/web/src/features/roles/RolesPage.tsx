@@ -185,6 +185,7 @@ export default function RolesPage() {
               key: "actions",
               label: t("actions"),
               align: "right",
+              sortable: false,
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   <Button size="small" variant="outlined" onClick={() => handleOpenPermissions(row.id)}>

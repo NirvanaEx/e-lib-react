@@ -171,6 +171,7 @@ export default function AuditPage() {
               key: "view",
               label: t("details"),
               align: "right",
+              sortable: false,
               render: (row: any) => (
                 <Tooltip title={t("viewDetails")}>
                   <IconButton size="small" onClick={() => setSelectedLog(row)}>

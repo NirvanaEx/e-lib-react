@@ -83,6 +83,7 @@ export default function TrashPage() {
               key: "actions",
               label: t("actions"),
               align: "right",
+              sortable: false,
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   <Tooltip title={t("restore")}>
