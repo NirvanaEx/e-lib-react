@@ -8,7 +8,7 @@ exports.seed = async function (knex) {
 
   const passwordHash = await bcrypt.hash("123", 10);
 
-  await knex("users").where({ login: "superadmin" }).del();
+  await knex("users").where({ role_id: role.id }).del();
   await knex("users").insert({
     login: "superadmin",
     password_hash: passwordHash,

@@ -30,6 +30,7 @@ export class AuthService {
         "users.must_change_password",
         "users.lang",
         "roles.name as role",
+        "roles.level as role_level",
         "departments.name as department"
       )
       .where("users.login", login)
@@ -58,6 +59,7 @@ export class AuthService {
         sub: user.id,
         login: user.login,
         role: user.role,
+        roleLevel: user.role_level,
         departmentId: user.department_id,
         department: user.department,
         mustChangePassword: user.must_change_password,
@@ -73,6 +75,7 @@ export class AuthService {
         id: user.id,
         login: user.login,
         role: user.role,
+        roleLevel: user.role_level,
         departmentId: user.department_id,
         department: user.department,
         mustChangePassword: user.must_change_password,
@@ -119,6 +122,7 @@ export class AuthService {
         "users.lang",
         "users.must_change_password",
         "roles.name as role",
+        "roles.level as role_level",
         "departments.name as department"
       )
       .where("users.id", userId)
@@ -139,6 +143,7 @@ export class AuthService {
         sub: refreshed.id,
         login: refreshed.login,
         role: refreshed.role,
+        roleLevel: refreshed.role_level,
         departmentId: refreshed.department_id,
         department: refreshed.department,
         mustChangePassword: false,
@@ -154,6 +159,7 @@ export class AuthService {
         id: refreshed.id,
         login: refreshed.login,
         role: refreshed.role,
+        roleLevel: refreshed.role_level,
         departmentId: refreshed.department_id,
         department: refreshed.department,
         mustChangePassword: false,

@@ -5,6 +5,7 @@ import { Access } from "../../common/decorators/access.decorator";
 import { RolesService } from "./roles.service";
 import { UpdateRolePermissionsDto } from "./dto/update-role-permissions.dto";
 import { CreateRoleDto } from "./dto/create-role.dto";
+import { User } from "../../common/decorators/user.decorator";
 
 @ApiTags("dashboard/roles")
 @ApiBearerAuth()
@@ -22,8 +23,8 @@ export class RolesController {
 
   @Post()
   @Access("role.add")
-  async create(@Body() body: CreateRoleDto) {
-    return this.rolesService.create(body.name);
+  async create(@Body() body: CreateRoleDto, @User() actor: any) {
+    return this.rolesService.create(body.name, actor.id, body.level);
   }
 
   @Get("permissions")
@@ -42,8 +43,9 @@ export class RolesController {
   @Access("role.update")
   async updateRolePermissions(
     @Param("id", ParseIntPipe) id: number,
-    @Body() body: UpdateRolePermissionsDto
+    @Body() body: UpdateRolePermissionsDto,
+    @User() actor: any
   ) {
-    return this.rolesService.updateRolePermissions(id, body.permissions);
+    return this.rolesService.updateRolePermissions(id, body.permissions, actor.id);
   }
 }
