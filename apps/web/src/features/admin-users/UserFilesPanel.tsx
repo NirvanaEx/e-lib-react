@@ -1,6 +1,7 @@
 import React from "react";
 import { Checkbox, FormControlLabel, Stack, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
+import { formatUserLabel } from "../../shared/utils/userLabel";
 
 export type UserFilesPanelUser = {
   id: number;
@@ -20,12 +21,10 @@ export function UserFilesPanel({
   onChange: (next: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const fullName = [user.surname, user.name, user.patronymic].filter(Boolean).join(" ");
-
   return (
     <Stack spacing={2}>
       <Typography variant="subtitle2">
-        {t("user")}: {fullName || user.login}
+        {t("user")}: {formatUserLabel(user)}
       </Typography>
       <Stack spacing={1}>
         <FormControlLabel

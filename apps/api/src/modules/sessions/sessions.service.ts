@@ -33,6 +33,9 @@ export class SessionsService {
         "sessions.user_agent",
         "sessions.created_at",
         "users.login",
+        "users.surname",
+        "users.name",
+        "users.patronymic",
         "last_activity.last_activity"
       )
       .orderBy("sessions.created_at", "desc");

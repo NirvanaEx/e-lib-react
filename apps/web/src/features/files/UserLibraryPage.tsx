@@ -592,14 +592,12 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
             <DataTable
               rows={requestRows}
               sortIconVariant="chevron"
-              onRowClick={(row) => setRequestDetails(row)}
-              columns={[
+              onRowClick={(row) => setRequestDetails(row)}columns={[
                 {
                   key: "title",
                   label: t("title"),
                   render: (row) => row.title || t("file"),
                   sortValue: (row) => row.title || "",
-                  minWidth: 300
                 },
                 {
                   key: "section",
@@ -608,7 +606,6 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                     const item = row.sectionId ? sectionsById.get(row.sectionId) : null;
                     return item?.title || (row.sectionId ? `#${row.sectionId}` : "-");
                   },
-                  minWidth: 120,
                   sortValue: (row) => {
                     const item = row.sectionId ? sectionsById.get(row.sectionId) : null;
                     return item?.title || (row.sectionId ? `#${row.sectionId}` : "");
@@ -619,7 +616,6 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                   label: t("category"),
                   render: (row) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-"),
                   sortValue: (row) => (row.categoryId ? getCategoryPath(row.categoryId).join(" / ") : ""),
-                  minWidth: 260
                 },
                 {
                   key: "accessType",
@@ -633,29 +629,25 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                   key: "status",
                   label: t("status"),
                   render: (row) => statusChip(row.status),
-                  sortValue: (row) => row.status,
-                  width: 120
+                  sortValue: (row) => row.status
                 },
                 {
                   key: "createdAt",
                   label: t("createdAt"),
                   render: (row) => formatDateTime(row.createdAt),
-                  sortValue: (row) => new Date(row.createdAt).getTime(),
-                  width: 120
+                  sortValue: (row) => new Date(row.createdAt).getTime()
                 },
                 {
                   key: "updatedAt",
                   label: t("updatedAt"),
                   render: (row) => formatDateTime(row.updatedAt || row.resolvedAt),
-                  sortValue: (row) => new Date(row.updatedAt || row.resolvedAt || row.createdAt).getTime(),
-                  width: 120
+                  sortValue: (row) => new Date(row.updatedAt || row.resolvedAt || row.createdAt).getTime()
                 },
                 {
                   key: "actions",
                   label: t("actions"),
                   align: "right",
                   sortable: false,
-                  width: 140,
                   render: (row) =>
                     row.status === "pending" ? (
                       <Button
@@ -708,8 +700,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
               onSortChange={(key, direction) =>
                 setSortFiles(direction ? { key, direction } : { key: null, direction: null })
               }
-              sortIconVariant="chevron"
-              columns={[
+              sortIconVariant="chevron"columns={[
                 {
                   key: "favorite",
                   label: "",
@@ -763,7 +754,6 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                   label: t("title"),
                   sortable: true,
                   sortKey: "title",
-                  minWidth: 320,
                   render: (row) => (
                     <Box component="span" sx={{ color: "text.primary" }}>
                       {row.title || t("file")}
@@ -773,7 +763,6 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                 {
                   key: "section",
                   label: t("section"),
-                  minWidth: 120,
                   render: (row) => {
                     const item = row.sectionId ? sectionsById.get(row.sectionId) : null;
                     return item?.title || (row.sectionId ? `#${row.sectionId}` : "-");
@@ -785,7 +774,6 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                   render: (row) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-"),
                   sortable: true,
                   sortKey: "category",
-                  minWidth: 280
                 },
                 {
                   key: "accessType",
@@ -807,11 +795,10 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                 {
                   key: "langs",
                   label: t("languages"),
-                  minWidth: 100,
                   render: (row) => {
                     const langs = row.availableAssetLangs || row.availableLangs || [];
                     return (
-                      <Stack direction="row" spacing={1}>
+                      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 0.5 }}>
                         {langs.map((lang: string) => (
                           <Chip key={lang} size="small" label={lang.toUpperCase()} />
                         ))}
@@ -822,7 +809,6 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                 {
                   key: "size",
                   label: t("fileSize"),
-                  width: 80,
                   render: (row) => {
                     const size = resolveRowSize(row);
                     return size === null || size === undefined ? "-" : formatBytes(size);
@@ -833,7 +819,6 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                 {
                   key: "createdAt",
                   label: t("createdAt"),
-                  width: 120,
                   render: (row) => formatDateTime(row.createdAt),
                   sortable: true,
                   sortKey: "created_at"
@@ -841,7 +826,6 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                 {
                   key: "updatedAt",
                   label: t("updatedAt"),
-                  width: 120,
                   render: (row) => formatDateTime(row.updatedAt),
                   sortable: true,
                   sortKey: "updated_at"

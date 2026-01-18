@@ -24,6 +24,7 @@ import { getFilenameFromDisposition } from "../../shared/utils/download";
 import { getErrorMessage } from "../../shared/utils/errors";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../shared/ui/ToastProvider";
+import { formatUserLabel } from "../../shared/utils/userLabel";
 
 export default function UserFilesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -297,8 +298,7 @@ export default function UserFilesPage() {
           onSortChange={(key, direction) =>
             setSort(direction ? { key, direction } : { key: null, direction: null })
           }
-          sortIconVariant="chevron"
-          columns={[
+          sortIconVariant="chevron"columns={[
             {
               key: "favorite",
               label: "",
@@ -352,7 +352,6 @@ export default function UserFilesPage() {
               label: t("title"),
               sortable: true,
               sortKey: "title",
-              minWidth: 320,
               render: (row) => (
                 <Box component="span" sx={{ color: "text.primary" }}>
                   {row.title || t("file")}
@@ -362,7 +361,6 @@ export default function UserFilesPage() {
             {
               key: "section",
               label: t("section"),
-              minWidth: 120,
               render: (row) => {
                 const item = row.sectionId ? sectionsById.get(row.sectionId) : null;
                 return item?.title || (row.sectionId ? `#${row.sectionId}` : "-");
@@ -374,7 +372,6 @@ export default function UserFilesPage() {
               render: (row) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-"),
               sortable: true,
               sortKey: "category",
-              minWidth: 280
             },
             {
               key: "accessType",
@@ -396,11 +393,10 @@ export default function UserFilesPage() {
             {
               key: "langs",
               label: t("languages"),
-              minWidth: 100,
               render: (row) => {
                 const langs = row.availableAssetLangs || row.availableLangs || [];
                 return (
-                  <Stack direction="row" spacing={1}>
+                  <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 0.5 }}>
                     {langs.map((lang: string) => (
                       <Chip key={lang} size="small" label={lang.toUpperCase()} />
                     ))}
@@ -411,7 +407,6 @@ export default function UserFilesPage() {
             {
               key: "size",
               label: t("fileSize"),
-              width: 80,
               render: (row) => {
                 const size = resolveRowSize(row);
                 return size === null || size === undefined ? "-" : formatBytes(size);
@@ -422,7 +417,6 @@ export default function UserFilesPage() {
             {
               key: "createdAt",
               label: t("createdAt"),
-              width: 120,
               render: (row) => formatDateTime(row.createdAt),
               sortable: true,
               sortKey: "created_at"
@@ -430,7 +424,6 @@ export default function UserFilesPage() {
             {
               key: "updatedAt",
               label: t("updatedAt"),
-              width: 120,
               render: (row) => formatDateTime(row.updatedAt),
               sortable: true,
               sortKey: "updated_at"
@@ -568,7 +561,7 @@ export default function UserFilesPage() {
                           </Typography>
                         ) : (
                           accessUsers.map((user: any) => (
-                            <Chip key={user.id} size="small" label={user.fullName || user.login} />
+                            <Chip key={user.id} size="small" label={formatUserLabel(user)} />
                           ))
                         )}
                       </Stack>

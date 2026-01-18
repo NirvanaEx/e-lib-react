@@ -11,6 +11,7 @@ import { FiltersBar } from "../../shared/ui/FiltersBar";
 import { PaginationBar } from "../../shared/ui/PaginationBar";
 import { formatDateTime } from "../../shared/utils/date";
 import { useTranslation } from "react-i18next";
+import { formatUserLabel } from "../../shared/utils/userLabel";
 
 export default function SessionsPage() {
   const { t } = useTranslation();
@@ -44,7 +45,7 @@ export default function SessionsPage() {
       <FiltersBar>
         <Autocomplete
           options={userOptions}
-          getOptionLabel={(option: any) => `${option.login} ${option.surname || ""} ${option.name || ""}`.trim()}
+          getOptionLabel={(option: any) => formatUserLabel(option)}
           value={userOptions.find((user: any) => user.id === userId) || null}
           isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
           onChange={(_, value: any | null) => setUserId(value ? value.id : null)}
@@ -80,9 +81,18 @@ export default function SessionsPage() {
         <DataTable
           rows={rows}
           columns={[
-            { key: "login", label: t("user") },
+            {
+              key: "login",
+              label: t("user"),
+              render: (row: any) =>
+                formatUserLabel({
+                  login: row.login,
+                  surname: row.surname,
+                  name: row.name,
+                  patronymic: row.patronymic
+                })
+            },
             { key: "ip", label: t("ip") },
-            { key: "user_agent", label: t("userAgent") },
             {
               key: "created_at",
               label: t("time"),

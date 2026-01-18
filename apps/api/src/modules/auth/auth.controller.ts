@@ -28,7 +28,7 @@ export class AuthController {
   @ApiBearerAuth()
   @Get("me")
   async me(@User() user: any) {
-    return { user };
+    return this.authService.me(user.id);
   }
 
   @ApiBearerAuth()

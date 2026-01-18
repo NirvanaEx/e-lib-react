@@ -89,12 +89,17 @@ export class UsersService {
     const { page, pageSize, q } = params;
     const query = this.dbService
       .db("users")
-      .select("id", "login")
+      .select("id", "login", "surname", "name", "patronymic")
       .whereNull("deleted_at")
       .orderBy("login", "asc");
 
     if (q) {
-      query.whereILike("users.login", `%${q}%`);
+      query.where((builder) => {
+        builder
+          .whereILike("users.login", `%${q}%`)
+          .orWhereILike("users.surname", `%${q}%`)
+          .orWhereILike("users.name", `%${q}%`);
+      });
     }
 
     const countResult = await query

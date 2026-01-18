@@ -286,42 +286,39 @@ export default function FileRequestsPage() {
     {
       key: "login",
       label: t("login"),
-      width: 120,
       render: (row: RequestRow) => row.createdBy?.login || "-",
       sortValue: (row: RequestRow) => row.createdBy?.login || ""
     },
     {
       key: "user",
       label: t("user"),
-      minWidth: 160,
+      width: 180,
       render: (row: RequestRow) => row.createdBy?.fullName || row.createdBy?.login || "-",
       sortValue: (row: RequestRow) => row.createdBy?.fullName || row.createdBy?.login || ""
     },
     {
       key: "title",
       label: t("title"),
-      minWidth: 280,
       render: (row: RequestRow) => row.title || t("file"),
       sortValue: (row: RequestRow) => row.title || ""
     },
     {
       key: "department",
       label: t("department"),
-      minWidth: 160,
+      width: 180,
       render: (row: RequestRow) => row.createdBy?.department || "-",
       sortValue: (row: RequestRow) => row.createdBy?.department || ""
     },
     {
       key: "section",
       label: t("section"),
-      minWidth: 120,
+      width: 160,
       render: (row: RequestRow) => (row.sectionId ? sectionTitleById.get(row.sectionId) || `#${row.sectionId}` : "-"),
       sortValue: (row: RequestRow) => (row.sectionId ? sectionTitleById.get(row.sectionId) || `#${row.sectionId}` : "")
     },
     {
       key: "category",
       label: t("category"),
-      minWidth: 240,
       render: (row: RequestRow) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-"),
       sortValue: (row: RequestRow) => (row.categoryId ? getCategoryPath(row.categoryId).join(" / ") : "")
     },
@@ -336,7 +333,6 @@ export default function FileRequestsPage() {
     {
       key: "createdAt",
       label: t("createdAt"),
-      width: 120,
       render: (row: RequestRow) => formatDateTime(row.createdAt),
       sortValue: (row: RequestRow) => new Date(row.createdAt).getTime()
     },
@@ -381,42 +377,39 @@ export default function FileRequestsPage() {
     {
       key: "login",
       label: t("login"),
-      width: 120,
       render: (row: RequestRow) => row.createdBy?.login || "-",
       sortValue: (row: RequestRow) => row.createdBy?.login || ""
     },
     {
       key: "user",
       label: t("user"),
-      minWidth: 160,
+      width: 180,
       render: (row: RequestRow) => row.createdBy?.fullName || row.createdBy?.login || "-",
       sortValue: (row: RequestRow) => row.createdBy?.fullName || row.createdBy?.login || ""
     },
     {
       key: "title",
       label: t("title"),
-      minWidth: 280,
       render: (row: RequestRow) => row.title || t("file"),
       sortValue: (row: RequestRow) => row.title || ""
     },
     {
       key: "department",
       label: t("department"),
-      minWidth: 160,
+      width: 180,
       render: (row: RequestRow) => row.createdBy?.department || "-",
       sortValue: (row: RequestRow) => row.createdBy?.department || ""
     },
     {
       key: "section",
       label: t("section"),
-      minWidth: 120,
+      width: 160,
       render: (row: RequestRow) => (row.sectionId ? sectionTitleById.get(row.sectionId) || `#${row.sectionId}` : "-"),
       sortValue: (row: RequestRow) => (row.sectionId ? sectionTitleById.get(row.sectionId) || `#${row.sectionId}` : "")
     },
     {
       key: "category",
       label: t("category"),
-      minWidth: 240,
       render: (row: RequestRow) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-"),
       sortValue: (row: RequestRow) => (row.categoryId ? getCategoryPath(row.categoryId).join(" / ") : "")
     },
@@ -431,14 +424,12 @@ export default function FileRequestsPage() {
     {
       key: "status",
       label: t("status"),
-      width: 120,
       render: (row: RequestRow) => statusChip(row.status),
       sortValue: (row: RequestRow) => row.status
     },
     {
       key: "resolvedAt",
       label: t("updatedAt"),
-      width: 120,
       render: (row: RequestRow) => formatDateTime(row.resolvedAt || row.updatedAt || row.createdAt),
       sortValue: (row: RequestRow) => new Date(row.resolvedAt || row.updatedAt || row.createdAt).getTime()
     }
@@ -489,8 +480,7 @@ export default function FileRequestsPage() {
           rows={rows}
           columns={scope === "pending" ? pendingColumns : historyColumns}
           sortIconVariant="chevron"
-          onRowClick={(row) => setDetailsTarget(row)}
-        />
+          onRowClick={(row) => setDetailsTarget(row)}/>
       )}
 
       <PaginationBar

@@ -17,7 +17,6 @@ import {
 } from "@mui/material";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DeleteIcon from "@mui/icons-material/Delete";
-import RestoreFromTrashIcon from "@mui/icons-material/RestoreFromTrash";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -29,8 +28,7 @@ import {
   uploadAsset,
   updateFile,
   updateAccess,
-  deleteVersion,
-  restoreVersion
+  deleteVersion
 } from "./files.api";
 import { fetchSections } from "../sections/sections.api";
 import { fetchCategories } from "../categories/categories.api";
@@ -48,6 +46,7 @@ import { formatDateTime } from "../../shared/utils/date";
 import { formatBytes } from "../../shared/utils/format";
 import { getErrorMessage } from "../../shared/utils/errors";
 import { buildPathMap, formatPath } from "../../shared/utils/tree";
+import { formatUserLabel } from "../../shared/utils/userLabel";
 
 const metadataSchema = z.object({
   sectionId: z.number().min(1),
@@ -81,7 +80,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
   const [newVersionAssets, setNewVersionAssets] = React.useState<Array<{ lang: string; file: File | null }>>([
     { lang: "ru", file: null }
   ]);
-  const [confirmVersion, setConfirmVersion] = React.useState<null | { type: "delete" | "restore"; versionId: number }>(null);
+  const [confirmVersion, setConfirmVersion] = React.useState<null | { type: "delete"; versionId: number }>(null);
 
   const { data: file } = useQuery({ queryKey: ["file", fileId], queryFn: () => fetchFile(fileId) });
   const { data: versions } = useQuery({ queryKey: ["versions", fileId], queryFn: () => fetchVersions(fileId) });
@@ -283,15 +282,6 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
     onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
   });
 
-  const restoreVersionMutation = useMutation({
-    mutationFn: (versionId: number) => restoreVersion(fileId, versionId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["versions", fileId] });
-      showToast({ message: t("versionRestored"), severity: "success" });
-    },
-    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
-  });
-
   const handleSaveMetadata = metadataForm.handleSubmit((values) => {
     if (!values.sectionId) {
       showToast({ message: t("selectSectionError"), severity: "error" });
@@ -472,12 +462,12 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                     <Autocomplete
                       multiple
                       options={users}
-                      getOptionLabel={(option: any) => option.login}
+                      getOptionLabel={(option: any) => formatUserLabel(option)}
                       renderOption={(props, option: any) => {
                         const { key, ...optionProps } = props;
                         return (
                           <li key={option.id} {...optionProps}>
-                            {option.login}
+                            {formatUserLabel(option)}
                           </li>
                         );
                       }}
@@ -609,16 +599,10 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                           {t("setCurrent")}
                         </Button>
                       )}
-                      {!version.deleted_at ? (
+                      {!version.deleted_at && (
                         <Tooltip title={t("delete")}>
                           <IconButton size="small" color="error" onClick={() => setConfirmVersion({ type: "delete", versionId: version.id })}>
                             <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      ) : (
-                        <Tooltip title={t("restore")}>
-                          <IconButton size="small" onClick={() => setConfirmVersion({ type: "restore", versionId: version.id })}>
-                            <RestoreFromTrashIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       )}
@@ -653,16 +637,12 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
 
       <ConfirmDialog
         open={!!confirmVersion}
-        title={confirmVersion?.type === "delete" ? t("confirmDelete") : t("confirmRestore")}
-        description={confirmVersion?.type === "delete" ? t("confirmDeleteVersion") : t("confirmRestoreVersion")}
-        confirmLabel={confirmVersion?.type === "delete" ? t("delete") : t("restore")}
+        title={t("confirmDelete")}
+        description={t("confirmDeleteVersion")}
+        confirmLabel={t("delete")}
         onConfirm={() => {
           if (!confirmVersion) return;
-          if (confirmVersion.type === "delete") {
-            deleteVersionMutation.mutate(confirmVersion.versionId);
-          } else {
-            restoreVersionMutation.mutate(confirmVersion.versionId);
-          }
+          deleteVersionMutation.mutate(confirmVersion.versionId);
           setConfirmVersion(null);
         }}
         onCancel={() => setConfirmVersion(null)}
