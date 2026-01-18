@@ -505,7 +505,7 @@ export default function FilesPage() {
                     value={sections.find((section) => section.id === field.value) || null}
                     isOptionEqualToValue={(option, value) => option.id === value.id}
                     onChange={(_, value) => field.onChange(value ? value.id : 0)}
-                    renderInput={(params) => <TextField {...params} label={t("section")} />}
+                    renderInput={(params) => <TextField {...params} label={t("section")} required />}
                   />
                 )}
               />
@@ -532,7 +532,7 @@ export default function FilesPage() {
                     value={categories.find((cat) => cat.id === field.value) || null}
                     isOptionEqualToValue={(option, value) => option.id === value.id}
                     onChange={(_, value) => field.onChange(value ? value.id : 0)}
-                    renderInput={(params) => <TextField {...params} label={t("category")} />}
+                    renderInput={(params) => <TextField {...params} label={t("category")} required />}
                   />
                 )}
               />
@@ -613,26 +613,30 @@ export default function FilesPage() {
                 titleLabel={t("title")}
                 descriptionLabel={t("description")}
                 helperText={t("translationsHint")}
+                requiredTitle
               />
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
-                <TextField
-                  select
-                  label={t("language")}
-                  value={initialLang}
-                  onChange={(event) => setInitialLang(event.target.value)}
-                  sx={{ minWidth: 140 }}
-                >
-                  <MenuItem value="ru">RU</MenuItem>
-                  <MenuItem value="en">EN</MenuItem>
-                  <MenuItem value="uz">UZ</MenuItem>
-                </TextField>
-                <Button component="label" variant="outlined">
-                  {t("selectFile")}
-                  <input type="file" hidden onChange={(event) => setInitialFile(event.target.files?.[0] || null)} />
-                </Button>
-                <Typography variant="caption" color="text.secondary">
-                  {initialFile ? initialFile.name : t("noFileSelected")}
-                </Typography>
+              <Stack spacing={1}>
+                <Typography variant="subtitle2">{t("file")} *</Typography>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
+                  <TextField
+                    select
+                    label={t("language")}
+                    value={initialLang}
+                    onChange={(event) => setInitialLang(event.target.value)}
+                    sx={{ minWidth: 140 }}
+                  >
+                    <MenuItem value="ru">RU</MenuItem>
+                    <MenuItem value="en">EN</MenuItem>
+                    <MenuItem value="uz">UZ</MenuItem>
+                  </TextField>
+                  <Button component="label" variant="outlined">
+                    {t("selectFile")}
+                    <input type="file" hidden onChange={(event) => setInitialFile(event.target.files?.[0] || null)} />
+                  </Button>
+                  <Typography variant="caption" color="text.secondary">
+                    {initialFile ? initialFile.name : t("noFileSelected")}
+                  </Typography>
+                </Stack>
               </Stack>
               <Stack spacing={1}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">

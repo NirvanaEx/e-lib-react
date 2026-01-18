@@ -68,6 +68,7 @@ export default function CategoriesPage() {
   const [editingId, setEditingId] = React.useState<number | null>(null);
   const [createParentId, setCreateParentId] = React.useState<number | null>(null);
   const [expandedIds, setExpandedIds] = React.useState<Set<number>>(new Set());
+  const autoExpandRef = React.useRef(false);
   const [confirmDelete, setConfirmDelete] = React.useState<number | null>(null);
   const [translations, setTranslations] = React.useState<any[]>([]);
   const [search, setSearch] = React.useState("");
@@ -80,6 +81,10 @@ export default function CategoriesPage() {
   React.useEffect(() => {
     setPage(1);
   }, [search, pageSize]);
+
+  React.useEffect(() => {
+    autoExpandRef.current = false;
+  }, [search, page, pageSize]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["categories", page, pageSize, search],
@@ -180,6 +185,23 @@ export default function CategoriesPage() {
     roots.forEach((root) => walk(root, 1));
     return result;
   }, [rows, expandedIds]);
+
+  const defaultExpandedIds = React.useMemo(() => {
+    const childrenByParent = new Map<number, number>();
+    rows.forEach((row) => {
+      if (row.parentId) {
+        childrenByParent.set(row.parentId, (childrenByParent.get(row.parentId) || 0) + 1);
+      }
+    });
+    return new Set<number>(childrenByParent.keys());
+  }, [rows]);
+
+  React.useEffect(() => {
+    if (!autoExpandRef.current && defaultExpandedIds.size > 0) {
+      setExpandedIds(new Set(defaultExpandedIds));
+      autoExpandRef.current = true;
+    }
+  }, [defaultExpandedIds]);
 
   const toggleExpanded = (id: number) => {
     setExpandedIds((prev) => {
@@ -378,6 +400,7 @@ export default function CategoriesPage() {
                 onChange={setTranslations}
                 titleLabel={t("title")}
                 helperText={t("translationsHint")}
+                requiredTitle
               />
             </Stack>
           </DialogContent>

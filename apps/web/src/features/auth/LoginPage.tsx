@@ -71,6 +71,7 @@ export default function LoginPage() {
             fullWidth
             margin="normal"
             label={t("login")}
+            required
             {...register("login")}
             error={!!errors.login}
             helperText={errors.login?.message}
@@ -80,6 +81,7 @@ export default function LoginPage() {
             margin="normal"
             type="password"
             label={t("password")}
+            required
             {...register("password")}
             error={!!errors.password}
             helperText={errors.password?.message}

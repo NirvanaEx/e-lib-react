@@ -240,6 +240,7 @@ export default function RolesPage() {
           <TextField
             fullWidth
             label={t("roleName")}
+            required
             value={newRoleName}
             onChange={(event) => setNewRoleName(event.target.value)}
             sx={{ mt: 1 }}

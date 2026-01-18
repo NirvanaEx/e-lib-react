@@ -53,8 +53,8 @@ export default function SettingsPage() {
         </Typography>
         <form onSubmit={passwordForm.handleSubmit(onSubmitPassword)}>
           <Stack spacing={2}>
-            <TextField label={t("currentPassword")} type="password" {...passwordForm.register("currentPassword")} />
-            <TextField label={t("newPassword")} type="password" {...passwordForm.register("newPassword")} />
+            <TextField label={t("currentPassword")} type="password" required {...passwordForm.register("currentPassword")} />
+            <TextField label={t("newPassword")} type="password" required {...passwordForm.register("newPassword")} />
             <Button type="submit" variant="contained" disabled={passwordMutation.isPending}>
               {t("updatePassword")}
             </Button>

@@ -15,7 +15,7 @@ export class DepartmentsService {
   async list(params: { page: number; pageSize: number; q?: string }) {
     const { page, pageSize, q } = params;
     const query = this.dbService.db("departments")
-      .select("id", "name", "parent_id", "depth", "created_at")
+      .select("id", "name", "parent_id", "depth", "created_at", "updated_at")
       .orderBy("depth", "asc")
       .orderBy("id", "asc");
 

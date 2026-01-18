@@ -40,7 +40,7 @@ export function DataTable<T extends { id: number | string }>({
         border: "1px solid var(--border)"
       }}
     >
-      <Table size="small" stickyHeader sx={{ tableLayout: "fixed" }}>
+      <Table size="small" stickyHeader sx={{ tableLayout: "auto" }}>
         <TableHead>
           <TableRow>
             {columns.map((col) => (
@@ -54,6 +54,8 @@ export function DataTable<T extends { id: number | string }>({
                   letterSpacing: "0.04em",
                   fontSize: "0.7rem",
                   borderBottomColor: "var(--border)",
+                  whiteSpace: "nowrap",
+                  verticalAlign: "middle",
                   width: col.width,
                   minWidth: col.minWidth,
                   ...col.headerSx
@@ -83,10 +85,11 @@ export function DataTable<T extends { id: number | string }>({
                     borderBottomColor: "var(--border)",
                     color: "text.primary",
                     py: 1.5,
+                    verticalAlign: "middle",
                     ...col.cellSx
                   }}
                 >
-                  <Box sx={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <Box sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {col.render ? col.render(row) : (row as any)[col.key]}
                   </Box>
                 </TableCell>

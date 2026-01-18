@@ -75,4 +75,25 @@ export class StatsService {
     const data = await query;
     return { data };
   }
+
+  async storageUsage() {
+    const db = this.dbService.db;
+    const totalBytesRow = await db("file_version_assets").sum<{ size: string }>("size as size").first();
+    const assetCountRow = await db("file_version_assets").count<{ count: string }>("id as count").first();
+    const fileCountRow = await db("file_items").whereNull("deleted_at").count<{ count: string }>("id as count").first();
+
+    const currentBytesRow = await db("file_items")
+      .leftJoin("file_versions", "file_versions.id", "file_items.current_version_id")
+      .leftJoin("file_version_assets", "file_version_assets.file_version_id", "file_versions.id")
+      .whereNull("file_items.deleted_at")
+      .sum<{ size: string }>("file_version_assets.size as size")
+      .first();
+
+    return {
+      totalBytes: Number(totalBytesRow?.size || 0),
+      currentBytes: Number(currentBytesRow?.size || 0),
+      assetCount: Number(assetCountRow?.count || 0),
+      fileCount: Number(fileCountRow?.count || 0)
+    };
+  }
 }

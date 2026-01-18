@@ -14,3 +14,8 @@ export async function fetchDownloadsByPeriod(params?: { from?: string; to?: stri
   const { data } = await api.get("/dashboard/stats/downloads-by-period", { params });
   return data;
 }
+
+export async function fetchStorageUsage() {
+  const { data } = await api.get("/dashboard/stats/storage");
+  return data;
+}

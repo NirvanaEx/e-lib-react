@@ -209,6 +209,7 @@ export default function SectionsPage() {
             onChange={setTranslations}
             titleLabel={t("title")}
             helperText={t("translationsHint")}
+            requiredTitle
           />
         </DialogContent>
         <DialogActions>

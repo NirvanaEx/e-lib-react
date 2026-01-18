@@ -8,10 +8,16 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import InsightsIcon from "@mui/icons-material/Insights";
 import ShieldIcon from "@mui/icons-material/Shield";
 import HistoryIcon from "@mui/icons-material/History";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import StorageIcon from "@mui/icons-material/Storage";
+import { Box, Chip, Stack, Typography } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import { BaseLayout, NavItem } from "./BaseLayout";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { hasAccess } from "../../shared/utils/access";
+import { fetchStorageUsage } from "../../features/stats/stats.api";
+import { formatBytes } from "../../shared/utils/format";
 
 type DashboardItem = {
   label: string;
@@ -36,6 +42,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: t("sections"), path: "/dashboard/sections", icon: <FolderIcon />, access: "section.read" },
     { label: t("categories"), path: "/dashboard/categories", icon: <CategoryIcon />, access: "category.read" },
     { label: t("files"), path: "/dashboard/files", icon: <DescriptionIcon />, access: "file.read" },
+    { label: t("trash"), path: "/dashboard/trash", icon: <DeleteOutlineIcon />, access: "file.trash.read" },
     { label: t("stats"), path: "/dashboard/stats", icon: <InsightsIcon />, access: "stats.read" }
   ];
 
@@ -49,8 +56,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: t("manage"), items: toNavItems(manageItems) }
   ].filter((section) => section.items.length > 0);
 
+  const canViewStorage = hasAccess(user, ["dashboard.access", "stats.read"]);
+  const { data: storageData } = useQuery({
+    queryKey: ["storage-usage"],
+    queryFn: fetchStorageUsage,
+    enabled: canViewStorage
+  });
+
+  const sidebarContent = canViewStorage ? (
+    <Box>
+      <Stack spacing={1.5}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <StorageIcon fontSize="small" color="action" />
+          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.16em" }}>
+            {t("storageUsage")}
+          </Typography>
+        </Stack>
+        <Stack spacing={0.5}>
+          <Typography variant="h6">{formatBytes(storageData?.totalBytes || 0)}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {t("storageUsed")}
+          </Typography>
+        </Stack>
+        <Stack direction="row" spacing={1} flexWrap="wrap">
+          <Chip size="small" label={`${t("files")}: ${storageData?.fileCount ?? 0}`} />
+          <Chip size="small" label={`${t("assets")}: ${storageData?.assetCount ?? 0}`} />
+        </Stack>
+        {storageData?.currentBytes ? (
+          <Typography variant="caption" color="text.secondary">
+            {t("currentVersions")}: {formatBytes(storageData.currentBytes)}
+          </Typography>
+        ) : null}
+      </Stack>
+    </Box>
+  ) : undefined;
+
   return (
-    <BaseLayout title={t("dashboard")} items={[]} sections={sections}>
+    <BaseLayout title={t("dashboard")} items={[]} sections={sections} sidebarFooter={sidebarContent}>
       {children}
     </BaseLayout>
   );

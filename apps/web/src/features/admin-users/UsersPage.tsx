@@ -93,6 +93,7 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = React.useState<UserRow | null>(null);
   const [tempPassword, setTempPassword] = React.useState<string | null>(null);
   const [confirmAction, setConfirmAction] = React.useState<null | { type: "delete" | "restore"; user: UserRow }>(null);
+  const [confirmReset, setConfirmReset] = React.useState<UserRow | null>(null);
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
@@ -339,7 +340,7 @@ export default function UsersPage() {
                     </Tooltip>
                   )}
                   <Tooltip title={t("resetPassword")}>
-                    <IconButton size="small" onClick={() => resetMutation.mutate(row.id)}>
+                    <IconButton size="small" onClick={() => setConfirmReset(row)}>
                       <VpnKeyIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -363,10 +364,10 @@ export default function UsersPage() {
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogContent sx={{ pt: 1 }}>
             <Stack spacing={2} sx={{ mt: 1 }}>
-              <TextField label={t("login")} fullWidth {...register("login")} error={!!errors.login} />
+              <TextField label={t("login")} fullWidth required {...register("login")} error={!!errors.login} />
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                <TextField label={t("surname")} fullWidth {...register("surname")} error={!!errors.surname} />
-                <TextField label={t("name")} fullWidth {...register("name")} error={!!errors.name} />
+                <TextField label={t("surname")} fullWidth required {...register("surname")} error={!!errors.surname} />
+                <TextField label={t("name")} fullWidth required {...register("name")} error={!!errors.name} />
               </Stack>
               <TextField label={t("patronymic")} fullWidth {...register("patronymic")} />
               <Controller
@@ -383,6 +384,7 @@ export default function UsersPage() {
                       <TextField
                         {...params}
                         label={t("role")}
+                        required
                         error={!!errors.roleId}
                         helperText={errors.roleId?.message}
                       />
@@ -475,6 +477,20 @@ export default function UsersPage() {
           setConfirmAction(null);
         }}
         onCancel={() => setConfirmAction(null)}
+      />
+
+      <ConfirmDialog
+        open={!!confirmReset}
+        title={t("confirmReset")}
+        description={t("confirmResetPassword")}
+        confirmLabel={t("resetPassword")}
+        onConfirm={() => {
+          if (confirmReset) {
+            resetMutation.mutate(confirmReset.id);
+            setConfirmReset(null);
+          }
+        }}
+        onCancel={() => setConfirmReset(null)}
       />
     </Page>
   );

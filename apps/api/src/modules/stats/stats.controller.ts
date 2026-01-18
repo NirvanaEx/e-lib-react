@@ -32,4 +32,10 @@ export class StatsController {
   async downloadsByPeriod(@Query() query: DownloadsByPeriodQueryDto) {
     return this.statsService.downloadsByPeriod({ from: query.from, to: query.to, bucket: query.bucket });
   }
+
+  @Get("storage")
+  @Access("stats.read")
+  async storage() {
+    return this.statsService.storageUsage();
+  }
 }
