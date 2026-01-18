@@ -49,6 +49,39 @@ export class FilesService {
     return rows.map((row: any) => Number(row.id));
   }
 
+  private async getDepartmentPaths(ids: number[]) {
+    if (!ids.length) return new Map<number, string>();
+    const result = await this.dbService.db.raw(
+      `WITH RECURSIVE tree AS (
+        SELECT d.id as root_id, d.id, d.name, d.parent_id, d.depth
+        FROM departments d
+        WHERE d.id = ANY(?::int[])
+        UNION ALL
+        SELECT t.root_id, d.id, d.name, d.parent_id, d.depth
+        FROM tree t
+        JOIN departments d ON d.id = t.parent_id
+      )
+      SELECT root_id, name, depth FROM tree`,
+      [ids]
+    );
+    const rows = result?.rows || [];
+    const grouped = new Map<number, { name: string; depth: number }[]>();
+    rows.forEach((row: any) => {
+      const rootId = Number(row.root_id);
+      const name = row.name;
+      const depth = Number(row.depth);
+      if (!name || !Number.isFinite(rootId) || !Number.isFinite(depth)) return;
+      if (!grouped.has(rootId)) grouped.set(rootId, []);
+      grouped.get(rootId)?.push({ name, depth });
+    });
+    const paths = new Map<number, string>();
+    grouped.forEach((items, rootId) => {
+      items.sort((a, b) => a.depth - b.depth);
+      paths.set(rootId, items.map((item) => item.name).join("/"));
+    });
+    return paths;
+  }
+
   private async getCategoryScopeIds(categoryId: number | null) {
     if (!categoryId) return [];
     const result = await this.dbService.db.raw(
@@ -1207,6 +1240,11 @@ export class FilesService {
       .select("departments.id", "departments.name")
       .where("file_access_departments.file_item_id", fileItemId)
       .orderBy("departments.name", "asc");
+    const departmentPaths = await this.getDepartmentPaths(accessDepartments.map((dept: any) => dept.id));
+    const accessDepartmentsWithPaths = accessDepartments.map((dept: any) => ({
+      ...dept,
+      path: departmentPaths.get(dept.id) || dept.name
+    }));
     const accessUsersRows = await this.dbService.db("file_access_users")
       .leftJoin("users", "users.id", "file_access_users.user_id")
       .select("users.id", "users.login", "users.surname", "users.name", "users.patronymic")
@@ -1234,7 +1272,7 @@ export class FilesService {
       availableAssetLangs,
       assets,
       translations,
-      accessDepartments,
+      accessDepartments: accessDepartmentsWithPaths,
       accessUsers
     };
   }

@@ -383,7 +383,9 @@ export default function UserFilesPage() {
                             -
                           </Typography>
                         ) : (
-                          accessDepartments.map((dept: any) => <Chip key={dept.id} size="small" label={dept.name} />)
+                          accessDepartments.map((dept: any) => (
+                            <Chip key={dept.id} size="small" label={dept.path || dept.name} />
+                          ))
                         )}
                       </Stack>
                     </Box>
