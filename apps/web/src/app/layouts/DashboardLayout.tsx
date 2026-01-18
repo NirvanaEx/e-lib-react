@@ -11,6 +11,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import StorageIcon from "@mui/icons-material/Storage";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
 import { Box, ButtonBase, Chip, Stack, Tooltip, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { BaseLayout, NavItem } from "./BaseLayout";
@@ -62,6 +63,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: t("users"), path: "/dashboard/users", icon: <PeopleIcon />, access: "user.read" },
     { label: t("departments"), path: "/dashboard/departments", icon: <AccountTreeIcon />, access: "department.read" },
     { label: t("roles"), path: "/dashboard/roles", icon: <ShieldIcon />, access: "role.read" },
+    { label: t("content"), path: "/dashboard/content", icon: <PolicyOutlinedIcon />, access: "content.read" },
     { label: t("sessions"), path: "/dashboard/sessions", icon: <HistoryIcon />, access: "session.read" },
     { label: t("audit"), path: "/dashboard/audit", icon: <SecurityIcon />, access: "audit.read" }
   ];

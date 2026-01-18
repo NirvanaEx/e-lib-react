@@ -40,6 +40,8 @@ const permissions = [
   "file.trash.read",
   "file.download",
   "file.download.restricted",
+  "content.read",
+  "content.update",
   "stats.read",
   "storage.read"
 ];
@@ -249,6 +251,16 @@ const descriptions = {
     en: "Download restricted files",
     ru: "Скачивание ограниченных файлов",
     uz: "Cheklangan fayllarni yuklab olish"
+  },
+  "content.read": {
+    en: "View content pages",
+    ru: "Просмотр контента",
+    uz: "Kontentni ko'rish"
+  },
+  "content.update": {
+    en: "Update content pages",
+    ru: "Изменение контента",
+    uz: "Kontentni yangilash"
   },
   "stats.read": {
     en: "View statistics",

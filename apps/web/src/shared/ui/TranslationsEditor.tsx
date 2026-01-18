@@ -72,6 +72,7 @@ export function TranslationsEditor({
               multiline
               minRows={3}
               fullWidth
+              inputProps={{ style: { whiteSpace: "pre-wrap", fontFamily: "inherit" } }}
             />
           )}
           {helperText && (

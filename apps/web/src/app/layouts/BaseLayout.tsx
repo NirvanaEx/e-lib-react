@@ -5,6 +5,10 @@ import {
   Button,
   Chip,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Drawer,
   IconButton,
   List,
@@ -22,13 +26,16 @@ import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SettingsIcon from "@mui/icons-material/Settings";
 import BusinessIcon from "@mui/icons-material/Business";
+import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../shared/hooks/useAuth";
 import i18n from "../i18n";
 import { changeLanguage } from "../../features/settings/settings.api";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
 import { getDefaultRoute, hasAccess } from "../../shared/utils/access";
+import { acceptUserContentPage, fetchUserContentPage } from "../../features/content-pages/content-pages.api";
 
 export type NavItem = {
   label: string;
@@ -82,12 +89,49 @@ export function BaseLayout({
   const { t } = useTranslation();
   const collapsed = sidebarCollapsible ? isCollapsed : false;
   const effectiveDrawerWidth = collapsed ? collapsedDrawerWidth : drawerWidth;
+  const [agreementOpen, setAgreementOpen] = React.useState(false);
+  const [agreementDismissed, setAgreementDismissed] = React.useState(false);
+  const queryClient = useQueryClient();
+
+  const agreementKey = "user_agreement";
+
+  const { data: agreementData, isLoading: agreementLoading } = useQuery({
+    queryKey: ["content-page-user", agreementKey, user?.id, i18n.language],
+    queryFn: () => fetchUserContentPage(agreementKey),
+    enabled: Boolean(user?.id)
+  });
+
+  const acceptAgreementMutation = useMutation({
+    mutationFn: () => acceptUserContentPage(agreementKey),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["content-page-user", agreementKey] });
+    },
+    onError: () => showToast({ message: t("actionFailed"), severity: "error" })
+  });
 
   const handleDrawerToggle = () => {
     setMobileOpen((prev) => !prev);
   };
   const toggleCollapsed = () => {
     setIsCollapsed((prev) => !prev);
+  };
+
+  React.useEffect(() => {
+    setAgreementDismissed(false);
+  }, [user?.id]);
+
+  React.useEffect(() => {
+    if (agreementData?.shouldShow && !agreementDismissed) {
+      setAgreementOpen(true);
+    }
+  }, [agreementData?.shouldShow, agreementDismissed]);
+
+  const handleAgreementClose = () => {
+    setAgreementDismissed(true);
+    setAgreementOpen(false);
+    if (user?.id) {
+      acceptAgreementMutation.mutate();
+    }
   };
 
   const panelLinks = React.useMemo(() => {
@@ -330,6 +374,13 @@ export function BaseLayout({
                 </IconButton>
               </Tooltip>
             )}
+            {user && agreementData?.isActive && (
+              <Tooltip title={t("userAgreement")}>
+                <IconButton color="inherit" onClick={() => setAgreementOpen(true)}>
+                  <PolicyOutlinedIcon />
+                </IconButton>
+              </Tooltip>
+            )}
             {user && (
               <Stack
                 direction="row"
@@ -411,6 +462,25 @@ export function BaseLayout({
         <Toolbar />
         {children}
       </Box>
+      <Dialog open={agreementOpen} onClose={handleAgreementClose} fullWidth maxWidth="sm">
+        <DialogTitle>{agreementData?.title || t("userAgreement")}</DialogTitle>
+        <DialogContent>
+          {agreementLoading ? (
+            <Typography variant="body2" color="text.secondary">
+              {t("loading")}
+            </Typography>
+          ) : (
+            <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+              {agreementData?.body || ""}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleAgreementClose} variant="contained">
+            {t("agreementAccept")}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
