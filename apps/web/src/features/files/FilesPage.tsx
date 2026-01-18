@@ -50,6 +50,7 @@ import { getFilenameFromDisposition } from "../../shared/utils/download";
 import { formatBytes } from "../../shared/utils/format";
 import { FileDetailsPanel } from "./FileDetailsPanel";
 import { formatDateTime } from "../../shared/utils/date";
+import { formatUserLabel } from "../../shared/utils/userLabel";
 
 const schema = z.object({
   sectionId: z.number().min(1),
@@ -282,7 +283,10 @@ export default function FilesPage() {
   }, [infoFile, departmentsById]);
   const infoUsers = React.useMemo(() => {
     const ids = infoFile?.accessUserIds || [];
-    return ids.map((id: number) => usersById.get(id)?.login || `#${id}`);
+    return ids.map((id: number) => {
+      const user = usersById.get(id);
+      return user ? formatUserLabel(user) : `#${id}`;
+    });
   }, [infoFile, usersById]);
   const infoTitleForLang = (lang?: string | null) =>
     infoTranslations.find((item: any) => item.lang === lang)?.title || infoFile?.title || "file";
@@ -457,13 +461,10 @@ export default function FilesPage() {
           sort={sort}
           onSortChange={(key, direction) =>
             setSort(direction ? { key, direction } : { key: null, direction: null })
-          }
-          columns={[
-            { key: "title", label: t("title"), sortable: true, sortKey: "title", minWidth: 320 },
+          }columns={[
             {
               key: "section",
               label: t("section"),
-              minWidth: 120,
               render: (row) => formatSectionLabel(row.sectionId)
             },
             {
@@ -472,7 +473,6 @@ export default function FilesPage() {
               render: (row) => renderPath(getCategoryPath(row.categoryId)),
               sortable: true,
               sortKey: "category",
-              minWidth: 280
             },
             {
               key: "accessType",
@@ -484,11 +484,10 @@ export default function FilesPage() {
             {
               key: "langs",
               label: t("languages"),
-              minWidth: 100,
               render: (row) => {
                 const langs = row.availableAssetLangs || row.availableLangs || [];
                 return (
-                  <Stack direction="row" spacing={1}>
+                  <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 0.5 }}>
                     {langs.map((lang: string) => (
                       <Chip key={lang} size="small" label={lang.toUpperCase()} />
                     ))}
@@ -499,7 +498,6 @@ export default function FilesPage() {
             {
               key: "size",
               label: t("fileSize"),
-              width: 80,
               render: (row) => {
                 const size = resolveRowSize(row);
                 return size === null || size === undefined ? "-" : formatBytes(size);
@@ -510,7 +508,6 @@ export default function FilesPage() {
             {
               key: "createdAt",
               label: t("createdAt"),
-              width: 120,
               render: (row) => formatDateTime(row.createdAt),
               sortable: true,
               sortKey: "created_at"
@@ -518,7 +515,6 @@ export default function FilesPage() {
             {
               key: "updatedAt",
               label: t("updatedAt"),
-              width: 120,
               render: (row) => formatDateTime(row.updatedAt),
               sortable: true,
               sortKey: "updated_at"
@@ -712,12 +708,12 @@ export default function FilesPage() {
                       <Autocomplete
                         multiple
                         options={users}
-                        getOptionLabel={(option: any) => option.login}
+                        getOptionLabel={(option: any) => formatUserLabel(option)}
                         renderOption={(props, option: any) => {
                           const { key, ...optionProps } = props;
                           return (
                             <li key={option.id} {...optionProps}>
-                              {option.login}
+                              {formatUserLabel(option)}
                             </li>
                           );
                         }}

@@ -22,6 +22,7 @@ import { FiltersBar } from "../../shared/ui/FiltersBar";
 import { PaginationBar } from "../../shared/ui/PaginationBar";
 import { LoadingState } from "../../shared/ui/LoadingState";
 import { formatDateTime } from "../../shared/utils/date";
+import { formatUserLabel } from "../../shared/utils/userLabel";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { hasAccess } from "../../shared/utils/access";
@@ -99,13 +100,20 @@ export default function AuditPage() {
   const rows = data?.data || [];
   const meta = data?.meta || { page, pageSize, total: 0 };
   const userOptions = canReadUsers ? usersData?.data || [] : [];
+  const actorLabel = (row: any) =>
+    formatUserLabel({
+      login: row.actor_login,
+      surname: row.actor_surname,
+      name: row.actor_name,
+      patronymic: row.actor_patronymic
+    });
 
   return (
     <Page title={t("audit")} subtitle={t("auditSubtitle")}>
       <FiltersBar>
         <Autocomplete
           options={userOptions}
-          getOptionLabel={(option: any) => option.login}
+          getOptionLabel={(option: any) => formatUserLabel(option)}
           value={userOptions.find((user: any) => user.id === actorId) || null}
           isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
           onChange={(_, value: any | null) => setActorId(value ? value.id : null)}
@@ -158,10 +166,7 @@ export default function AuditPage() {
         <DataTable
           rows={rows}
           columns={[
-            { key: "action", label: t("action") },
-            { key: "entity_type", label: t("entityType") },
             { key: "entity_id", label: t("entityId") },
-            { key: "actor_login", label: t("actor") },
             {
               key: "created_at",
               label: t("time"),
@@ -199,7 +204,7 @@ export default function AuditPage() {
             <TextField label={t("action")} value={selectedLog?.action || ""} InputProps={{ readOnly: true }} />
             <TextField label={t("entityType")} value={selectedLog?.entity_type || ""} InputProps={{ readOnly: true }} />
             <TextField label={t("entityId")} value={selectedLog?.entity_id || ""} InputProps={{ readOnly: true }} />
-            <TextField label={t("actor")} value={selectedLog?.actor_login || ""} InputProps={{ readOnly: true }} />
+            <TextField label={t("actor")} value={selectedLog ? actorLabel(selectedLog) : ""} InputProps={{ readOnly: true }} />
             <TextField label={t("ip")} value={selectedLog?.ip || ""} InputProps={{ readOnly: true }} />
             <TextField label={t("userAgent")} value={selectedLog?.user_agent || ""} InputProps={{ readOnly: true }} />
             <TextField

@@ -26,6 +26,13 @@
 - Dashboard files and requests tables now use access icons and wider title/category columns, with tighter widths for static fields; my-library request table follows the same spacing.
 - Navbar now prefers a shortened surname + initials display when available; publication request details and history highlight user/admin comments, and user request rows open a details dialog with comments.
 - Comment columns removed from request tables; comments remain available in request details dialogs.
+- File-related tables now allow wrapping in title/category cells to avoid horizontal scrolling.
+- Version restore is now only available via Trash; the file details view no longer shows a restore action for deleted versions.
+- `/auth/me` now returns full user details (surname/name/patronymic), so the navbar can render the short "Фамилия И.О." label after refresh.
+- User labels now show as `login (Фамилия И.О.)` across admin-facing filters/tables and access lists; wrapped columns now use fixed layout with word wrapping and clipping for long text.
+- File-related tables now allocate widths to fixed columns and wrap primary text columns to avoid horizontal scroll bars.
+- DataTable headers now wrap instead of truncating, and file-related tables rely on flexible column sizing with wrapping to fit the screen without horizontal scroll.
+- DataTable UI reverted to the latest commit state; file-related tables no longer use wrap/layout overrides.
 
 ## Next
 

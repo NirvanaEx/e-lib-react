@@ -113,6 +113,60 @@ export class AuthService {
     };
   }
 
+  async me(userId: number) {
+    const user = await this.dbService.db("users")
+      .leftJoin("roles", "roles.id", "users.role_id")
+      .leftJoin("departments", "departments.id", "users.department_id")
+      .select(
+        "users.id",
+        "users.login",
+        "users.surname",
+        "users.name",
+        "users.patronymic",
+        "users.role_id",
+        "users.department_id",
+        "users.must_change_password",
+        "users.lang",
+        "users.can_submit_files",
+        "roles.name as role",
+        "roles.level as role_level",
+        "departments.name as department"
+      )
+      .where("users.id", userId)
+      .whereNull("users.deleted_at")
+      .first();
+
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    const permissions = await this.dbService
+      .db("role_permissions")
+      .leftJoin("permissions", "permissions.id", "role_permissions.permission_id")
+      .where("role_permissions.role_id", user.role_id)
+      .pluck("permissions.name");
+
+    const departmentPath = await this.getDepartmentPath(user.department_id);
+
+    return {
+      user: {
+        id: user.id,
+        login: user.login,
+        role: user.role,
+        roleLevel: user.role_level,
+        departmentId: user.department_id,
+        department: departmentPath || user.department,
+        mustChangePassword: user.must_change_password,
+        surname: user.surname,
+        name: user.name,
+        patronymic: user.patronymic,
+        lang: user.lang,
+        canSubmitFiles: user.can_submit_files,
+        permissions
+      }
+    };
+  }
+
   async changeTempPassword(userId: number, currentPassword: string, newPassword: string) {
     const user = await this.dbService.db("users")
       .select("id", "password_hash", "must_change_password")

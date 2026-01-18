@@ -11,6 +11,7 @@ import { EmptyState } from "../../shared/ui/EmptyState";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useTranslation } from "react-i18next";
 import { formatDateTime } from "../../shared/utils/date";
+import { formatUserLabel } from "../../shared/utils/userLabel";
 
 export default function StatsPage() {
   const { t } = useTranslation();
@@ -82,7 +83,7 @@ export default function StatsPage() {
           </TextField>
           <Autocomplete
             options={userOptions}
-            getOptionLabel={(option: any) => option.login}
+            getOptionLabel={(option: any) => formatUserLabel(option)}
             value={userOptions.find((user: any) => user.id === userId) || null}
             isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
             onChange={(_, value: any | null) => setUserId(value ? value.id : null)}
@@ -134,7 +135,6 @@ export default function StatsPage() {
             rows={topFiles}
             rowKey={(row: any) => row.file_item_id}
             columns={[
-              { key: "title", label: t("title") },
               { key: "count", label: t("downloads") }
             ]}
           />
@@ -152,7 +152,6 @@ export default function StatsPage() {
             <DataTable
               rows={userDownloads?.data || []}
               columns={[
-                { key: "title", label: t("title") },
                 { key: "created_at", label: t("time"), render: (row: any) => formatDateTime(row.created_at) }
               ]}
             />

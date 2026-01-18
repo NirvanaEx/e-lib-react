@@ -123,17 +123,15 @@ export default function TrashPage() {
         <EmptyState title={t("trashEmpty")} subtitle={t("trashEmptySubtitle")} />
       ) : (
         <DataTable
-          rows={rows}
-          columns={[
-            { key: "title", label: t("title"), render: (row) => row.title || "-" },
+          rows={rows}columns={[
             { key: "type", label: t("type"), render: (row) => getTypeLabel(row.type) },
-            { key: "details", label: t("details"), render: (row) => getDetails(row) },
             { key: "deletedAt", label: t("deletedAt"), render: (row) => formatDateTime(row.deletedAt) },
             {
               key: "actions",
               label: t("actions"),
               align: "right",
               sortable: false,
+              width: 96,
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   <Tooltip title={t("restore")}>
