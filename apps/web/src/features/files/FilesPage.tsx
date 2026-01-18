@@ -20,12 +20,12 @@ import AddIcon from "@mui/icons-material/Add";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DownloadIcon from "@mui/icons-material/Download";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { fetchFiles, createFile, deleteFile, uploadAsset, downloadUserFile } from "./files.api";
+import { fetchFiles, fetchFile, fetchVersions, createFile, deleteFile, uploadAsset, downloadUserFile } from "./files.api";
 import { fetchSections } from "../sections/sections.api";
 import { fetchCategories } from "../categories/categories.api";
 import { fetchDepartmentOptions } from "../departments/departments.api";
@@ -93,6 +93,7 @@ export default function FilesPage() {
   const [open, setOpen] = React.useState(false);
   const [confirmTrash, setConfirmTrash] = React.useState<number | null>(null);
   const [detailsId, setDetailsId] = React.useState<number | null>(null);
+  const [infoId, setInfoId] = React.useState<number | null>(null);
   const [translations, setTranslations] = React.useState<any[]>([]);
   const [initialFile, setInitialFile] = React.useState<File | null>(null);
   const [initialLang, setInitialLang] = React.useState("ru");
@@ -120,6 +121,16 @@ export default function FilesPage() {
     queryKey: ["files", page, pageSize, search, sortBy, sortDir],
     queryFn: () => fetchFiles({ page, pageSize, q: search, sortBy, sortDir })
   });
+  const { data: infoFile, isLoading: infoLoading } = useQuery({
+    queryKey: ["file", infoId],
+    queryFn: () => fetchFile(infoId as number),
+    enabled: !!infoId
+  });
+  const { data: infoVersions } = useQuery({
+    queryKey: ["versions", infoId],
+    queryFn: () => fetchVersions(infoId as number),
+    enabled: !!infoId
+  });
 
   const { data: sectionsData } = useQuery({
     queryKey: ["sections", "options", 200],
@@ -139,6 +150,11 @@ export default function FilesPage() {
   const sections: SectionOption[] = sectionsData?.data || [];
   const departments: DepartmentOption[] = departmentsData?.data || [];
   const users = usersData?.data || [];
+  const departmentsById = React.useMemo(
+    () => new Map(departments.map((department) => [department.id, department])),
+    [departments]
+  );
+  const usersById = React.useMemo(() => new Map(users.map((user: any) => [user.id, user])), [users]);
 
   const { control, handleSubmit, watch, reset } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -204,6 +220,41 @@ export default function FilesPage() {
 
   const languageOptions = ["ru", "en", "uz"];
   const currentLang = (i18n.language || "ru").split("-")[0];
+  const infoTranslations = infoFile?.translations || [];
+  const infoTranslationsSorted = React.useMemo(() => {
+    const items = [...infoTranslations];
+    return items.sort((a: any, b: any) => {
+      const aCurrent = a.lang === currentLang;
+      const bCurrent = b.lang === currentLang;
+      if (aCurrent && !bCurrent) return -1;
+      if (!aCurrent && bCurrent) return 1;
+      return String(a.lang).localeCompare(String(b.lang));
+    });
+  }, [infoTranslations, currentLang]);
+  const currentVersion = React.useMemo(() => {
+    const versions = infoVersions?.data || [];
+    return versions.find((item: any) => item.id === infoFile?.currentVersionId) || null;
+  }, [infoVersions, infoFile]);
+  const infoAssets = React.useMemo(() => {
+    const items = [...(currentVersion?.assets || [])];
+    return items.sort((a: any, b: any) => {
+      const aCurrent = a.lang === currentLang;
+      const bCurrent = b.lang === currentLang;
+      if (aCurrent && !bCurrent) return -1;
+      if (!aCurrent && bCurrent) return 1;
+      return String(a.lang).localeCompare(String(b.lang));
+    });
+  }, [currentVersion, currentLang]);
+  const infoDepartments = React.useMemo(() => {
+    const ids = infoFile?.accessDepartmentIds || [];
+    return ids.map((id: number) => departmentsById.get(id)?.name || `#${id}`);
+  }, [infoFile, departmentsById]);
+  const infoUsers = React.useMemo(() => {
+    const ids = infoFile?.accessUserIds || [];
+    return ids.map((id: number) => usersById.get(id)?.login || `#${id}`);
+  }, [infoFile, usersById]);
+  const infoTitleForLang = (lang?: string | null) =>
+    infoTranslations.find((item: any) => item.lang === lang)?.title || infoFile?.title || "file";
 
   const resolveRowSize = (row: FileRow) => {
     const sizes = row.availableAssetSizes || [];
@@ -367,6 +418,7 @@ export default function FilesPage() {
       ) : (
         <DataTable
           rows={rows}
+          onRowClick={(row) => setInfoId(row.id)}
           columns={[
             { key: "title", label: t("title") },
             {
@@ -435,7 +487,8 @@ export default function FilesPage() {
                       <IconButton
                         size="small"
                         disabled={disabled}
-                        onClick={() => {
+                        onClick={(event) => {
+                          event.stopPropagation();
                           if (langs.length > 1) {
                             setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
                             return;
@@ -457,13 +510,26 @@ export default function FilesPage() {
               align: "right",
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
-                  <Tooltip title={t("open")}>
-                    <IconButton size="small" onClick={() => setDetailsId(row.id)}>
-                      <OpenInNewIcon fontSize="small" />
+                  <Tooltip title={t("edit")}>
+                    <IconButton
+                      size="small"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setDetailsId(row.id);
+                      }}
+                    >
+                      <EditOutlinedIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title={t("moveToTrash")}>
-                    <IconButton size="small" color="error" onClick={() => setConfirmTrash(row.id)}>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setConfirmTrash(row.id);
+                      }}
+                    >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -719,6 +785,136 @@ export default function FilesPage() {
         }}
         onCancel={() => setConfirmTrash(null)}
       />
+
+      <Dialog open={!!infoId} onClose={() => setInfoId(null)} fullWidth maxWidth="md">
+        <DialogTitle>{infoFile?.title || t("file")}</DialogTitle>
+        <DialogContent dividers>
+          {infoLoading ? (
+            <Typography color="text.secondary">{t("loading")}</Typography>
+          ) : (
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  {t("description")}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {infoFile?.description || "-"}
+                </Typography>
+              </Box>
+              <Box>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                  <Typography variant="subtitle2">{t("access")}</Typography>
+                  <Chip size="small" label={infoFile?.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")} />
+                </Stack>
+                {infoFile?.accessType === "restricted" && (
+                  <Stack spacing={1}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {t("departments")}
+                      </Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
+                        {infoDepartments.length === 0 ? (
+                          <Typography variant="body2" color="text.secondary">
+                            -
+                          </Typography>
+                        ) : (
+                          infoDepartments.map((name) => <Chip key={name} size="small" label={name} />)
+                        )}
+                      </Stack>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {t("users")}
+                      </Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
+                        {infoUsers.length === 0 ? (
+                          <Typography variant="body2" color="text.secondary">
+                            -
+                          </Typography>
+                        ) : (
+                          infoUsers.map((name) => <Chip key={name} size="small" label={name} />)
+                        )}
+                      </Stack>
+                    </Box>
+                  </Stack>
+                )}
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  {t("currentVersion")}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {currentVersion?.version_number ? `#${currentVersion.version_number}` : "-"}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  {t("titlesByLanguage")}
+                </Typography>
+                <Stack spacing={1}>
+                  {infoTranslationsSorted.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      -
+                    </Typography>
+                  ) : (
+                    infoTranslationsSorted.map((item: any) => (
+                      <Stack key={item.lang} direction="row" spacing={1.5} alignItems="flex-start">
+                        <Chip
+                          size="small"
+                          label={item.lang.toUpperCase()}
+                          color={item.lang === currentLang ? "primary" : "default"}
+                          variant={item.lang === currentLang ? "filled" : "outlined"}
+                        />
+                        <Box>
+                          <Typography variant="body2">{item.title}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {item.description || "-"}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    ))
+                  )}
+                </Stack>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  {t("availableLanguages")}
+                </Typography>
+                <Stack spacing={1}>
+                  {infoAssets.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      -
+                    </Typography>
+                  ) : (
+                    infoAssets.map((asset: any) => (
+                      <Stack key={asset.id} direction="row" spacing={1} alignItems="center">
+                        <Chip size="small" label={asset.lang.toUpperCase()} />
+                        <Typography variant="body2" sx={{ flex: 1 }}>
+                          {asset.originalName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatBytes(asset.size)}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() =>
+                            downloadMutation.mutate({ id: infoId as number, lang: asset.lang, title: infoTitleForLang(asset.lang) })
+                          }
+                        >
+                          <DownloadIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    ))
+                  )}
+                </Stack>
+              </Box>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInfoId(null)}>{t("cancel")}</Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={!!detailsId} onClose={() => setDetailsId(null)} fullWidth maxWidth="lg" scroll="paper">
         <DialogContent sx={{ pt: 2 }}>
