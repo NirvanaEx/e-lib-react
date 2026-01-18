@@ -57,6 +57,7 @@ export class UsersService {
         "users.must_change_password",
         "users.deleted_at",
         "users.lang",
+        "users.can_submit_files",
         "users.created_at"
       )
       .orderBy("users.created_at", "desc");
@@ -238,19 +239,22 @@ export class UsersService {
       }
     }
 
-    await this.dbService
-      .db("users")
-      .update({
-        login: dto.login ?? user.login,
-        surname: dto.surname ?? user.surname,
-        name: dto.name ?? user.name,
-        patronymic: dto.patronymic ?? user.patronymic,
-        role_id: targetRoleId,
-        department_id: dto.departmentId !== undefined ? dto.departmentId || null : user.department_id,
-        lang: dto.lang ?? user.lang,
-        updated_at: this.dbService.db.fn.now()
-      })
-      .where({ id });
+    const updatePayload: Record<string, any> = {
+      login: dto.login ?? user.login,
+      surname: dto.surname ?? user.surname,
+      name: dto.name ?? user.name,
+      patronymic: dto.patronymic ?? user.patronymic,
+      role_id: targetRoleId,
+      department_id: dto.departmentId !== undefined ? dto.departmentId || null : user.department_id,
+      lang: dto.lang ?? user.lang,
+      updated_at: this.dbService.db.fn.now()
+    };
+
+    if (dto.canSubmitFiles !== undefined) {
+      updatePayload.can_submit_files = dto.canSubmitFiles;
+    }
+
+    await this.dbService.db("users").update(updatePayload).where({ id });
 
     await this.auditService.log({
       actorUserId: actorId,

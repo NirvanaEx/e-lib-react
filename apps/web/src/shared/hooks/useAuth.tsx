@@ -11,6 +11,7 @@ export type AuthUser = {
   mustChangePassword?: boolean;
   lang?: string | null;
   permissions?: string[];
+  canSubmitFiles?: boolean;
 };
 
 type AuthContextValue = {

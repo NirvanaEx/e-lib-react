@@ -50,6 +50,7 @@ export class AuthService {
         "users.department_id",
         "users.must_change_password",
         "users.lang",
+        "users.can_submit_files",
         "roles.name as role",
         "roles.level as role_level",
         "departments.name as department"
@@ -86,6 +87,7 @@ export class AuthService {
         department: departmentPath || user.department,
         mustChangePassword: user.must_change_password,
         lang: user.lang,
+        canSubmitFiles: user.can_submit_files,
         permissions
       },
       { expiresIn: this.config.get<string>("JWT_EXPIRES_IN", "1d") }
@@ -105,6 +107,7 @@ export class AuthService {
         name: user.name,
         patronymic: user.patronymic,
         lang: user.lang,
+        canSubmitFiles: user.can_submit_files,
         permissions
       }
     };
@@ -143,6 +146,7 @@ export class AuthService {
         "users.department_id",
         "users.lang",
         "users.must_change_password",
+        "users.can_submit_files",
         "roles.name as role",
         "roles.level as role_level",
         "departments.name as department"
@@ -171,6 +175,7 @@ export class AuthService {
         department: departmentPath || refreshed.department,
         mustChangePassword: false,
         lang: refreshed.lang,
+        canSubmitFiles: refreshed.can_submit_files,
         permissions
       },
       { expiresIn: this.config.get<string>("JWT_EXPIRES_IN", "1d") }
@@ -190,6 +195,7 @@ export class AuthService {
         name: refreshed.name,
         patronymic: refreshed.patronymic,
         lang: refreshed.lang,
+        canSubmitFiles: refreshed.can_submit_files,
         permissions
       }
     };

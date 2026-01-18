@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsInt, IsOptional, IsString } from "class-validator";
 import { Type } from "class-transformer";
 
 export class UpdateUserDto {
@@ -31,4 +31,8 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   lang?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  canSubmitFiles?: boolean;
 }

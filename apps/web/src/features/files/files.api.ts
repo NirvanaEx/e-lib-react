@@ -100,3 +100,10 @@ export async function fetchMenu() {
   const { data } = await api.get("/user/menu/all");
   return data;
 }
+
+export async function submitUserFile(payload: FormData) {
+  const { data } = await api.post("/user/files", payload, {
+    headers: { "Content-Type": "multipart/form-data" }
+  });
+  return data;
+}

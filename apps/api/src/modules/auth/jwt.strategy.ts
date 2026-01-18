@@ -13,6 +13,7 @@ export interface JwtPayload {
   mustChangePassword: boolean;
   lang?: string | null;
   permissions?: string[];
+  canSubmitFiles?: boolean;
 }
 
 @Injectable()
@@ -35,7 +36,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       department: payload.department || null,
       mustChangePassword: payload.mustChangePassword,
       lang: payload.lang || null,
-      permissions: payload.permissions || []
+      permissions: payload.permissions || [],
+      canSubmitFiles: payload.canSubmitFiles ?? false
     };
   }
 }
