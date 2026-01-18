@@ -1,9 +1,24 @@
 import React from "react";
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Select, Stack, Tooltip, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  MenuItem,
+  Select,
+  Stack,
+  Tooltip,
+  Typography
+} from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { downloadUserFile, fetchMenu, fetchUserFiles } from "./files.api";
+import { downloadUserFile, fetchMenu, fetchUserFile, fetchUserFiles } from "./files.api";
 import { DataTable } from "../../shared/ui/DataTable";
 import { Page } from "../../shared/ui/Page";
 import { EmptyState } from "../../shared/ui/EmptyState";
@@ -11,15 +26,14 @@ import { LoadingState } from "../../shared/ui/LoadingState";
 import { FiltersBar } from "../../shared/ui/FiltersBar";
 import { PaginationBar } from "../../shared/ui/PaginationBar";
 import { SearchField } from "../../shared/ui/SearchField";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { formatBytes } from "../../shared/utils/format";
 import { formatDateTime } from "../../shared/utils/date";
 import { getFilenameFromDisposition } from "../../shared/utils/download";
 
 export default function UserFilesPage() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { t, i18n } = useTranslation();
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
@@ -32,6 +46,7 @@ export default function UserFilesPage() {
     langs: string[];
     sizes: Record<string, number>;
   } | null>(null);
+  const [detailsId, setDetailsId] = React.useState<number | null>(null);
   const sectionId = Number(searchParams.get("sectionId") || 0) || undefined;
   const categoryId = Number(searchParams.get("categoryId") || 0) || undefined;
 
@@ -39,9 +54,22 @@ export default function UserFilesPage() {
     setPage(1);
   }, [search, pageSize, sortBy, sortDir, sectionId, categoryId]);
 
+  const resetFilters = () => {
+    setSearch("");
+    setSortBy("created_at");
+    setSortDir("desc");
+    setPage(1);
+    setSearchParams(new URLSearchParams(), { replace: true });
+  };
+
   const { data, isLoading } = useQuery({
     queryKey: ["user-files", page, pageSize, search, sortBy, sortDir, sectionId, categoryId],
     queryFn: () => fetchUserFiles({ page, pageSize, q: search, sortBy, sortDir, sectionId, categoryId })
+  });
+  const { data: detailsData, isLoading: detailsLoading } = useQuery({
+    queryKey: ["user-file-details", detailsId],
+    queryFn: () => fetchUserFile(detailsId as number),
+    enabled: !!detailsId
   });
   const { data: menuData } = useQuery({ queryKey: ["user-menu-all"], queryFn: () => fetchMenu() });
 
@@ -51,6 +79,46 @@ export default function UserFilesPage() {
   const categories = menuData?.categories || [];
   const sectionsById = React.useMemo(() => new Map(sections.map((item: any) => [item.id, item])), [sections]);
   const categoriesById = React.useMemo(() => new Map(categories.map((item: any) => [item.id, item])), [categories]);
+  const translations = detailsData?.translations || [];
+  const assets = detailsData?.assets || [];
+  const accessDepartments = detailsData?.accessDepartments || [];
+  const accessUsers = detailsData?.accessUsers || [];
+  const currentLang = (i18n.language || "ru").split("-")[0];
+  const translationsSorted = React.useMemo(() => {
+    const items = [...translations];
+    return items.sort((a: any, b: any) => {
+      const aCurrent = a.lang === currentLang;
+      const bCurrent = b.lang === currentLang;
+      if (aCurrent && !bCurrent) return -1;
+      if (!aCurrent && bCurrent) return 1;
+      return String(a.lang).localeCompare(String(b.lang));
+    });
+  }, [translations, currentLang]);
+  const assetsSorted = React.useMemo(() => {
+    const items = [...assets];
+    return items.sort((a: any, b: any) => {
+      const aCurrent = a.lang === currentLang;
+      const bCurrent = b.lang === currentLang;
+      if (aCurrent && !bCurrent) return -1;
+      if (!aCurrent && bCurrent) return 1;
+      return String(a.lang).localeCompare(String(b.lang));
+    });
+  }, [assets, currentLang]);
+  const downloadLangsSorted = React.useMemo(() => {
+    if (!downloadTarget?.langs) return [];
+    const items = [...downloadTarget.langs];
+    return items.sort((a, b) => {
+      const aCurrent = a === currentLang;
+      const bCurrent = b === currentLang;
+      if (aCurrent && !bCurrent) return -1;
+      if (!aCurrent && bCurrent) return 1;
+      return a.localeCompare(b);
+    });
+  }, [downloadTarget, currentLang]);
+  const titleForLang = (lang?: string | null) => {
+    if (!lang) return detailsData?.title || "file";
+    return translations.find((item: any) => item.lang === lang)?.title || detailsData?.title || "file";
+  };
 
   const getCategoryPath = (id: number) => {
     const segments: string[] = [];
@@ -105,6 +173,13 @@ export default function UserFilesPage() {
     <Page title={t("files")} subtitle={t("userFilesSubtitle")}>
       <FiltersBar>
         <SearchField value={search} onChange={setSearch} placeholder={t("searchFiles")} />
+        <Tooltip title={t("resetFilters")}>
+          <span>
+            <IconButton size="small" onClick={resetFilters}>
+              <RestartAltIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
         <Select size="small" value={sortBy} onChange={(event) => setSortBy(String(event.target.value))}>
           <MenuItem value="created_at">{t("sortByDate")}</MenuItem>
           <MenuItem value="title">{t("sortByTitle")}</MenuItem>
@@ -123,17 +198,15 @@ export default function UserFilesPage() {
       ) : (
         <DataTable
           rows={rows}
+          onRowClick={(row) => setDetailsId(row.id)}
           columns={[
             {
               key: "title",
               label: t("title"),
               render: (row) => (
-                <Typography
-                  sx={{ cursor: "pointer", color: "primary.main", fontWeight: 600 }}
-                  onClick={() => navigate(`/users/${row.id}`)}
-                >
+                <Box component="span" sx={{ color: "text.primary" }}>
                   {row.title || t("file")}
-                </Typography>
+                </Box>
               )
             },
             {
@@ -200,18 +273,19 @@ export default function UserFilesPage() {
                   return acc;
                 }, {});
                 return (
-                  <Tooltip title={disabled ? t("noAssets") : t("download")}>
-                    <span>
-                      <IconButton
-                        size="small"
-                        disabled={disabled}
-                        onClick={() => {
-                          if (langs.length > 1) {
-                            setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
-                            return;
-                          }
-                          const lang = langs[0];
-                          downloadMutation.mutate({ id: row.id, lang, title: row.title });
+                <Tooltip title={disabled ? t("noAssets") : t("download")}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      disabled={disabled}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (langs.length > 1) {
+                          setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
+                          return;
+                        }
+                        const lang = langs[0];
+                        downloadMutation.mutate({ id: row.id, lang, title: row.title });
                         }}
                       >
                         <DownloadIcon fontSize="small" />
@@ -237,7 +311,7 @@ export default function UserFilesPage() {
         <DialogTitle>{t("download")}</DialogTitle>
         <DialogContent>
           <Stack spacing={1.5}>
-            {(downloadTarget?.langs || []).map((lang) => (
+            {downloadLangsSorted.map((lang) => (
               <Button
                 key={lang}
                 variant="outlined"
@@ -257,6 +331,141 @@ export default function UserFilesPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDownloadTarget(null)}>{t("cancel")}</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!detailsId} onClose={() => setDetailsId(null)} fullWidth maxWidth="md">
+        <DialogTitle>{detailsData?.title || t("file")}</DialogTitle>
+        <DialogContent dividers>
+          {detailsLoading ? (
+            <Typography color="text.secondary">{t("loading")}</Typography>
+          ) : (
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  {t("description")}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {detailsData?.description || "-"}
+                </Typography>
+              </Box>
+              <Box>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                  <Typography variant="subtitle2">{t("access")}</Typography>
+                  <Chip
+                    size="small"
+                    label={detailsData?.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}
+                  />
+                </Stack>
+                {detailsData?.accessType === "restricted" && (
+                  <Stack spacing={1}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {t("departments")}
+                      </Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
+                        {accessDepartments.length === 0 ? (
+                          <Typography variant="body2" color="text.secondary">
+                            -
+                          </Typography>
+                        ) : (
+                          accessDepartments.map((dept: any) => <Chip key={dept.id} size="small" label={dept.name} />)
+                        )}
+                      </Stack>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {t("users")}
+                      </Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
+                        {accessUsers.length === 0 ? (
+                          <Typography variant="body2" color="text.secondary">
+                            -
+                          </Typography>
+                        ) : (
+                          accessUsers.map((user: any) => (
+                            <Chip key={user.id} size="small" label={user.fullName || user.login} />
+                          ))
+                        )}
+                      </Stack>
+                    </Box>
+                  </Stack>
+                )}
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  {t("currentVersion")}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {detailsData?.currentVersionNumber ? `#${detailsData.currentVersionNumber}` : "-"}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  {t("titlesByLanguage")}
+                </Typography>
+                <Stack spacing={1}>
+                  {translations.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      -
+                    </Typography>
+                  ) : (
+                    translationsSorted.map((item: any) => (
+                      <Stack key={item.lang} direction="row" spacing={1.5} alignItems="flex-start">
+                        <Chip
+                          size="small"
+                          label={item.lang.toUpperCase()}
+                          color={item.lang === currentLang ? "primary" : "default"}
+                          variant={item.lang === currentLang ? "filled" : "outlined"}
+                        />
+                        <Box>
+                          <Typography variant="body2">{item.title}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {item.description || "-"}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    ))
+                  )}
+                </Stack>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  {t("availableLanguages")}
+                </Typography>
+                <Stack spacing={1}>
+                  {assetsSorted.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      -
+                    </Typography>
+                  ) : (
+                    assetsSorted.map((asset: any) => (
+                      <Stack key={asset.id} direction="row" spacing={1} alignItems="center">
+                        <Chip size="small" label={asset.lang.toUpperCase()} />
+                        <Typography variant="body2" sx={{ flex: 1 }}>
+                          {asset.original_name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatBytes(asset.size)}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() =>
+                            downloadMutation.mutate({ id: detailsId as number, lang: asset.lang, title: titleForLang(asset.lang) })
+                          }
+                        >
+                          <DownloadIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    ))
+                  )}
+                </Stack>
+              </Box>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailsId(null)}>{t("cancel")}</Button>
         </DialogActions>
       </Dialog>
     </Page>

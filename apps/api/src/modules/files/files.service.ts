@@ -1070,12 +1070,14 @@ export class FilesService {
 
     const rows = await this.dbService.db("file_items")
       .leftJoin("file_translations", "file_items.id", "file_translations.file_item_id")
+      .leftJoin("file_versions", "file_items.current_version_id", "file_versions.id")
       .select(
         "file_items.id",
         "file_items.section_id",
         "file_items.category_id",
         "file_items.access_type",
         "file_items.current_version_id",
+        "file_versions.version_number",
         "file_translations.lang",
         "file_translations.title",
         "file_translations.description"
@@ -1097,15 +1099,40 @@ export class FilesService {
 
     const availableAssetLangs = assets.map((asset: any) => asset.lang).filter(Boolean);
 
+    const accessDepartments = await this.dbService.db("file_access_departments")
+      .leftJoin("departments", "departments.id", "file_access_departments.department_id")
+      .select("departments.id", "departments.name")
+      .where("file_access_departments.file_item_id", fileItemId)
+      .orderBy("departments.name", "asc");
+    const accessUsersRows = await this.dbService.db("file_access_users")
+      .leftJoin("users", "users.id", "file_access_users.user_id")
+      .select("users.id", "users.login", "users.surname", "users.name", "users.patronymic")
+      .where("file_access_users.file_item_id", fileItemId)
+      .orderBy("users.login", "asc");
+    const accessUsers = accessUsersRows.map((row: any) => {
+      const fullName = [row.surname, row.name, row.patronymic].filter(Boolean).join(" ").trim();
+      return {
+        id: row.id,
+        login: row.login,
+        fullName: fullName || null
+      };
+    });
+
     return {
       id: fileItemId,
       sectionId: rows[0].section_id,
       categoryId: rows[0].category_id,
+      accessType: rows[0].access_type,
+      currentVersionId: rows[0].current_version_id,
+      currentVersionNumber: rows[0].version_number || null,
       title: picked?.title || null,
       description: picked?.description || null,
       availableLangs: getAvailableLangs(translations),
       availableAssetLangs,
-      assets
+      assets,
+      translations,
+      accessDepartments,
+      accessUsers
     };
   }
 

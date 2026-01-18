@@ -25,11 +25,13 @@ export type Column<T> = {
 export function DataTable<T extends { id: number | string }>({
   rows,
   columns,
-  rowKey
+  rowKey,
+  onRowClick
 }: {
   rows: T[];
   columns: Column<T>[];
   rowKey?: (row: T) => string | number;
+  onRowClick?: (row: T) => void;
 }) {
   return (
     <TableContainer
@@ -72,10 +74,12 @@ export function DataTable<T extends { id: number | string }>({
               key={rowKey ? rowKey(row) : row.id}
               hover
               sx={{
+                cursor: onRowClick ? "pointer" : "default",
                 "&:hover": {
                   backgroundColor: "rgba(41, 76, 96, 0.06)"
                 }
               }}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
             >
               {columns.map((col) => (
                 <TableCell

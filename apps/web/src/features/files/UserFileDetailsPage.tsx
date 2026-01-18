@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Chip, Paper, Stack, TextField, Typography, MenuItem } from "@mui/material";
+import { Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Typography } from "@mui/material";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { fetchUserFile, downloadUserFile } from "./files.api";
@@ -11,29 +11,52 @@ import { getFilenameFromDisposition } from "../../shared/utils/download";
 export default function UserFileDetailsPage() {
   const params = useParams();
   const fileId = Number(params.id);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data } = useQuery({ queryKey: ["user-file", fileId], queryFn: () => fetchUserFile(fileId) });
-  const [lang, setLang] = React.useState("ru");
+  const [downloadTarget, setDownloadTarget] = React.useState<string[] | null>(null);
   const assetLangs = React.useMemo(() => {
     const langs = (data?.assets || []).map((asset: any) => asset.lang).filter(Boolean);
     return Array.from(new Set(langs));
   }, [data]);
-
-  React.useEffect(() => {
-    if (assetLangs.length > 0) {
-      setLang(assetLangs[0]);
-    } else if (data?.availableLangs?.length) {
-      setLang(data.availableLangs[0]);
-    }
-  }, [assetLangs, data]);
+  const availableLangs = data?.availableAssetLangs?.length ? data.availableAssetLangs : assetLangs;
+  const currentLang = React.useMemo(() => (i18n.language || "ru").split("-")[0], [i18n.language]);
+  const availableLangsSorted = React.useMemo(() => {
+    const items = [...(availableLangs || [])];
+    return items.sort((a, b) => {
+      const aCurrent = a === currentLang;
+      const bCurrent = b === currentLang;
+      if (aCurrent && !bCurrent) return -1;
+      if (!aCurrent && bCurrent) return 1;
+      return a.localeCompare(b);
+    });
+  }, [availableLangs, currentLang]);
+  const assetSizes = React.useMemo(() => {
+    const map = new Map<string, number>();
+    (data?.assets || []).forEach((asset: any) => {
+      if (asset.lang) {
+        map.set(asset.lang, asset.size);
+      }
+    });
+    return map;
+  }, [data]);
+  const assetsSorted = React.useMemo(() => {
+    const items = [...(data?.assets || [])];
+    return items.sort((a: any, b: any) => {
+      const aCurrent = a.lang === currentLang;
+      const bCurrent = b.lang === currentLang;
+      if (aCurrent && !bCurrent) return -1;
+      if (!aCurrent && bCurrent) return 1;
+      return String(a.lang).localeCompare(String(b.lang));
+    });
+  }, [data, currentLang]);
 
   const downloadMutation = useMutation({
-    mutationFn: () => downloadUserFile(fileId, lang),
-    onSuccess: (response) => {
+    mutationFn: (lang?: string | null) => downloadUserFile(fileId, lang || undefined),
+    onSuccess: (response, lang) => {
       const blob = response.data;
       const filename =
         getFilenameFromDisposition(response.headers?.["content-disposition"]) ||
-        `${data?.title || "file"}${lang ? `_${lang.toUpperCase()}` : ""}`;
+        `${data?.title || "file"}${lang ? `_${String(lang).toUpperCase()}` : ""}`;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -43,6 +66,15 @@ export default function UserFileDetailsPage() {
     }
   });
 
+  const handleDownload = () => {
+    if (!availableLangsSorted || availableLangsSorted.length === 0) return;
+    if (availableLangsSorted.length === 1) {
+      downloadMutation.mutate(availableLangsSorted[0]);
+      return;
+    }
+    setDownloadTarget(availableLangsSorted);
+  };
+
   return (
     <Page title={data?.title || t("file")} subtitle={t("userFileSubtitle")}>
       <Paper sx={{ p: 2, mb: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
@@ -50,26 +82,19 @@ export default function UserFileDetailsPage() {
           {t("availableLanguages")}
         </Typography>
         <Stack direction="row" spacing={1} flexWrap="wrap">
-          {(assetLangs.length ? assetLangs : data?.availableLangs || []).map((item: string) => (
+          {(availableLangsSorted.length ? availableLangsSorted : data?.availableLangs || []).map((item: string) => (
             <Chip key={item} size="small" label={item.toUpperCase()} />
           ))}
         </Stack>
       </Paper>
       <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
-          <TextField select label={t("language")} value={lang} onChange={(e) => setLang(e.target.value)} sx={{ width: 160 }}>
-            {(assetLangs.length ? assetLangs : data?.availableLangs || []).map((item: string) => (
-              <MenuItem key={item} value={item}>
-                {item.toUpperCase()}
-              </MenuItem>
-            ))}
-          </TextField>
-          <Button variant="contained" onClick={() => downloadMutation.mutate()}>
+          <Button variant="contained" onClick={handleDownload} disabled={!availableLangs || availableLangs.length === 0}>
             {t("download")}
           </Button>
         </Stack>
         <Stack spacing={1} sx={{ mt: 3 }}>
-          {(data?.assets || []).map((asset: any) => (
+          {assetsSorted.map((asset: any) => (
             <Stack key={asset.id} direction="row" spacing={2} alignItems="center">
               <Chip size="small" label={asset.lang.toUpperCase()} />
               <Typography variant="body2">{asset.original_name}</Typography>
@@ -80,6 +105,33 @@ export default function UserFileDetailsPage() {
           ))}
         </Stack>
       </Paper>
+
+      <Dialog open={!!downloadTarget} onClose={() => setDownloadTarget(null)} fullWidth maxWidth="xs">
+        <DialogTitle>{t("download")}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.5}>
+            {(downloadTarget || []).map((lang) => (
+              <Button
+                key={lang}
+                variant="outlined"
+                onClick={() => {
+                  downloadMutation.mutate(lang);
+                  setDownloadTarget(null);
+                }}
+                sx={{ justifyContent: "space-between" }}
+              >
+                <span>{lang.toUpperCase()}</span>
+                <Typography variant="caption" color="text.secondary">
+                  {formatBytes(assetSizes.get(lang) || 0)}
+                </Typography>
+              </Button>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDownloadTarget(null)}>{t("cancel")}</Button>
+        </DialogActions>
+      </Dialog>
     </Page>
   );
 }
