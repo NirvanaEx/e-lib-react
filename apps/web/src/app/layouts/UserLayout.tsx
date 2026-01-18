@@ -1,30 +1,77 @@
 import React from "react";
-import { Box, Button, Stack, Typography } from "@mui/material";
+import { Box, ButtonBase, Collapse, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Stack, Tooltip, Typography } from "@mui/material";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
+import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { useQuery } from "@tanstack/react-query";
 import { BaseLayout } from "./BaseLayout";
 import { useTranslation } from "react-i18next";
 import { fetchMenu } from "../../features/files/files.api";
 import { useSearchParams } from "react-router-dom";
+import { SettingsDialog } from "../../features/settings/SettingsDialog";
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
   const items: { label: string; path: string; icon?: React.ReactNode }[] = [];
+  const sidebarTop = ({ collapsed }: { collapsed: boolean }) => (
+    <Box sx={{ width: "100%" }}>
+      <ButtonBase
+        onClick={() => window.location.reload()}
+        sx={{
+          width: "100%",
+          borderRadius: 2,
+          px: 0.5,
+          py: 0.5,
+          justifyContent: collapsed ? "center" : "flex-start"
+        }}
+      >
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Box sx={{ minWidth: collapsed ? 0 : 40, display: "flex", justifyContent: "center" }}>
+            <MenuBookOutlinedIcon fontSize="small" />
+          </Box>
+          {!collapsed && (
+            <Typography variant="subtitle1" sx={{ letterSpacing: "0.12em", fontWeight: 700 }}>
+              E-LIB
+            </Typography>
+          )}
+        </Stack>
+      </ButtonBase>
+    </Box>
+  );
 
-  const sidebarContent = <UserSidebarMenu />;
+  const sidebarContent = ({ collapsed }: { collapsed: boolean }) => <UserSidebarMenu collapsed={collapsed} />;
   return (
-    <BaseLayout title={t("user")} items={items} sidebarContent={sidebarContent} settingsPath="/users/settings">
-      {children}
-    </BaseLayout>
+    <>
+      <BaseLayout
+        title={t("user")}
+        items={items}
+        sidebarContent={sidebarContent}
+        settingsAction={() => setSettingsOpen(true)}
+        headerTitle={null}
+        sidebarHeader={null}
+        sidebarTop={sidebarTop}
+        sidebarCollapsible
+        sidebarPaddingTop={0.5}
+      >
+        {children}
+      </BaseLayout>
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+    </>
   );
 }
 
-function UserSidebarMenu() {
+function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data } = useQuery({ queryKey: ["user-menu"], queryFn: () => fetchMenu() });
+  const { data } = useQuery({ queryKey: ["user-menu-all"], queryFn: () => fetchMenu() });
+  const [expandedCategories, setExpandedCategories] = React.useState<Set<number>>(new Set());
 
   const sections = data?.sections || [];
   const categories = data?.categories || [];
+  const categoryById = React.useMemo(() => new Map(categories.map((cat: any) => [cat.id, cat])), [categories]);
   const selectedSectionId = Number(searchParams.get("sectionId") || 0) || null;
   const selectedCategoryId = Number(searchParams.get("categoryId") || 0) || null;
 
@@ -34,6 +81,18 @@ function UserSidebarMenu() {
     acc[key].push(cat);
     return acc;
   }, {});
+
+  React.useEffect(() => {
+    if (!selectedCategoryId) return;
+    const parentIds = new Set<number>();
+    let current = categoryById.get(selectedCategoryId);
+    while (current?.parentId) {
+      parentIds.add(current.parentId);
+      current = categoryById.get(current.parentId);
+    }
+    if (parentIds.size === 0) return;
+    setExpandedCategories((prev) => new Set([...prev, ...parentIds]));
+  }, [categoryById, selectedCategoryId]);
 
   const updateFilters = (nextSectionId: number | null, nextCategoryId: number | null) => {
     const params = new URLSearchParams(searchParams);
@@ -50,71 +109,170 @@ function UserSidebarMenu() {
     setSearchParams(params, { replace: true });
   };
 
+  const toggleCategory = (id: number) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const itemSx = {
+    borderRadius: 2.5,
+    mb: 0.6,
+    py: 0.9,
+    px: 1,
+    "&.Mui-selected": {
+      backgroundColor: "rgba(29, 77, 79, 0.12)"
+    },
+    "&.Mui-selected:hover": {
+      backgroundColor: "rgba(29, 77, 79, 0.16)"
+    }
+  };
+  const rootIconSx = {
+    width: 28,
+    height: 28,
+    borderRadius: "50%",
+    display: "grid",
+    placeItems: "center",
+    backgroundColor: "rgba(29, 77, 79, 0.12)",
+    color: "primary.main"
+  };
+
   const renderCategoryTree = (parentKey: string, depth: number) => {
     const items = categoriesByParent[parentKey] || [];
-    return items.map((cat: any) => (
-      <Box key={cat.id} sx={{ pl: depth * 1.5, mb: 1 }}>
-        <Button
-          size="small"
-          fullWidth
-          variant={selectedCategoryId === cat.id ? "contained" : "text"}
-          onClick={() => updateFilters(selectedSectionId, selectedCategoryId === cat.id ? null : cat.id)}
-          sx={{ justifyContent: "flex-start", textTransform: "none", borderRadius: 2 }}
+    return items.map((cat: any) => {
+      const button = (
+        <ListItemButton
+          selected={selectedCategoryId === cat.id}
+          onClick={() => {
+            updateFilters(selectedSectionId, selectedCategoryId === cat.id ? null : cat.id);
+            if (!collapsed && categoriesByParent[String(cat.id)]?.length && !expandedCategories.has(cat.id)) {
+              toggleCategory(cat.id);
+            }
+          }}
+          sx={{ ...itemSx, pr: 0.5, justifyContent: collapsed ? "center" : "flex-start" }}
         >
-          {cat.title}
-        </Button>
-        {renderCategoryTree(String(cat.id), depth + 1)}
-      </Box>
-    ));
+          {depth === 0 && (
+            <ListItemIcon sx={{ minWidth: collapsed ? 0 : 40, mr: collapsed ? 0 : 1 }}>
+              <Box sx={rootIconSx}>
+                <LocalOfferOutlinedIcon fontSize="small" />
+              </Box>
+            </ListItemIcon>
+          )}
+          {!collapsed && (
+            <ListItemText
+              primary={
+                <Typography variant="body2" sx={{ fontWeight: selectedCategoryId === cat.id ? 700 : 600 }}>
+                  {cat.title || `#${cat.id}`}
+                </Typography>
+              }
+            />
+          )}
+          {!collapsed && categoriesByParent[String(cat.id)]?.length ? (
+            <IconButton
+              size="small"
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleCategory(cat.id);
+              }}
+            >
+              {expandedCategories.has(cat.id) ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+            </IconButton>
+          ) : null}
+        </ListItemButton>
+      );
+      return (
+        <Box key={cat.id} sx={{ pl: depth ? 1.5 : 0 }}>
+          {collapsed ? (
+            <Tooltip title={cat.title || `#${cat.id}`} placement="right">
+              {button}
+            </Tooltip>
+          ) : (
+            button
+          )}
+          {!collapsed && (
+            <Collapse in={expandedCategories.has(cat.id)} timeout="auto" unmountOnExit>
+              <Box sx={{ pt: 0.5 }}>{renderCategoryTree(String(cat.id), depth + 1)}</Box>
+            </Collapse>
+          )}
+        </Box>
+      );
+    });
   };
 
   return (
     <Box>
-      <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: "0.12em" }}>
-        {t("menu")}
-      </Typography>
-      <Stack spacing={1} sx={{ mt: 1 }}>
-        <Button
-          size="small"
-          fullWidth
-          variant={!selectedSectionId && !selectedCategoryId ? "contained" : "outlined"}
-          onClick={() => updateFilters(null, null)}
-          sx={{ textTransform: "none", borderRadius: 2 }}
-        >
-          {t("allFiles")}
-        </Button>
-      </Stack>
-      {sections.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          {t("noSections")}
-        </Typography>
-      ) : (
-        <Stack spacing={1} sx={{ mt: 2 }}>
-          {sections.map((section: any) => (
-            <Button
-              key={section.id}
-              size="small"
-              fullWidth
-              variant={selectedSectionId === section.id ? "contained" : "outlined"}
-              onClick={() => updateFilters(selectedSectionId === section.id ? null : section.id, selectedCategoryId)}
-              sx={{ justifyContent: "flex-start", textTransform: "none", borderRadius: 2 }}
-            >
-              {section.title}
-            </Button>
-          ))}
-        </Stack>
-      )}
+      <Box>
+        {!collapsed && (
+          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.16em", fontWeight: 700 }}>
+            {t("sections")}
+          </Typography>
+        )}
+        {sections.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            {t("noSections")}
+          </Typography>
+        ) : (
+          <List sx={{ mt: collapsed ? 0 : 1 }} disablePadding>
+            {sections.map((section: any) => {
+              const button = (
+                <ListItemButton
+                  key={section.id}
+                  selected={selectedSectionId === section.id}
+                  onClick={() => updateFilters(selectedSectionId === section.id ? null : section.id, selectedCategoryId)}
+                  sx={{ ...itemSx, justifyContent: collapsed ? "center" : "flex-start" }}
+                >
+                  <ListItemIcon sx={{ minWidth: collapsed ? 0 : 40, mr: collapsed ? 0 : 1 }}>
+                    <Box sx={rootIconSx}>
+                      <FolderOutlinedIcon fontSize="small" />
+                    </Box>
+                  </ListItemIcon>
+                  {!collapsed && (
+                    <ListItemText
+                      primary={
+                        <Typography variant="body2" sx={{ fontWeight: selectedSectionId === section.id ? 700 : 600 }}>
+                          {section.title || `#${section.id}`}
+                        </Typography>
+                      }
+                    />
+                  )}
+                </ListItemButton>
+              );
+              return collapsed ? (
+                <Tooltip key={section.id} title={section.title || `#${section.id}`} placement="right">
+                  {button}
+                </Tooltip>
+              ) : (
+                button
+              );
+            })}
+          </List>
+        )}
+      </Box>
 
-      <Typography variant="caption" color="text.secondary" sx={{ mt: 3, textTransform: "uppercase", letterSpacing: "0.12em" }}>
-        {t("categories")}
-      </Typography>
-      {categories.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          {t("categoriesEmpty")}
-        </Typography>
-      ) : (
-        <Box sx={{ mt: 1 }}>{renderCategoryTree("root", 0)}</Box>
-      )}
+      <Box sx={{ mt: collapsed ? 1 : 1.5 }}>
+        {!collapsed && (
+          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.16em", fontWeight: 700 }}>
+            {t("categories")}
+          </Typography>
+        )}
+        {categories.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            {t("categoriesEmpty")}
+          </Typography>
+        ) : (
+          <Box sx={{ mt: collapsed ? 0 : 1 }}>
+            <List sx={{ m: 0, p: 0 }} disablePadding>
+              {renderCategoryTree("root", 0)}
+            </List>
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 }

@@ -8,7 +8,7 @@ import { ChangeLanguageDto } from "./dto/change-language.dto";
 
 @ApiTags("user/settings")
 @ApiBearerAuth()
-@Roles("superadmin", "admin", "user")
+@Roles("superadmin", "admin", "manager", "user")
 @Controller("user/settings")
 export class UsersSettingsController {
   constructor(private readonly usersService: UsersService) {}

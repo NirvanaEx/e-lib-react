@@ -97,6 +97,6 @@ export async function downloadUserFile(id: number, lang?: string) {
 }
 
 export async function fetchMenu() {
-  const { data } = await api.get("/user/menu");
+  const { data } = await api.get("/user/menu/all");
   return data;
 }

@@ -33,6 +33,74 @@ export class FilesService {
     await fs.mkdir(dir, { recursive: true });
   }
 
+  private async getDepartmentScopeIds(departmentId: number | null) {
+    if (!departmentId) return [];
+    const result = await this.dbService.db.raw(
+      `WITH RECURSIVE tree AS (
+        SELECT id FROM departments WHERE id = ?
+        UNION ALL
+        SELECT d.id FROM departments d
+        JOIN tree t ON d.parent_id = t.id
+      )
+      SELECT id FROM tree`,
+      [departmentId]
+    );
+    const rows = result?.rows || [];
+    return rows.map((row: any) => Number(row.id));
+  }
+
+  private buildMenu(sectionsRows: any[], categoriesRows: any[], preferredLang: string | null) {
+    const defaultLang = this.getDefaultLang();
+    const lang = normalizeLang(preferredLang) || null;
+
+    type MenuTranslation = { lang: Lang; title: string };
+    type MenuSection = { id: number; translations: MenuTranslation[] };
+    type MenuCategory = { id: number; parentId: number | null; depth: number; translations: MenuTranslation[] };
+
+    const groupSections = new Map<number, MenuSection>();
+    sectionsRows.forEach((row: any) => {
+      if (!groupSections.has(row.id)) {
+        groupSections.set(row.id, { id: row.id, translations: [] });
+      }
+      const current = groupSections.get(row.id);
+      if (row.lang && current) {
+        current.translations.push({ lang: row.lang, title: row.title });
+      }
+    });
+    const sections = Array.from(groupSections.values()).map((s) => {
+      const picked = selectTranslation<MenuTranslation>(s.translations, lang, defaultLang);
+      return { id: s.id, title: picked?.title || null, availableLangs: getAvailableLangs(s.translations) };
+    });
+
+    const groupCategories = new Map<number, MenuCategory>();
+    categoriesRows.forEach((row: any) => {
+      if (!groupCategories.has(row.id)) {
+        groupCategories.set(row.id, {
+          id: row.id,
+          parentId: row.parent_id,
+          depth: row.depth,
+          translations: []
+        });
+      }
+      const current = groupCategories.get(row.id);
+      if (row.lang && current) {
+        current.translations.push({ lang: row.lang, title: row.title });
+      }
+    });
+    const categories = Array.from(groupCategories.values()).map((c) => {
+      const picked = selectTranslation<MenuTranslation>(c.translations, lang, defaultLang);
+      return {
+        id: c.id,
+        parentId: c.parentId,
+        depth: c.depth,
+        title: picked?.title || null,
+        availableLangs: getAvailableLangs(c.translations)
+      };
+    });
+
+    return { sections, categories };
+  }
+
   private async deleteFileSafe(filePath: string) {
     try {
       await fs.unlink(filePath);
@@ -87,9 +155,11 @@ export class FilesService {
     if (file.access_type === "public") return;
     if (user?.permissions?.includes("file.download.restricted")) return;
 
-    const hasDept = user.departmentId
+    const departmentIds = await this.getDepartmentScopeIds(user.departmentId);
+    const hasDept = departmentIds.length
       ? await this.dbService.db("file_access_departments")
-          .where({ file_item_id: fileItemId, department_id: user.departmentId })
+          .where({ file_item_id: fileItemId })
+          .whereIn("department_id", departmentIds)
           .first()
       : null;
     const hasUser = await this.dbService.db("file_access_users")
@@ -834,6 +904,7 @@ export class FilesService {
 
   async listUserFiles(params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string; sectionId?: number; categoryId?: number }, user: any, preferredLang: string | null) {
     const { page, pageSize, q, sortBy, sortDir, sectionId, categoryId } = params;
+    const departmentIds = await this.getDepartmentScopeIds(user.departmentId);
     const query = this.dbService.db("file_items")
       .leftJoin("file_translations", "file_items.id", "file_translations.file_item_id")
       .select(
@@ -843,6 +914,7 @@ export class FilesService {
         "file_items.access_type",
         "file_items.current_version_id",
         "file_items.created_at",
+        "file_items.updated_at",
         "file_translations.lang",
         "file_translations.title",
         "file_translations.description"
@@ -850,11 +922,11 @@ export class FilesService {
       .whereNull("file_items.deleted_at")
       .where((builder) => {
         builder.where("file_items.access_type", "public");
-        if (user.departmentId) {
+        if (departmentIds.length) {
           builder.orWhereIn("file_items.id", function () {
             this.select("file_item_id")
               .from("file_access_departments")
-              .where("department_id", user.departmentId);
+              .whereIn("department_id", departmentIds);
           });
         }
         builder.orWhereIn("file_items.id", function () {
@@ -898,6 +970,7 @@ export class FilesService {
       access_type: string;
       current_version_id: number | null;
       created_at: string;
+      updated_at: string;
       translations: FileTranslation[];
     };
     const grouped = new Map<number, UserFileRow>();
@@ -910,6 +983,7 @@ export class FilesService {
           access_type: row.access_type,
           current_version_id: row.current_version_id,
           created_at: row.created_at,
+          updated_at: row.updated_at,
           translations: []
         });
       }
@@ -932,6 +1006,9 @@ export class FilesService {
         id: item.id,
         sectionId: item.section_id,
         categoryId: item.category_id,
+        accessType: item.access_type,
+        createdAt: item.created_at,
+        updatedAt: item.updated_at,
         title: picked?.title || null,
         description: picked?.description || null,
         availableLangs: getAvailableLangs(item.translations),
@@ -941,23 +1018,47 @@ export class FilesService {
 
     const versionIds = baseData.map((item) => item.currentVersionId).filter(Boolean) as number[];
     const assetLangsByVersion = new Map<number, Set<string>>();
+    const assetSizesByVersion = new Map<number, number>();
+    const assetSizesByLang = new Map<number, Map<string, number>>();
     if (versionIds.length > 0) {
       const assetRows = await this.dbService.db("file_version_assets")
-        .select("file_version_id", "lang")
+        .select("file_version_id", "lang", "size")
         .whereIn("file_version_id", versionIds);
       assetRows.forEach((row: any) => {
         if (!assetLangsByVersion.has(row.file_version_id)) {
           assetLangsByVersion.set(row.file_version_id, new Set<string>());
         }
         assetLangsByVersion.get(row.file_version_id)?.add(row.lang);
+        if (!assetSizesByLang.has(row.file_version_id)) {
+          assetSizesByLang.set(row.file_version_id, new Map<string, number>());
+        }
+        assetSizesByLang.get(row.file_version_id)?.set(row.lang, Number(row.size || 0));
+      });
+
+      const sizeRows = (await this.dbService.db("file_version_assets")
+        .select("file_version_id")
+        .sum<{ size: string }>("size as size")
+        .whereIn("file_version_id", versionIds)
+        .groupBy("file_version_id")) as any[];
+      sizeRows.forEach((row: any) => {
+        assetSizesByVersion.set(row.file_version_id, Number(row.size || 0));
       });
     }
 
     const data = baseData.map((item) => {
       const langs = item.currentVersionId ? Array.from(assetLangsByVersion.get(item.currentVersionId) || []) : [];
+      const sizes =
+        item.currentVersionId && assetSizesByLang.has(item.currentVersionId)
+          ? Array.from(assetSizesByLang.get(item.currentVersionId) || new Map()).map(([lang, size]) => ({
+              lang,
+              size
+            }))
+          : [];
       return {
         ...item,
-        availableAssetLangs: langs.sort()
+        availableAssetLangs: langs.sort(),
+        availableAssetSizes: sizes.sort((a, b) => a.lang.localeCompare(b.lang)),
+        currentAssetSize: item.currentVersionId ? assetSizesByVersion.get(item.currentVersionId) || 0 : 0
       };
     });
 
@@ -1046,16 +1147,17 @@ export class FilesService {
   }
 
   async getUserMenu(user: any, preferredLang: string | null) {
+    const departmentIds = await this.getDepartmentScopeIds(user.departmentId);
     const accessibleFileIds = await this.dbService.db("file_items")
       .select("file_items.id", "file_items.section_id", "file_items.category_id")
       .whereNull("file_items.deleted_at")
       .where((builder) => {
         builder.where("file_items.access_type", "public");
-        if (user.departmentId) {
+        if (departmentIds.length) {
           builder.orWhereIn("file_items.id", function () {
             this.select("file_item_id")
               .from("file_access_departments")
-              .where("department_id", user.departmentId);
+              .whereIn("department_id", departmentIds);
           });
         }
         builder.orWhereIn("file_items.id", function () {
@@ -1090,54 +1192,27 @@ export class FilesService {
           )
       : [];
 
-    const defaultLang = this.getDefaultLang();
-    const lang = normalizeLang(preferredLang) || null;
+    return this.buildMenu(sectionsRows, categoriesRows, preferredLang);
+  }
 
-    type MenuTranslation = { lang: Lang; title: string };
-    type MenuSection = { id: number; translations: MenuTranslation[] };
-    type MenuCategory = { id: number; parentId: number | null; depth: number; translations: MenuTranslation[] };
+  async getUserMenuAll(preferredLang: string | null) {
+    const sectionsRows = await this.dbService.db("sections")
+      .leftJoin("sections_translations", "sections.id", "sections_translations.section_id")
+      .select("sections.id", "sections_translations.lang", "sections_translations.title")
+      .orderBy("sections.id", "asc");
 
-    const groupSections = new Map<number, MenuSection>();
-    sectionsRows.forEach((row: any) => {
-      if (!groupSections.has(row.id)) {
-        groupSections.set(row.id, { id: row.id, translations: [] });
-      }
-      const current = groupSections.get(row.id);
-      if (row.lang && current) {
-        current.translations.push({ lang: row.lang, title: row.title });
-      }
-    });
-    const sections = Array.from(groupSections.values()).map((s) => {
-      const picked = selectTranslation<MenuTranslation>(s.translations, lang, defaultLang);
-      return { id: s.id, title: picked?.title || null, availableLangs: getAvailableLangs(s.translations) };
-    });
+    const categoriesRows = await this.dbService.db("categories")
+      .leftJoin("categories_translations", "categories.id", "categories_translations.category_id")
+      .select(
+        "categories.id",
+        "categories.parent_id",
+        "categories.depth",
+        "categories_translations.lang",
+        "categories_translations.title"
+      )
+      .orderBy("categories.depth", "asc")
+      .orderBy("categories.id", "asc");
 
-    const groupCategories = new Map<number, MenuCategory>();
-    categoriesRows.forEach((row: any) => {
-      if (!groupCategories.has(row.id)) {
-        groupCategories.set(row.id, {
-          id: row.id,
-          parentId: row.parent_id,
-          depth: row.depth,
-          translations: []
-        });
-      }
-      const current = groupCategories.get(row.id);
-      if (row.lang && current) {
-        current.translations.push({ lang: row.lang, title: row.title });
-      }
-    });
-    const categories = Array.from(groupCategories.values()).map((c) => {
-      const picked = selectTranslation<MenuTranslation>(c.translations, lang, defaultLang);
-      return {
-        id: c.id,
-        parentId: c.parentId,
-        depth: c.depth,
-        title: picked?.title || null,
-        availableLangs: getAvailableLangs(c.translations)
-      };
-    });
-
-    return { sections, categories };
+    return this.buildMenu(sectionsRows, categoriesRows, preferredLang);
   }
 }

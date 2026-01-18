@@ -23,6 +23,12 @@ export class FilesUserController {
     return this.filesService.getUserMenu(user, lang);
   }
 
+  @Get("menu/all")
+  @Access("file.read")
+  async menuAll(@Lang() lang: string | null) {
+    return this.filesService.getUserMenuAll(lang);
+  }
+
   @Get("files")
   @Access("file.read")
   async list(@Query() query: FilesQueryDto, @User() user: any, @Lang() lang: string | null) {

@@ -40,7 +40,8 @@ const permissions = [
   "file.trash.read",
   "file.download",
   "file.download.restricted",
-  "stats.read"
+  "stats.read",
+  "storage.read"
 ];
 
 const descriptions = {
@@ -253,6 +254,11 @@ const descriptions = {
     en: "View statistics",
     ru: "Просмотр статистики",
     uz: "Statistikani ko'rish"
+  },
+  "storage.read": {
+    en: "View storage usage",
+    ru: "Просмотр хранилища",
+    uz: "Xotira ishlatilishini ko'rish"
   }
 };
 
