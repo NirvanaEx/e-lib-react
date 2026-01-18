@@ -88,7 +88,7 @@ export default function TrashPage() {
     }
     if (row.type === "asset") {
       const parts = [row.assetLang ? row.assetLang.toUpperCase() : null, row.assetName || null].filter(Boolean);
-      return parts.length ? parts.join(" · ") : "-";
+      return parts.length ? parts.join(" / ") : "-";
     }
     return "-";
   };
@@ -123,8 +123,11 @@ export default function TrashPage() {
         <EmptyState title={t("trashEmpty")} subtitle={t("trashEmptySubtitle")} />
       ) : (
         <DataTable
-          rows={rows}columns={[
+          rows={rows}
+          columns={[
+            { key: "title", label: t("title"), render: (row) => row.title || "-" },
             { key: "type", label: t("type"), render: (row) => getTypeLabel(row.type) },
+            { key: "details", label: t("details"), render: (row) => getDetails(row) },
             { key: "deletedAt", label: t("deletedAt"), render: (row) => formatDateTime(row.deletedAt) },
             {
               key: "actions",
