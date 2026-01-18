@@ -21,6 +21,8 @@ import EditIcon from "@mui/icons-material/Edit";
 import RestoreFromTrashIcon from "@mui/icons-material/RestoreFromTrash";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
+import LinkOffOutlinedIcon from "@mui/icons-material/LinkOffOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useForm, Controller } from "react-hook-form";
@@ -93,7 +95,9 @@ const defaultValues: FormValues = {
 export default function UsersPage() {
   const [open, setOpen] = React.useState(false);
   const [editingUser, setEditingUser] = React.useState<UserRow | null>(null);
-  const [tempPassword, setTempPassword] = React.useState<string | null>(null);
+  const [tempCredentials, setTempCredentials] = React.useState<{ login: string; tempPassword: string } | null>(null);
+  const pendingCreateLoginRef = React.useRef<string | null>(null);
+  const resetTargetRef = React.useRef<UserRow | null>(null);
   const [confirmAction, setConfirmAction] = React.useState<null | { type: "delete" | "restore"; user: UserRow }>(null);
   const [confirmReset, setConfirmReset] = React.useState<UserRow | null>(null);
   const [search, setSearch] = React.useState("");
@@ -172,12 +176,16 @@ export default function UsersPage() {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setOpen(false);
       setEditingUser(null);
-      if (result?.tempPassword) {
-        setTempPassword(result.tempPassword);
+      if (result?.tempPassword && pendingCreateLoginRef.current) {
+        setTempCredentials({ login: pendingCreateLoginRef.current, tempPassword: result.tempPassword });
       }
+      pendingCreateLoginRef.current = null;
       showToast({ message: t("userCreated"), severity: "success" });
     },
-    onError: () => showToast({ message: t("actionFailed"), severity: "error" })
+    onError: () => {
+      pendingCreateLoginRef.current = null;
+      showToast({ message: t("actionFailed"), severity: "error" });
+    }
   });
 
   const updateMutation = useMutation({
@@ -212,12 +220,18 @@ export default function UsersPage() {
   const resetMutation = useMutation({
     mutationFn: resetUserPassword,
     onSuccess: (result) => {
-      if (result?.tempPassword) {
-        setTempPassword(result.tempPassword);
+      const target = resetTargetRef.current;
+      if (result?.tempPassword && target?.login) {
+        setTempCredentials({ login: target.login, tempPassword: result.tempPassword });
       }
+      resetTargetRef.current = null;
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       showToast({ message: t("tempPasswordGenerated"), severity: "info" });
     },
-    onError: () => showToast({ message: t("actionFailed"), severity: "error" })
+    onError: () => {
+      resetTargetRef.current = null;
+      showToast({ message: t("actionFailed"), severity: "error" });
+    }
   });
 
   const {
@@ -256,6 +270,7 @@ export default function UsersPage() {
     if (editingUser) {
       updateMutation.mutate({ id: editingUser.id, payload });
     } else {
+      pendingCreateLoginRef.current = values.login;
       createMutation.mutate(payload);
     }
   };
@@ -273,9 +288,11 @@ export default function UsersPage() {
     setOpen(true);
   };
 
-  const handleCopyTempPassword = async () => {
-    if (!tempPassword) return;
-    await navigator.clipboard.writeText(tempPassword);
+  const handleCopyCredentials = async () => {
+    if (!tempCredentials) return;
+    await navigator.clipboard.writeText(
+      `${t("login")}: ${tempCredentials.login}\n${t("temporaryPassword")}: ${tempCredentials.tempPassword}`
+    );
     showToast({ message: t("copied"), severity: "success" });
   };
 
@@ -315,12 +332,14 @@ export default function UsersPage() {
             {
               key: "department",
               label: t("department"),
+              minWidth: 220,
               render: (row) =>
                 row.department_id ? renderPath(getDepartmentPath(row.department_id)) : "-"
             },
             {
               key: "status",
               label: t("status"),
+              width: 120,
               render: (row) =>
                 row.deleted_at ? (
                   <Chip size="small" color="warning" label={t("deleted")} />
@@ -331,12 +350,35 @@ export default function UsersPage() {
             {
               key: "created_at",
               label: t("createdAt"),
+              width: 160,
               render: (row) => formatDateTime(row.created_at)
+            },
+            {
+              key: "connectionStatus",
+              label: t("connectionStatus"),
+              align: "center",
+              width: 90,
+              render: (row) => (
+                <Tooltip title={row.must_change_password ? t("statusDisconnected") : t("statusConnected")}>
+                  <Box
+                    sx={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      color: row.must_change_password ? "warning.main" : "success.main"
+                    }}
+                  >
+                    {row.must_change_password ? <LinkOffOutlinedIcon fontSize="small" /> : <LinkOutlinedIcon fontSize="small" />}
+                  </Box>
+                </Tooltip>
+              )
             },
             {
               key: "actions",
               label: t("actions"),
               align: "right",
+              width: 120,
+              headerSx: { pr: 1 },
+              cellSx: { pr: 1 },
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   {!row.deleted_at && canManageUser(row) && (
@@ -458,32 +500,6 @@ export default function UsersPage() {
         </form>
       </Dialog>
 
-      <Dialog open={!!tempPassword} onClose={() => setTempPassword(null)} fullWidth maxWidth="xs">
-        <DialogTitle>{t("temporaryPassword")}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2,
-                border: "1px solid var(--border)",
-                background: "var(--surface-2)",
-                fontFamily: "monospace",
-                fontSize: "1rem"
-              }}
-            >
-              {tempPassword}
-            </Box>
-            <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={handleCopyTempPassword}>
-              {t("copy")}
-            </Button>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setTempPassword(null)}>{t("close")}</Button>
-        </DialogActions>
-      </Dialog>
-
       <ConfirmDialog
         open={!!confirmAction}
         title={confirmAction?.type === "delete" ? t("confirmDelete") : t("confirmRestore")}
@@ -508,12 +524,41 @@ export default function UsersPage() {
         confirmLabel={t("resetPassword")}
         onConfirm={() => {
           if (confirmReset) {
+            resetTargetRef.current = confirmReset;
             resetMutation.mutate(confirmReset.id);
             setConfirmReset(null);
           }
         }}
         onCancel={() => setConfirmReset(null)}
       />
+
+      <Dialog open={!!tempCredentials} onClose={() => setTempCredentials(null)} fullWidth maxWidth="xs">
+        <DialogTitle>{t("temporaryPassword")}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2}>
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: "1px solid var(--border)",
+                background: "var(--surface-2)",
+                fontFamily: "monospace",
+                fontSize: "1rem"
+              }}
+            >
+              {t("login")}: {tempCredentials?.login}
+              <br />
+              {t("temporaryPassword")}: {tempCredentials?.tempPassword}
+            </Box>
+            <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={handleCopyCredentials}>
+              {t("copy")}
+            </Button>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTempCredentials(null)}>{t("close")}</Button>
+        </DialogActions>
+      </Dialog>
     </Page>
   );
 }
