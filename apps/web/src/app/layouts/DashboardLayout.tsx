@@ -12,6 +12,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import StorageIcon from "@mui/icons-material/Storage";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import { Box, ButtonBase, Chip, Stack, Tooltip, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { BaseLayout, NavItem } from "./BaseLayout";
@@ -21,6 +22,7 @@ import { hasAccess } from "../../shared/utils/access";
 import { fetchStorageUsage } from "../../features/stats/stats.api";
 import { formatBytes } from "../../shared/utils/format";
 import { SettingsDialog } from "../../features/settings/SettingsDialog";
+import { fetchDashboardRequests } from "../../features/files/files.api";
 
 type DashboardItem = {
   label: string;
@@ -33,6 +35,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { t } = useTranslation();
   const { user } = useAuth();
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const canViewRequests = hasAccess(user, ["dashboard.access", "file.read"]);
   const sidebarTop = ({ collapsed }: { collapsed: boolean }) => (
     <Box sx={{ width: "100%" }}>
       <ButtonBase
@@ -71,6 +74,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const manageItems: DashboardItem[] = [
     { label: t("sections"), path: "/dashboard/sections", icon: <FolderIcon />, access: "section.read" },
     { label: t("categories"), path: "/dashboard/categories", icon: <LocalOfferOutlinedIcon />, access: "category.read" },
+    { label: t("publicationRequests"), path: "/dashboard/requests", icon: <AssignmentOutlinedIcon />, access: "file.read" },
     { label: t("files"), path: "/dashboard/files", icon: <DescriptionIcon />, access: "file.read" },
     { label: t("trash"), path: "/dashboard/trash", icon: <DeleteOutlineIcon />, access: "file.trash.read" },
     { label: t("stats"), path: "/dashboard/stats", icon: <InsightsIcon />, access: "stats.read" }
@@ -92,6 +96,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     queryFn: fetchStorageUsage,
     enabled: canViewStorage
   });
+
+  const { data: pendingRequestsData } = useQuery({
+    queryKey: ["dashboard-requests-count", "pending"],
+    queryFn: () => fetchDashboardRequests({ page: 1, pageSize: 1, scope: "pending" }),
+    enabled: canViewRequests,
+    refetchInterval: 10000
+  });
+
+  const pendingRequestsCount = pendingRequestsData?.meta?.total ?? 0;
+
+  const sectionsWithBadges = React.useMemo(() => {
+    if (!canViewRequests) return sections;
+    const badgeValue = pendingRequestsCount > 0 ? pendingRequestsCount : undefined;
+    return sections.map((section) => ({
+      ...section,
+      items: section.items.map((item) =>
+        item.path === "/dashboard/requests" ? { ...item, badge: badgeValue } : item
+      )
+    }));
+  }, [canViewRequests, pendingRequestsCount, sections]);
 
   const StorageSummary = () => (
     <Stack spacing={1.5}>
@@ -149,7 +173,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <BaseLayout
         title={t("dashboard")}
         items={[]}
-        sections={sections}
+        sections={sectionsWithBadges}
         sidebarFooter={sidebarContent}
         settingsAction={() => setSettingsOpen(true)}
         sidebarHeader={null}

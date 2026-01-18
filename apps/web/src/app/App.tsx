@@ -18,10 +18,13 @@ import ContentPage from "../features/content-pages/ContentPage";
 import SectionsPage from "../features/sections/SectionsPage";
 import CategoriesPage from "../features/categories/CategoriesPage";
 import FilesPage from "../features/files/FilesPage";
+import FileRequestsPage from "../features/files/FileRequestsPage";
 import FileDetailsPage from "../features/files/FileDetailsPage";
 import TrashPage from "../features/files/TrashPage";
 import StatsPage from "../features/stats/StatsPage";
 import UserFilesPage from "../features/files/UserFilesPage";
+import UserLibraryPage from "../features/files/UserLibraryPage";
+import MyLibraryLayout from "./layouts/MyLibraryLayout";
 import UserFileDetailsPage from "../features/files/UserFileDetailsPage";
 import SettingsPage from "../features/settings/SettingsPage";
 import { getDefaultRoute, hasAccess } from "../shared/utils/access";
@@ -52,9 +55,21 @@ function RequireRole({ roles, children }: { roles: string[]; children: React.Rea
   return <>{children}</>;
 }
 
+function RequireFileSubmit({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user?.canSubmitFiles) return <Navigate to="/users/my-library/favorites" replace />;
+  return <>{children}</>;
+}
+
 function DefaultRedirect() {
   const { user } = useAuth();
   return <Navigate to={getDefaultRoute(user)} replace />;
+}
+
+function MyLibraryRedirect() {
+  const { user } = useAuth();
+  const target = user?.canSubmitFiles ? "/users/my-library/requests" : "/users/my-library/favorites";
+  return <Navigate to={target} replace />;
 }
 
 export default function App() {
@@ -189,6 +204,18 @@ export default function App() {
                 }
               />
               <Route
+                path="/dashboard/requests"
+                element={
+                  <RequireAuth>
+                    <RequireAccess permissions={["dashboard.access", "file.read"]}>
+                      <DashboardLayout>
+                        <FileRequestsPage />
+                      </DashboardLayout>
+                    </RequireAccess>
+                  </RequireAuth>
+                }
+              />
+              <Route
                 path="/dashboard/files/:id"
                 element={
                   <RequireAuth>
@@ -233,6 +260,56 @@ export default function App() {
                       <UserLayout>
                         <UserFilesPage />
                       </UserLayout>
+                    </RequireRole>
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/users/my-library"
+                element={
+                  <RequireAuth>
+                    <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
+                      <MyLibraryRedirect />
+                    </RequireRole>
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/users/my-library/requests"
+                element={
+                  <RequireAuth>
+                    <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
+                      <RequireFileSubmit>
+                        <MyLibraryLayout>
+                          <UserLibraryPage view="requests" />
+                        </MyLibraryLayout>
+                      </RequireFileSubmit>
+                    </RequireRole>
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/users/my-library/files"
+                element={
+                  <RequireAuth>
+                    <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
+                      <RequireFileSubmit>
+                        <MyLibraryLayout>
+                          <UserLibraryPage view="files" />
+                        </MyLibraryLayout>
+                      </RequireFileSubmit>
+                    </RequireRole>
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/users/my-library/favorites"
+                element={
+                  <RequireAuth>
+                    <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
+                      <MyLibraryLayout>
+                        <UserLibraryPage view="favorites" />
+                      </MyLibraryLayout>
                     </RequireRole>
                   </RequireAuth>
                 }

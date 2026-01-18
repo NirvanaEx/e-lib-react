@@ -1,25 +1,15 @@
 import React from "react";
-import {
-  Autocomplete,
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  MenuItem,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography
-} from "@mui/material";
+import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
+import StarIcon from "@mui/icons-material/Star";
+import PublicIcon from "@mui/icons-material/Public";
+import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { downloadUserFile, fetchMenu, fetchUserFile, fetchUserFiles, submitUserFile } from "./files.api";
+import { addUserFavorite, downloadUserFile, fetchMenu, fetchUserFavorites, fetchUserFile, fetchUserFiles, removeUserFavorite } from "./files.api";
 import { DataTable } from "../../shared/ui/DataTable";
 import { Page } from "../../shared/ui/Page";
 import { EmptyState } from "../../shared/ui/EmptyState";
@@ -27,39 +17,19 @@ import { LoadingState } from "../../shared/ui/LoadingState";
 import { FiltersBar } from "../../shared/ui/FiltersBar";
 import { PaginationBar } from "../../shared/ui/PaginationBar";
 import { SearchField } from "../../shared/ui/SearchField";
-import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { formatBytes } from "../../shared/utils/format";
 import { formatDateTime } from "../../shared/utils/date";
 import { getFilenameFromDisposition } from "../../shared/utils/download";
+import { getErrorMessage } from "../../shared/utils/errors";
+import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../shared/ui/ToastProvider";
-import { useAuth } from "../../shared/hooks/useAuth";
-import { buildPathMap, formatPath } from "../../shared/utils/tree";
-import { useForm, Controller } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-
-const schema = z.object({
-  sectionId: z.number().min(1),
-  categoryId: z.number().min(1),
-  title: z.string().min(1),
-  description: z.string().optional(),
-  lang: z.enum(["ru", "en", "uz"])
-});
-
-type FormValues = z.infer<typeof schema>;
-
-const defaultValues: FormValues = {
-  sectionId: 0,
-  categoryId: 0,
-  title: "",
-  description: "",
-  lang: "ru"
-};
 
 export default function UserFilesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
@@ -74,14 +44,9 @@ export default function UserFilesPage() {
     sizes: Record<string, number>;
   } | null>(null);
   const [detailsId, setDetailsId] = React.useState<number | null>(null);
-  const [submitOpen, setSubmitOpen] = React.useState(false);
-  const [submitFile, setSubmitFile] = React.useState<File | null>(null);
+  const [favoriteOverrides, setFavoriteOverrides] = React.useState<Record<string, boolean>>({});
   const sectionId = Number(searchParams.get("sectionId") || 0) || undefined;
   const categoryId = Number(searchParams.get("categoryId") || 0) || undefined;
-  const queryClient = useQueryClient();
-  const { showToast } = useToast();
-  const { user } = useAuth();
-  const canSubmitFiles = Boolean(user?.canSubmitFiles);
 
   React.useEffect(() => {
     setPage(1);
@@ -93,14 +58,6 @@ export default function UserFilesPage() {
     setPage(1);
     setSearchParams(new URLSearchParams(), { replace: true });
   };
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    control,
-    reset
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues });
 
   const { data, isLoading } = useQuery({
     queryKey: ["user-files", page, pageSize, search, sort.key, sort.direction, sectionId, categoryId],
@@ -115,6 +72,10 @@ export default function UserFilesPage() {
         categoryId
       })
   });
+  const { data: favoritesData } = useQuery({
+    queryKey: ["user-favorites", "ids"],
+    queryFn: () => fetchUserFavorites({ page: 1, pageSize: 1000 })
+  });
   const { data: detailsData, isLoading: detailsLoading } = useQuery({
     queryKey: ["user-file-details", detailsId],
     queryFn: () => fetchUserFile(detailsId as number),
@@ -124,38 +85,42 @@ export default function UserFilesPage() {
 
   const rows = data?.data || [];
   const meta = data?.meta || { page, pageSize, total: 0 };
+  const favoriteIds = React.useMemo(() => {
+    if (!favoritesData?.data) return null;
+    return new Set(favoritesData.data.map((item: any) => Number(item.id)));
+  }, [favoritesData]);
+  const displayRows = React.useMemo(() => {
+    return rows.map((row: any) => {
+      const id = Number(row.id);
+      const override = favoriteOverrides[String(id)];
+      if (override !== undefined) {
+        return { ...row, isFavorite: override };
+      }
+      const isFavorite = favoriteIds ? favoriteIds.has(id) || Boolean(row.isFavorite) : Boolean(row.isFavorite);
+      return { ...row, isFavorite };
+    });
+  }, [rows, favoriteIds, favoriteOverrides]);
+
+  React.useEffect(() => {
+    if (!favoriteIds) return;
+    setFavoriteOverrides((prev) => {
+      let changed = false;
+      const next: Record<string, boolean> = {};
+      for (const [key, value] of Object.entries(prev)) {
+        const id = Number(key);
+        if (favoriteIds.has(id) !== value) {
+          next[key] = value;
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [favoriteIds]);
   const sections = menuData?.sections || [];
   const categories = menuData?.categories || [];
-  const sortedSections = React.useMemo(() => {
-    const items = [...sections];
-    return items.sort((a: any, b: any) =>
-      (a.title || `#${a.id}`).localeCompare(b.title || `#${b.id}`, undefined, {
-        numeric: true,
-        sensitivity: "base"
-      })
-    );
-  }, [sections]);
-  const categoryPathById = React.useMemo(
-    () =>
-      buildPathMap(
-        categories,
-        (item) => item.id,
-        (item) => item.parentId ?? null,
-        (item) => item.title || `#${item.id}`
-      ),
-    [categories]
-  );
-  const getCategoryPath = (id: number) => categoryPathById.get(id) || [`#${id}`];
-  const sortedCategories = React.useMemo(() => {
-    const items = [...categories];
-    return items.sort((a: any, b: any) =>
-      formatPath(getCategoryPath(a.id)).localeCompare(formatPath(getCategoryPath(b.id)), undefined, {
-        numeric: true,
-        sensitivity: "base"
-      })
-    );
-  }, [categories, getCategoryPath]);
   const sectionsById = React.useMemo(() => new Map(sections.map((item: any) => [item.id, item])), [sections]);
+  const categoriesById = React.useMemo(() => new Map(categories.map((item: any) => [item.id, item])), [categories]);
   const translations = detailsData?.translations || [];
   const assets = detailsData?.assets || [];
   const accessDepartments = detailsData?.accessDepartments || [];
@@ -197,6 +162,16 @@ export default function UserFilesPage() {
     return translations.find((item: any) => item.lang === lang)?.title || detailsData?.title || "file";
   };
 
+  const getCategoryPath = (id: number) => {
+    const segments: string[] = [];
+    let current = categoriesById.get(id);
+    while (current) {
+      segments.unshift(current.title || `#${current.id}`);
+      current = current.parentId ? categoriesById.get(current.parentId) : null;
+    }
+    return segments.length ? segments : [`#${id}`];
+  };
+
   const renderPath = (segments: string[]) => (
     <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexWrap: "wrap" }}>
       {segments.map((segment, index) => (
@@ -227,48 +202,58 @@ export default function UserFilesPage() {
     }
   });
 
-  const submitMutation = useMutation({
-    mutationFn: async ({ values, asset }: { values: FormValues; asset: File }) => {
-      const form = new FormData();
-      form.append("sectionId", String(values.sectionId));
-      form.append("categoryId", String(values.categoryId));
-      form.append("title", values.title.trim());
-      if (values.description?.trim()) {
-        form.append("description", values.description.trim());
-      }
-      form.append("lang", values.lang);
-      form.append("file", asset);
-      return submitUserFile(form);
+  const updateFavoriteCaches = (id: number, nextValue: boolean) => {
+    const updateRows = (data: any, removeWhenFalse = false) => {
+      if (!data?.data) return data;
+      const updated = data.data
+        .map((item: any) => (Number(item.id) === id ? { ...item, isFavorite: nextValue } : item))
+        .filter((item: any) => !(removeWhenFalse && !item.isFavorite));
+      return { ...data, data: updated };
+    };
+    queryClient.setQueriesData({ queryKey: ["user-files"] }, (data) => updateRows(data));
+    queryClient.setQueriesData({ queryKey: ["user-my-files"] }, (data) => updateRows(data));
+    queryClient.setQueriesData({ queryKey: ["user-favorites"] }, (data) => updateRows(data, true));
+  };
+
+  const favoriteMutation = useMutation({
+    mutationFn: ({ id, isFavorite }: { id: number; isFavorite: boolean }) =>
+      isFavorite ? removeUserFavorite(id) : addUserFavorite(id),
+    onMutate: ({ id, isFavorite }) => {
+      updateFavoriteCaches(id, !isFavorite);
+      const key = String(id);
+      const previousOverride = favoriteOverrides[key];
+      setFavoriteOverrides((prev) => ({ ...prev, [key]: !isFavorite }));
+      return { id, previousOverride };
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["user-files"] });
-      setSubmitOpen(false);
-      reset(defaultValues);
-      setSubmitFile(null);
-      showToast({ message: t("fileSubmitted"), severity: "success" });
+      queryClient.invalidateQueries({ queryKey: ["user-favorites"] });
+      queryClient.invalidateQueries({ queryKey: ["user-my-files"] });
+      showToast({
+        message: variables.isFavorite ? t("favoriteRemoved") : t("favoriteAdded"),
+        severity: "success"
+      });
     },
-    onError: () => showToast({ message: t("actionFailed"), severity: "error" })
-  });
-
-  const handleSubmitFile = handleSubmit((values) => {
-    if (!submitFile) {
-      showToast({ message: t("fileRequired"), severity: "error" });
-      return;
+    onError: (error, _variables, context) => {
+      if (context) {
+        setFavoriteOverrides((prev) => {
+          const next = { ...prev };
+          const key = String(context.id);
+          if (context.previousOverride === undefined) {
+            delete next[key];
+          } else {
+            next[key] = context.previousOverride;
+          }
+          return next;
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["user-files"] });
+      queryClient.invalidateQueries({ queryKey: ["user-favorites"] });
+      queryClient.invalidateQueries({ queryKey: ["user-my-files"] });
+      showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" });
     }
-    submitMutation.mutate({ values, asset: submitFile });
   });
 
-  const handleOpenSubmit = () => {
-    reset(defaultValues);
-    setSubmitFile(null);
-    setSubmitOpen(true);
-  };
-
-  const handleCloseSubmit = () => {
-    setSubmitOpen(false);
-    reset(defaultValues);
-    setSubmitFile(null);
-  };
 
   const resolveRowSize = (row: any) => {
     const sizes = row.availableAssetSizes || [];
@@ -279,18 +264,13 @@ export default function UserFilesPage() {
     return row.currentAssetSize ?? null;
   };
 
+  const isDownloadable = (row: any) => {
+    const langs = row.availableAssetLangs || row.availableLangs || [];
+    return Boolean(row.canDownload) && langs.length > 0;
+  };
+
   return (
-    <Page
-      title={t("files")}
-      subtitle={t("userFilesSubtitle")}
-      action={
-        canSubmitFiles ? (
-          <Button variant="contained" onClick={handleOpenSubmit}>
-            {t("submitFile")}
-          </Button>
-        ) : undefined
-      }
-    >
+    <Page title={t("sharedLibrary")} subtitle={t("userFilesSubtitle")}>
       <FiltersBar>
         <SearchField value={search} onChange={setSearch} placeholder={t("searchFiles")} />
         <Tooltip title={t("resetFilters")}>
@@ -304,12 +284,15 @@ export default function UserFilesPage() {
 
       {isLoading ? (
         <LoadingState rows={6} />
-      ) : rows.length === 0 ? (
+      ) : displayRows.length === 0 ? (
         <EmptyState title={t("noFiles")} subtitle={t("noFilesSubtitle")} />
       ) : (
         <DataTable
-          rows={rows}
-          onRowClick={(row) => setDetailsId(row.id)}
+          rows={displayRows}
+          onRowClick={(row) => {
+            if (!isDownloadable(row)) return;
+            setDetailsId(row.id);
+          }}
           sort={sort}
           onSortChange={(key, direction) =>
             setSort(direction ? { key, direction } : { key: null, direction: null })
@@ -317,10 +300,59 @@ export default function UserFilesPage() {
           sortIconVariant="chevron"
           columns={[
             {
+              key: "favorite",
+              label: "",
+              align: "center",
+              sortable: false,
+              width: 32,
+              headerSx: { pl: 1, pr: 0.25 },
+              cellSx: { pl: 1.5, pr: 0.25 },
+              render: (row) => (
+                <Tooltip title={t("favorites")}>
+                  <IconButton
+                    size="small"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      favoriteMutation.mutate({ id: row.id, isFavorite: Boolean(row.isFavorite) });
+                    }}
+                  >
+                    {row.isFavorite ? (
+                      <StarIcon fontSize="small" sx={{ color: "warning.main" }} />
+                    ) : (
+                      <StarBorderIcon fontSize="small" sx={{ color: "text.disabled" }} />
+                    )}
+                  </IconButton>
+                </Tooltip>
+              )
+            },
+            {
+              key: "lock",
+              label: "",
+              align: "left",
+              sortable: false,
+              width: 32,
+              headerSx: { pl: 0.5, pr: 0.25 },
+              cellSx: { pl: 0.5, pr: 0.25 },
+              render: (row) => {
+                if (isDownloadable(row)) return null;
+                const tooltip = row.canDownload ? t("noAssets") : t("noAccess");
+                return (
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", width: "100%" }}>
+                    <Tooltip title={tooltip}>
+                      <Box component="span" sx={{ display: "inline-flex", alignItems: "center" }}>
+                        <LockOutlinedIcon sx={{ fontSize: 16, display: "block" }} color="action" />
+                      </Box>
+                    </Tooltip>
+                  </Box>
+                );
+              }
+            },
+            {
               key: "title",
               label: t("title"),
               sortable: true,
               sortKey: "title",
+              minWidth: 320,
               render: (row) => (
                 <Box component="span" sx={{ color: "text.primary" }}>
                   {row.title || t("file")}
@@ -330,6 +362,7 @@ export default function UserFilesPage() {
             {
               key: "section",
               label: t("section"),
+              minWidth: 120,
               render: (row) => {
                 const item = row.sectionId ? sectionsById.get(row.sectionId) : null;
                 return item?.title || (row.sectionId ? `#${row.sectionId}` : "-");
@@ -340,27 +373,30 @@ export default function UserFilesPage() {
               label: t("category"),
               render: (row) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-"),
               sortable: true,
-              sortKey: "category"
+              sortKey: "category",
+              minWidth: 280
             },
             {
               key: "accessType",
               label: t("access"),
+              align: "center",
+              width: 48,
               render: (row) => (
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  sx={{
-                    borderColor: row.accessType === "restricted" ? "warning.main" : "success.main",
-                    color: row.accessType === "restricted" ? "warning.main" : "success.main",
-                    fontWeight: 600
-                  }}
-                  label={row.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}
-                />
+                <Tooltip title={row.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
+                  <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+                    {row.accessType === "restricted" ? (
+                      <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
+                    ) : (
+                      <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
+                    )}
+                  </Box>
+                </Tooltip>
               )
             },
             {
               key: "langs",
               label: t("languages"),
+              minWidth: 100,
               render: (row) => {
                 const langs = row.availableAssetLangs || row.availableLangs || [];
                 return (
@@ -375,6 +411,7 @@ export default function UserFilesPage() {
             {
               key: "size",
               label: t("fileSize"),
+              width: 80,
               render: (row) => {
                 const size = resolveRowSize(row);
                 return size === null || size === undefined ? "-" : formatBytes(size);
@@ -385,6 +422,7 @@ export default function UserFilesPage() {
             {
               key: "createdAt",
               label: t("createdAt"),
+              width: 120,
               render: (row) => formatDateTime(row.createdAt),
               sortable: true,
               sortKey: "created_at"
@@ -392,6 +430,7 @@ export default function UserFilesPage() {
             {
               key: "updatedAt",
               label: t("updatedAt"),
+              width: 120,
               render: (row) => formatDateTime(row.updatedAt),
               sortable: true,
               sortKey: "updated_at"
@@ -400,33 +439,33 @@ export default function UserFilesPage() {
               key: "download",
               label: t("download"),
               align: "center",
+              width: 56,
               render: (row) => {
                 const langs = row.availableAssetLangs || row.availableLangs || [];
-                const disabled = langs.length === 0;
+                if (!isDownloadable(row)) return "-";
                 const sizes = (row.availableAssetSizes || []).reduce<Record<string, number>>((acc: Record<string, number>, item: any) => {
                   acc[item.lang] = item.size;
                   return acc;
                 }, {});
                 return (
-                <Tooltip title={disabled ? t("noAssets") : t("download")}>
-                  <span>
-                  <IconButton
-                    size="small"
-                    disabled={disabled}
-                    color={disabled ? "default" : "primary"}
-                    sx={disabled ? undefined : { backgroundColor: "rgba(29, 77, 79, 0.12)" }}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (langs.length > 1) {
-                        setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
-                        return;
-                      }
-                      const lang = langs[0];
-                      downloadMutation.mutate({ id: row.id, lang, title: row.title });
-                    }}
-                  >
-                    <DownloadIcon fontSize="small" />
-                  </IconButton>
+                  <Tooltip title={t("download")}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        sx={{ backgroundColor: "rgba(29, 77, 79, 0.12)" }}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (langs.length > 1) {
+                            setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
+                            return;
+                          }
+                          const lang = langs[0];
+                          downloadMutation.mutate({ id: row.id, lang, title: row.title });
+                        }}
+                      >
+                        <DownloadIcon fontSize="small" />
+                      </IconButton>
                     </span>
                   </Tooltip>
                 );
@@ -443,123 +482,6 @@ export default function UserFilesPage() {
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
       />
-
-      <Dialog open={submitOpen} onClose={handleCloseSubmit} fullWidth maxWidth="md">
-        <DialogTitle>{t("submitFile")}</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {t("submitFileSubtitle")}
-            </Typography>
-            <Controller
-              control={control}
-              name="sectionId"
-              render={({ field }) => (
-                <Autocomplete
-                  options={sortedSections}
-                  getOptionLabel={(option: any) => option.title || `#${option.id}`}
-                  renderOption={(props, option: any) => {
-                    const { key, ...optionProps } = props;
-                    return (
-                      <li key={option.id} {...optionProps}>
-                        {option.title || `#${option.id}`}
-                      </li>
-                    );
-                  }}
-                  value={sortedSections.find((section: any) => section.id === field.value) || null}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  onChange={(_, value) => field.onChange(value ? value.id : 0)}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label={t("section")}
-                      required
-                      error={!!errors.sectionId}
-                      helperText={errors.sectionId ? t("selectSectionError") : ""}
-                    />
-                  )}
-                />
-              )}
-            />
-            <Controller
-              control={control}
-              name="categoryId"
-              render={({ field }) => (
-                <Autocomplete
-                  options={sortedCategories}
-                  getOptionLabel={(option: any) => formatPath(getCategoryPath(option.id))}
-                  renderOption={(props, option: any) => {
-                    const { key, ...optionProps } = props;
-                    return (
-                      <li key={option.id} {...optionProps}>
-                        {renderPath(getCategoryPath(option.id))}
-                      </li>
-                    );
-                  }}
-                  value={sortedCategories.find((cat: any) => cat.id === field.value) || null}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  onChange={(_, value) => field.onChange(value ? value.id : 0)}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label={t("category")}
-                      required
-                      error={!!errors.categoryId}
-                      helperText={errors.categoryId ? t("selectCategoryError") : ""}
-                    />
-                  )}
-                />
-              )}
-            />
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-              <TextField
-                label={t("title")}
-                fullWidth
-                required
-                {...register("title")}
-                error={!!errors.title}
-                helperText={errors.title?.message}
-              />
-              <Controller
-                control={control}
-                name="lang"
-                render={({ field }) => (
-                  <TextField select label={t("language")} sx={{ minWidth: 160 }} value={field.value} onChange={field.onChange}>
-                    <MenuItem value="ru">RU</MenuItem>
-                    <MenuItem value="en">EN</MenuItem>
-                    <MenuItem value="uz">UZ</MenuItem>
-                  </TextField>
-                )}
-              />
-            </Stack>
-            <TextField
-              label={t("description")}
-              fullWidth
-              multiline
-              minRows={2}
-              {...register("description")}
-            />
-            <Stack spacing={1}>
-              <Typography variant="subtitle2">{t("file")} *</Typography>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
-                <Button component="label" variant="outlined">
-                  {t("selectFile")}
-                  <input type="file" hidden onChange={(event) => setSubmitFile(event.target.files?.[0] || null)} />
-                </Button>
-                <Typography variant="caption" color="text.secondary">
-                  {submitFile ? submitFile.name : t("noFileSelected")}
-                </Typography>
-              </Stack>
-            </Stack>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseSubmit}>{t("cancel")}</Button>
-          <Button variant="contained" onClick={handleSubmitFile} disabled={submitMutation.isPending}>
-            {t("submitFile")}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       <Dialog open={!!downloadTarget} onClose={() => setDownloadTarget(null)} fullWidth maxWidth="xs">
         <DialogTitle>{t("download")}</DialogTitle>
