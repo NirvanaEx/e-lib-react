@@ -9,17 +9,31 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { getDefaultRoute } from "../../shared/utils/access";
 
-const schema = z.object({
-  currentPassword: z.string().min(1),
-  newPassword: z.string().min(6)
-});
-
-type FormValues = z.infer<typeof schema>;
+type FormValues = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
 
 export default function ChangeTempPasswordPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, setAuth, updateUser, clearAuth } = useAuth();
+  const schema = React.useMemo(
+    () =>
+      z
+        .object({
+          currentPassword: z.string().min(1),
+          newPassword: z.string().min(6),
+          confirmPassword: z.string().min(1)
+        })
+        .refine((data) => data.newPassword === data.confirmPassword, {
+          message: t("passwordsMismatch"),
+          path: ["confirmPassword"]
+        }),
+    [t]
+  );
+
   const {
     register,
     handleSubmit,
@@ -27,7 +41,7 @@ export default function ChangeTempPasswordPage() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (values: FormValues) => {
-    const data = await changeTempPassword(values);
+    const data = await changeTempPassword({ currentPassword: values.currentPassword, newPassword: values.newPassword });
     if (data?.accessToken && data?.user) {
       setAuth(data.accessToken, data.user);
       navigate(getDefaultRoute(data.user));
@@ -90,6 +104,16 @@ export default function ChangeTempPasswordPage() {
             {...register("newPassword")}
             error={!!errors.newPassword}
             helperText={errors.newPassword?.message}
+          />
+          <TextField
+            fullWidth
+            margin="normal"
+            label={t("confirmPassword")}
+            type="password"
+            required
+            {...register("confirmPassword")}
+            error={!!errors.confirmPassword}
+            helperText={errors.confirmPassword?.message}
           />
           <Button fullWidth variant="contained" type="submit" disabled={isSubmitting} sx={{ mt: 2 }}>
             {t("updatePassword")}

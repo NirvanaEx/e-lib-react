@@ -42,6 +42,7 @@ export type NavSection = {
 };
 
 const drawerWidth = 260;
+const collapsedDrawerWidth = 84;
 
 export function BaseLayout({
   title,
@@ -50,25 +51,43 @@ export function BaseLayout({
   children,
   sidebarContent,
   sidebarFooter,
-  settingsPath
+  settingsPath,
+  settingsAction,
+  headerTitle,
+  sidebarHeader,
+  sidebarPaddingTop,
+  sidebarTop,
+  sidebarCollapsible = false
 }: {
   title: string;
   items?: NavItem[];
   sections?: NavSection[];
   children: React.ReactNode;
-  sidebarContent?: React.ReactNode;
-  sidebarFooter?: React.ReactNode;
+  sidebarContent?: React.ReactNode | ((options: { collapsed: boolean }) => React.ReactNode);
+  sidebarFooter?: React.ReactNode | ((options: { collapsed: boolean }) => React.ReactNode);
   settingsPath?: string;
+  settingsAction?: () => void;
+  headerTitle?: React.ReactNode;
+  sidebarHeader?: React.ReactNode | ((options: { collapsed: boolean }) => React.ReactNode) | null;
+  sidebarPaddingTop?: number;
+  sidebarTop?: React.ReactNode | ((options: { collapsed: boolean; toggle: () => void }) => React.ReactNode) | null;
+  sidebarCollapsible?: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, clearAuth, updateUser } = useAuth();
   const { showToast } = useToast();
   const { t } = useTranslation();
+  const collapsed = sidebarCollapsible ? isCollapsed : false;
+  const effectiveDrawerWidth = collapsed ? collapsedDrawerWidth : drawerWidth;
 
   const handleDrawerToggle = () => {
     setMobileOpen((prev) => !prev);
+  };
+  const toggleCollapsed = () => {
+    setIsCollapsed((prev) => !prev);
   };
 
   const panelLinks = React.useMemo(() => {
@@ -76,18 +95,59 @@ export function BaseLayout({
     if (hasAccess(user, ["dashboard.access"])) {
       links.push({ key: "dashboard", label: t("dashboard"), path: getDefaultRoute(user) });
     }
-    if (user?.role === "superadmin" || user?.role === "admin" || user?.role === "user") {
+    if (user?.role === "superadmin" || user?.role === "admin" || user?.role === "manager" || user?.role === "user") {
       links.push({ key: "user", label: t("user"), path: "/users" });
     }
     return links;
   }, [t, user]);
 
   const currentPanel = pathname.startsWith("/dashboard") ? "dashboard" : "user";
+  const dashboardLink = panelLinks.find((panel) => panel.key === "dashboard");
+  const userLink = panelLinks.find((panel) => panel.key === "user");
+  const switchLink = currentPanel === "dashboard" ? userLink : dashboardLink;
+
+  const defaultSidebarHeader = collapsed ? (
+    <Box sx={{ mb: 2, display: "flex", justifyContent: "center" }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        {t("appName")}
+      </Typography>
+    </Box>
+  ) : (
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="h6" sx={{ fontWeight: 700 }}>
+        {t("appName")}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: "0.16em" }}>
+        {title}
+      </Typography>
+    </Box>
+  );
+  const resolvedSidebarHeader =
+    sidebarHeader === undefined ? defaultSidebarHeader : typeof sidebarHeader === "function" ? sidebarHeader({ collapsed }) : sidebarHeader;
+  const resolvedSidebarContent =
+    typeof sidebarContent === "function" ? sidebarContent({ collapsed }) : sidebarContent;
+  const resolvedSidebarFooter =
+    typeof sidebarFooter === "function" ? sidebarFooter({ collapsed }) : sidebarFooter;
+  const resolvedSidebarTop =
+    typeof sidebarTop === "function" ? sidebarTop({ collapsed, toggle: toggleCollapsed }) : sidebarTop;
+  const sidebarTopNode = sidebarTop === null ? null : (
+      <Toolbar sx={{ px: 2, minHeight: { xs: 56, sm: 64 } }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+          {resolvedSidebarTop}
+        </Box>
+      </Toolbar>
+    );
+
+  const hasNavItems = Boolean(
+    (sections && sections.some((section) => section.items && section.items.length > 0)) || (items && items.length > 0)
+  );
 
   const drawerContent = (
     <Box
       sx={{
-        p: 2.5,
+        px: collapsed ? 1.5 : 2.5,
+        pb: 2.5,
+        pt: sidebarPaddingTop ?? 2.5,
         height: "100%",
         display: "flex",
         flexDirection: "column",
@@ -95,76 +155,88 @@ export function BaseLayout({
           "linear-gradient(170deg, rgba(29,77,79,0.06) 0%, rgba(198,138,63,0.08) 45%, rgba(255,255,255,0.9) 100%)"
       }}
     >
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-          {t("appName")}
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: "0.16em" }}>
-          {title}
-        </Typography>
-      </Box>
-      <Box sx={{ flex: 1, overflow: "auto", pr: 0.5 }}>
-        <List>
-          {(sections && sections.length > 0 ? sections : [{ label: "", items }]).map((section) => (
-            <Box key={section.label || "default"}>
-              {section.label && (
-                <Typography
-                  variant="overline"
-                  color="text.secondary"
-                  sx={{ letterSpacing: "0.16em", fontWeight: 700, display: "block", mb: 1 }}
-                >
-                  {section.label}
-                </Typography>
-              )}
-              {section.items.map((item) => {
-                const active = pathname.startsWith(item.path);
-                return (
-                  <ListItemButton
-                    key={item.path}
-                    selected={active}
-                    onClick={() => navigate(item.path)}
-                    sx={{
-                      borderRadius: 2.5,
-                      mb: 0.8,
-                      py: 1.2,
-                      "&.Mui-selected": {
-                        backgroundColor: "rgba(29, 77, 79, 0.12)"
-                      },
-                      "&.Mui-selected:hover": {
-                        backgroundColor: "rgba(29, 77, 79, 0.16)"
-                      }
-                    }}
+      {resolvedSidebarHeader}
+      <Box sx={{ flex: 1, overflow: "auto", pr: collapsed ? 0 : 0.5 }}>
+        {hasNavItems && (
+          <List>
+            {(sections && sections.length > 0 ? sections : [{ label: "", items }]).map((section) => (
+              <Box key={section.label || "default"}>
+                {section.label && !collapsed && (
+                  <Typography
+                    variant="overline"
+                    color="text.secondary"
+                    sx={{ letterSpacing: "0.16em", fontWeight: 700, display: "block", mb: 1 }}
                   >
-                    {item.icon && (
-                      <ListItemIcon sx={{ minWidth: 36, color: active ? "primary.main" : "text.secondary" }}>
-                        {item.icon}
-                      </ListItemIcon>
-                    )}
-                    <ListItemText
-                      primary={
-                        <Typography variant="body2" sx={{ fontWeight: active ? 700 : 600 }}>
-                          {item.label}
-                        </Typography>
-                      }
-                    />
-                  </ListItemButton>
-                );
-              })}
-              {section.label && <Box sx={{ mb: 1.5 }} />}
-            </Box>
-          ))}
-        </List>
-        {sidebarContent && (
-          <Box sx={{ mt: 2 }}>
-            <Divider sx={{ mb: 2 }} />
-            {sidebarContent}
+                    {section.label}
+                  </Typography>
+                )}
+                {section.items.map((item) => {
+                  const active = pathname.startsWith(item.path);
+                  const button = (
+                    <ListItemButton
+                      key={item.path}
+                      selected={active}
+                      onClick={() => navigate(item.path)}
+                      sx={{
+                        borderRadius: 2.5,
+                        mb: 0.8,
+                        py: 1.2,
+                        justifyContent: collapsed ? "center" : "flex-start",
+                        px: collapsed ? 1.2 : 2,
+                        "&.Mui-selected": {
+                          backgroundColor: "rgba(29, 77, 79, 0.12)"
+                        },
+                        "&.Mui-selected:hover": {
+                          backgroundColor: "rgba(29, 77, 79, 0.16)"
+                        }
+                      }}
+                    >
+                      {item.icon && (
+                        <ListItemIcon
+                          sx={{
+                            minWidth: collapsed ? 0 : 36,
+                            mr: collapsed ? 0 : 1,
+                            color: active ? "primary.main" : "text.secondary"
+                          }}
+                        >
+                          {item.icon}
+                        </ListItemIcon>
+                      )}
+                      {!collapsed && (
+                        <ListItemText
+                          primary={
+                            <Typography variant="body2" sx={{ fontWeight: active ? 700 : 600 }}>
+                              {item.label}
+                            </Typography>
+                          }
+                        />
+                      )}
+                    </ListItemButton>
+                  );
+                  return collapsed ? (
+                    <Tooltip key={item.path} title={item.label} placement="right">
+                      {button}
+                    </Tooltip>
+                  ) : (
+                    button
+                  );
+                })}
+                {section.label && <Box sx={{ mb: 1.5 }} />}
+              </Box>
+            ))}
+          </List>
+        )}
+        {resolvedSidebarContent && (
+          <Box sx={{ mt: hasNavItems ? 2 : 0 }}>
+            {hasNavItems && <Divider sx={{ mb: 2 }} />}
+            {resolvedSidebarContent}
           </Box>
         )}
       </Box>
-      {sidebarFooter && (
+      {resolvedSidebarFooter && (
         <Box sx={{ mt: 2 }}>
           <Divider sx={{ mb: 2 }} />
-          {sidebarFooter}
+          {resolvedSidebarFooter}
         </Box>
       )}
     </Box>
@@ -181,8 +253,8 @@ export function BaseLayout({
           backdropFilter: "blur(12px)",
           backgroundColor: "rgba(243, 241, 236, 0.9)",
           borderBottom: "1px solid var(--border)",
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` }
+          width: { md: `calc(100% - ${effectiveDrawerWidth}px)` },
+          ml: { md: `${effectiveDrawerWidth}px` }
         }}
       >
         <Toolbar sx={{ display: "flex", justifyContent: "space-between", px: { xs: 2, md: 3 } }}>
@@ -190,21 +262,24 @@ export function BaseLayout({
             <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 1, display: { md: "none" } }}>
               <MenuIcon />
             </IconButton>
-            <Typography variant="h6">{title}</Typography>
+            {sidebarCollapsible && (
+              <IconButton
+                color="inherit"
+                edge="start"
+                onClick={toggleCollapsed}
+                sx={{ mr: 1, display: { xs: "none", md: "inline-flex" } }}
+              >
+                <MenuIcon />
+              </IconButton>
+            )}
+            {headerTitle === undefined ? <Typography variant="h6">{title}</Typography> : headerTitle}
           </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            {panelLinks.length > 1 && (
+            {switchLink && (
               <Stack direction="row" spacing={1}>
-                {panelLinks.map((panel) => (
-                  <Button
-                    key={panel.key}
-                    size="small"
-                    variant={currentPanel === panel.key ? "contained" : "outlined"}
-                    onClick={() => navigate(panel.path)}
-                  >
-                    {panel.label}
-                  </Button>
-                ))}
+                <Button size="small" variant="outlined" onClick={() => navigate(switchLink.path)}>
+                  {switchLink.label}
+                </Button>
               </Stack>
             )}
             <Select
@@ -227,9 +302,9 @@ export function BaseLayout({
               <MenuItem value="en">EN</MenuItem>
               <MenuItem value="uz">UZ</MenuItem>
             </Select>
-            {settingsPath && (
+            {(settingsPath || settingsAction) && (
               <Tooltip title={t("settings")}>
-                <IconButton color="inherit" onClick={() => navigate(settingsPath)}>
+                <IconButton color="inherit" onClick={() => (settingsAction ? settingsAction() : settingsPath && navigate(settingsPath))}>
                   <SettingsIcon />
                 </IconButton>
               </Tooltip>
@@ -275,7 +350,7 @@ export function BaseLayout({
           </Box>
         </Toolbar>
       </AppBar>
-      <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
+      <Box component="nav" sx={{ width: { md: effectiveDrawerWidth }, flexShrink: { md: 0 } }}>
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -287,7 +362,7 @@ export function BaseLayout({
           }}
         >
           <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-            <Toolbar />
+            {sidebarTopNode === null ? null : sidebarTopNode ?? <Toolbar />}
             <Box sx={{ flex: 1 }}>{drawerContent}</Box>
           </Box>
         </Drawer>
@@ -295,12 +370,16 @@ export function BaseLayout({
           variant="permanent"
           sx={{
             display: { xs: "none", md: "block" },
-            "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth, borderRight: "1px solid var(--border)" }
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: effectiveDrawerWidth,
+              borderRight: "1px solid var(--border)"
+            }
           }}
           open
         >
           <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-            <Toolbar />
+            {sidebarTopNode === null ? null : sidebarTopNode ?? <Toolbar />}
             <Box sx={{ flex: 1 }}>{drawerContent}</Box>
           </Box>
         </Drawer>

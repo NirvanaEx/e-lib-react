@@ -30,11 +30,9 @@ exports.seed = async function (knex) {
     "file.version.set_current",
     "file.asset.upload",
     "file.asset.delete",
-    "file.trash.read",
     "file.download",
     "file.download.restricted",
-    "stats.read",
-    "audit.read"
+    "storage.read"
   ];
   const userPermissions = ["file.read", "file.download"];
 

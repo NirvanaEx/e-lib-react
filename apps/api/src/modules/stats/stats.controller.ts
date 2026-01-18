@@ -34,7 +34,7 @@ export class StatsController {
   }
 
   @Get("storage")
-  @Access("stats.read")
+  @Access("storage.read")
   async storage() {
     return this.statsService.storageUsage();
   }

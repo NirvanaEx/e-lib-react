@@ -216,7 +216,7 @@ export default function App() {
                 path="/users"
                 element={
                   <RequireAuth>
-                    <RequireRole roles={["superadmin", "admin", "user"]}>
+                    <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
                       <UserLayout>
                         <UserFilesPage />
                       </UserLayout>
@@ -228,7 +228,7 @@ export default function App() {
                 path="/users/:id"
                 element={
                   <RequireAuth>
-                    <RequireRole roles={["superadmin", "admin", "user"]}>
+                    <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
                       <UserLayout>
                         <UserFileDetailsPage />
                       </UserLayout>
@@ -240,7 +240,7 @@ export default function App() {
                 path="/users/settings"
                 element={
                   <RequireAuth>
-                    <RequireRole roles={["superadmin", "admin", "user"]}>
+                    <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
                       <UserLayout>
                         <SettingsPage />
                       </UserLayout>
