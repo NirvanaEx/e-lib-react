@@ -335,7 +335,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                     value={sections.find((section: any) => section.id === field.value) || null}
                     isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
                     onChange={(_, value: any | null) => field.onChange(value ? value.id : 0)}
-                    renderInput={(params) => <TextField {...params} label={t("section")} />}
+                    renderInput={(params) => <TextField {...params} label={t("section")} required />}
                   />
                 )}
               />
@@ -357,7 +357,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                     value={categories.find((cat: any) => cat.id === field.value) || null}
                     isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
                     onChange={(_, value: any | null) => field.onChange(value ? value.id : 0)}
-                    renderInput={(params) => <TextField {...params} label={t("category")} />}
+                    renderInput={(params) => <TextField {...params} label={t("category")} required />}
                   />
                 )}
               />
@@ -368,6 +368,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                 titleLabel={t("title")}
                 descriptionLabel={t("description")}
                 helperText={t("translationsHint")}
+                requiredTitle
               />
               <Button variant="contained" onClick={handleSaveMetadata} disabled={updateMetadataMutation.isPending}>
                 {t("saveChanges")}

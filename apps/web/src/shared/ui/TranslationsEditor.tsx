@@ -17,7 +17,8 @@ export function TranslationsEditor({
   showDescription = false,
   titleLabel = "Title",
   descriptionLabel = "Description",
-  helperText
+  helperText,
+  requiredTitle = false
 }: {
   value: TranslationItem[];
   onChange: (value: TranslationItem[]) => void;
@@ -25,6 +26,7 @@ export function TranslationsEditor({
   titleLabel?: string;
   descriptionLabel?: string;
   helperText?: string;
+  requiredTitle?: boolean;
 }) {
   const [currentLang, setCurrentLang] = React.useState<Lang>("ru");
 
@@ -60,6 +62,7 @@ export function TranslationsEditor({
             value={current.title || ""}
             onChange={(event) => updateField("title", event.target.value)}
             fullWidth
+            required={requiredTitle}
           />
           {showDescription && (
             <TextField

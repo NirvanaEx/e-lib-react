@@ -48,6 +48,7 @@ type DepartmentRow = {
   parent_id?: number | null;
   depth: number;
   created_at?: string;
+  updated_at?: string;
   dataCount?: number;
   dataOwnCount?: number;
 };
@@ -67,6 +68,7 @@ export default function DepartmentsPage() {
   const [editing, setEditing] = React.useState<DepartmentRow | null>(null);
   const [createParentId, setCreateParentId] = React.useState<number | null>(null);
   const [expandedIds, setExpandedIds] = React.useState<Set<number>>(new Set());
+  const autoExpandRef = React.useRef(false);
   const [confirmDelete, setConfirmDelete] = React.useState<DepartmentRow | null>(null);
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
@@ -78,6 +80,10 @@ export default function DepartmentsPage() {
   React.useEffect(() => {
     setPage(1);
   }, [search, pageSize]);
+
+  React.useEffect(() => {
+    autoExpandRef.current = false;
+  }, [search, page, pageSize]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["departments", page, pageSize, search],
@@ -195,6 +201,23 @@ export default function DepartmentsPage() {
     return result;
   }, [rows, expandedIds]);
 
+  const defaultExpandedIds = React.useMemo(() => {
+    const childrenByParent = new Map<number, number>();
+    rows.forEach((row) => {
+      if (row.parent_id) {
+        childrenByParent.set(row.parent_id, (childrenByParent.get(row.parent_id) || 0) + 1);
+      }
+    });
+    return new Set<number>(childrenByParent.keys());
+  }, [rows]);
+
+  React.useEffect(() => {
+    if (!autoExpandRef.current && defaultExpandedIds.size > 0) {
+      setExpandedIds(new Set(defaultExpandedIds));
+      autoExpandRef.current = true;
+    }
+  }, [defaultExpandedIds]);
+
   const toggleExpanded = (id: number) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -253,6 +276,11 @@ export default function DepartmentsPage() {
               key: "created_at",
               label: t("createdAt"),
               render: (row) => formatDateTime(row.created_at)
+            },
+            {
+              key: "updated_at",
+              label: t("updatedAt"),
+              render: (row) => formatDateTime(row.updated_at)
             },
             {
               key: "dataOwnCount",
@@ -314,7 +342,7 @@ export default function DepartmentsPage() {
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogContent sx={{ pt: 1 }}>
             <Stack spacing={2} sx={{ mt: 1 }}>
-              <TextField label={t("name")} fullWidth {...register("name")} />
+              <TextField label={t("name")} fullWidth required {...register("name")} />
               <Controller
                 control={control}
                 name="parentId"

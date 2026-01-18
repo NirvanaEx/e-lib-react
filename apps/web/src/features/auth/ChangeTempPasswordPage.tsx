@@ -76,6 +76,7 @@ export default function ChangeTempPasswordPage() {
             margin="normal"
             label={t("currentPassword")}
             type="password"
+            required
             {...register("currentPassword")}
             error={!!errors.currentPassword}
             helperText={errors.currentPassword?.message}
@@ -85,6 +86,7 @@ export default function ChangeTempPasswordPage() {
             margin="normal"
             label={t("newPassword")}
             type="password"
+            required
             {...register("newPassword")}
             error={!!errors.newPassword}
             helperText={errors.newPassword?.message}
