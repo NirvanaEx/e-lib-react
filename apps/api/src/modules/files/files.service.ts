@@ -715,6 +715,7 @@ export class FilesService {
       .leftJoin("file_items", "file_versions.file_item_id", "file_items.id")
       .modify((queryBuilder) => applyTitleJoins(queryBuilder))
       .whereNotNull("file_version_assets.deleted_at")
+      .whereNull("file_versions.deleted_at")
       .select(
         db.raw("'asset' as type"),
         "file_version_assets.id as id",

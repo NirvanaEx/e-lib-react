@@ -33,6 +33,7 @@
 - File-related tables now allocate widths to fixed columns and wrap primary text columns to avoid horizontal scroll bars.
 - DataTable headers now wrap instead of truncating, and file-related tables rely on flexible column sizing with wrapping to fit the screen without horizontal scroll.
 - DataTable UI reverted to the latest commit state; file-related tables no longer use wrap/layout overrides.
+- Trash list now hides assets for deleted versions and shows file title/details in the trash table.
 
 ## Next
 
