@@ -7,7 +7,7 @@ services:
     env_file:
       - /srv/apps/e-lib/.env
     ports:
-      - "3001:3001"
+      - "${APP_PORT:-3001}:${APP_PORT:-3001}"
     volumes:
       - /srv/apps/e-lib/uploads:/app/uploads
     depends_on:
@@ -17,9 +17,9 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001/api}
     ports:
-      - "3000:80"
+      - "${WEB_PORT:-3000}:80"
     depends_on:
       - api
   db:

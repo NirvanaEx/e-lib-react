@@ -4,7 +4,7 @@ services:
     image: postgres:15-alpine
     container_name: e-lib-db
     ports:
-      - "5433:5432"
+      - "${DB_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: ${DB_USER:-elib}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-elib}
