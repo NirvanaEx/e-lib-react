@@ -61,4 +61,4 @@ cp scripts/post-receive.sample.sh /srv/git/e-lib.git/hooks/post-receive
 chmod +x /srv/git/e-lib.git/hooks/post-receive
 ```
 
-Push to the bare repo; the hook checks out to `/srv/apps/e-lib/current` and runs Docker Compose.
+Push to the bare repo; the hook checks out to `/srv/apps/e-lib` and runs Docker Compose.

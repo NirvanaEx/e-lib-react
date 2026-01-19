@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_DIR="/srv/git/e-lib.git"
 APP_DIR="/srv/apps/e-lib"
-CHECKOUT_DIR="${APP_DIR}/current"
+CHECKOUT_DIR="${APP_DIR}"
 
 if [ ! -d "${CHECKOUT_DIR}" ]; then
   mkdir -p "${CHECKOUT_DIR}"
