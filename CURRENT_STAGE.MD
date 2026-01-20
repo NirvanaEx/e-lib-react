@@ -61,6 +61,10 @@
 - Fixed shared library card view to use the section label helper.
 - Refined shared library card layout with a tighter grid, clearer hierarchy, and improved visual styling.
 - Compact card sizing and removed shadow effects for the shared library cards.
+- Shared library cards now use a columnar label/value layout with fixed card widths that scale by screen size.
+- Shared library cards now use single-line aligned values (ellipsis for long titles/paths) with a more compact layout.
+- Access and download icons are now left-aligned and sized consistently in shared library cards.
+- Fixed access icon alignment to start in shared library cards.
 
 ## Next
 

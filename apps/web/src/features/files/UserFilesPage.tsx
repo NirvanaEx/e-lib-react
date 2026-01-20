@@ -57,6 +57,7 @@ import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { formatUserLabel } from "../../shared/utils/userLabel";
 import { sharedLibraryTableLayout } from "./fileTableLayout";
+import { formatPath } from "../../shared/utils/tree";
 
 export default function UserFilesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -351,9 +352,16 @@ export default function UserFilesPage() {
     return row.currentAssetSize ?? null;
   };
 
-  const accessIcon = (accessType: string) => (
+  const accessIcon = (accessType: string, align: "center" | "start" = "center") => (
     <Tooltip title={accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
-      <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+      <Box
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: align === "start" ? "flex-start" : "center",
+          width: align === "start" ? "auto" : "100%"
+        }}
+      >
         {accessType === "restricted" ? (
           <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
         ) : (
@@ -443,7 +451,7 @@ export default function UserFilesPage() {
           <IconButton
             size="small"
             color="primary"
-            sx={{ backgroundColor: "rgba(29, 77, 79, 0.12)" }}
+            sx={{ backgroundColor: "rgba(29, 77, 79, 0.12)", width: 28, height: 28 }}
             onClick={(event) => {
               event.stopPropagation();
               if (langs.length > 1) {
@@ -653,12 +661,19 @@ export default function UserFilesPage() {
           sx={{
             display: "grid",
             gap: 1.5,
-            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" }
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(auto-fill, 240px)",
+              md: "repeat(auto-fill, 260px)",
+              lg: "repeat(auto-fill, 280px)"
+            },
+            justifyContent: { xs: "stretch", sm: "start" }
           }}
         >
           {displayRows.map((row: any) => {
             const langs = row.availableAssetLangs || row.availableLangs || [];
             const size = resolveRowSize(row);
+            const langsLabel = langs.length ? langs.map((lang: string) => lang.toUpperCase()).join(", ") : "-";
             return (
               <Paper
                 key={row.id}
@@ -667,10 +682,10 @@ export default function UserFilesPage() {
                   setDetailsId(row.id);
                 }}
                 sx={{
-                  p: 2,
-                  borderRadius: 3,
+                  p: 1.75,
+                  borderRadius: 2.5,
                   border: "1px solid var(--border)",
-                  background: "linear-gradient(140deg, rgba(29, 77, 79, 0.06), rgba(255, 255, 255, 0.98) 55%)",
+                  backgroundColor: "var(--surface)",
                   boxShadow: "none",
                   cursor: isDownloadable(row) ? "pointer" : "default",
                   transition: "transform 0.2s ease, box-shadow 0.2s ease",
@@ -679,58 +694,76 @@ export default function UserFilesPage() {
                     : undefined
                 }}
               >
-                <Stack spacing={1.25}>
+                <Stack spacing={1}>
                   <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
                     <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.15 }}>
+                      <Typography
+                        variant="subtitle1"
+                        sx={{
+                          fontWeight: 700,
+                          lineHeight: 1.15,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis"
+                        }}
+                      >
                         {row.title || t("file")}
                       </Typography>
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.75, flexWrap: "wrap" }}>
-                        <Chip
-                          size="small"
-                          variant="outlined"
-                          label={row.sectionId ? formatSectionLabel(row.sectionId) : "-"}
-                        />
-                        {row.categoryId ? (
-                          <Chip size="small" variant="outlined" label={renderPath(getCategoryPath(row.categoryId))} />
-                        ) : (
-                          <Chip size="small" variant="outlined" label="-" />
-                        )}
-                      </Stack>
                     </Box>
                     {renderStatusIcons(row, "card")}
                   </Stack>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Typography variant="caption" color="text.secondary">
-                        {t("access")}
-                      </Typography>
-                      {accessIcon(row.accessType)}
-                    </Stack>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: "86px 1fr",
+                      columnGap: 1,
+                      rowGap: 0.5,
+                      alignItems: "start"
+                    }}
+                  >
                     <Typography variant="caption" color="text.secondary">
-                      {t("fileSize")}: {size === null || size === undefined ? "-" : formatBytes(size)}
+                      {t("section")}
                     </Typography>
-                  </Stack>
-                  <Box sx={{ mt: 0.25 }}>
+                    <Typography variant="body2" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {row.sectionId ? formatSectionLabel(row.sectionId) : "-"}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {t("category")}
+                    </Typography>
+                    <Typography variant="body2" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {row.categoryId ? formatPath(getCategoryPath(row.categoryId)) : "-"}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {t("access")}
+                    </Typography>
+                    <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-start", height: 20 }}>
+                      {accessIcon(row.accessType, "start")}
+                    </Box>
                     <Typography variant="caption" color="text.secondary">
                       {t("languages")}
                     </Typography>
-                    <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", rowGap: 0.5, mt: 0.5 }}>
-                      {langs.length === 0 ? (
-                        <Typography variant="body2" color="text.secondary">
-                          -
-                        </Typography>
-                      ) : (
-                        langs.map((lang: string) => <Chip key={lang} size="small" label={lang.toUpperCase()} />)
-                      )}
-                    </Stack>
-                  </Box>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Typography variant="caption" color="text.secondary">
-                      {t("updatedAt")}: {formatDateTime(row.updatedAt)}
+                    <Typography variant="body2" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {langsLabel}
                     </Typography>
-                    {renderDownloadAction(row)}
-                  </Stack>
+                    <Typography variant="caption" color="text.secondary">
+                      {t("fileSize")}
+                    </Typography>
+                    <Typography variant="body2" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {size === null || size === undefined ? "-" : formatBytes(size)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {t("updatedAt")}
+                    </Typography>
+                    <Typography variant="body2" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {formatDateTime(row.updatedAt)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {t("download")}
+                    </Typography>
+                    <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-start", height: 24 }}>
+                      {renderDownloadAction(row)}
+                    </Box>
+                  </Box>
                 </Stack>
               </Paper>
             );
