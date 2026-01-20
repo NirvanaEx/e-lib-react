@@ -422,6 +422,9 @@ export class FilesService {
   async getManage(fileItemId: number, preferredLang: string | null) {
     const rows = await this.dbService.db("file_items")
       .leftJoin("file_translations", "file_items.id", "file_translations.file_item_id")
+      .leftJoin({ current_version: "file_versions" }, "file_items.current_version_id", "current_version.id")
+      .leftJoin({ creator: "users" }, "file_items.created_by", "creator.id")
+      .leftJoin({ updater: "users" }, "current_version.created_by", "updater.id")
       .select(
         "file_items.id",
         "file_items.section_id",
@@ -431,6 +434,17 @@ export class FilesService {
         "file_items.current_version_id",
         "file_items.created_by",
         "file_items.deleted_at",
+        "current_version.created_at as current_version_created_at",
+        "creator.id as creator_id",
+        "creator.login as creator_login",
+        "creator.surname as creator_surname",
+        "creator.name as creator_name",
+        "creator.patronymic as creator_patronymic",
+        "updater.id as updater_id",
+        "updater.login as updater_login",
+        "updater.surname as updater_surname",
+        "updater.name as updater_name",
+        "updater.patronymic as updater_patronymic",
         "file_translations.lang",
         "file_translations.title",
         "file_translations.description"
@@ -454,6 +468,14 @@ export class FilesService {
     const defaultLang = this.getDefaultLang();
     const lang = normalizeLang(preferredLang) || null;
     const picked = selectTranslation<FileTranslation>(translations, lang, defaultLang);
+    const creatorFullName = [base.creator_surname, base.creator_name, base.creator_patronymic]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    const updaterFullName = [base.updater_surname, base.updater_name, base.updater_patronymic]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
 
     return {
       id: base.id,
@@ -465,6 +487,21 @@ export class FilesService {
       title: picked?.title || null,
       description: picked?.description || null,
       availableLangs: getAvailableLangs(translations),
+      createdBy: base.creator_id
+        ? {
+            id: base.creator_id,
+            login: base.creator_login,
+            fullName: creatorFullName || null
+          }
+        : null,
+      updatedBy: base.updater_id
+        ? {
+            id: base.updater_id,
+            login: base.updater_login,
+            fullName: updaterFullName || null,
+            createdAt: base.current_version_created_at || null
+          }
+        : null,
       translations,
       accessDepartmentIds: accessDepartments,
       accessUserIds: accessUsers
@@ -803,18 +840,214 @@ export class FilesService {
     user: any,
     preferredLang: string | null
   ) {
-    const result = await this.listManage(
-      {
-        page: params.page,
-        pageSize: params.pageSize,
-        q: params.q,
-        sortBy: params.sortBy,
-        sortDir: params.sortDir,
-        createdBy: user.id
-      },
-      preferredLang
-    );
-    const fileIds = (result.data || []).map((item: any) => item.id);
+    const { page, pageSize, q, sortBy, sortDir } = params;
+    const db = this.dbService.db;
+    const defaultLang = this.getDefaultLang();
+    const lang = normalizeLang(preferredLang) || null;
+    const sortLang = lang || defaultLang;
+
+    const ownVersionMax = db("file_versions")
+      .select("file_item_id")
+      .max<{ max_version: number }>("version_number as max_version")
+      .where("created_by", user.id)
+      .groupBy("file_item_id")
+      .as("own_versions");
+
+    const query = db("file_items")
+      .join(ownVersionMax, "file_items.id", "own_versions.file_item_id")
+      .join({ own_version: "file_versions" }, function () {
+        this.on("own_version.file_item_id", "file_items.id")
+          .andOn("own_version.version_number", "own_versions.max_version")
+          .andOn("own_version.created_by", db.raw("?", [user.id]));
+      })
+      .leftJoin({ own_trans: "file_version_translations" }, "own_version.id", "own_trans.file_version_id")
+      .select(
+        "file_items.id",
+        "file_items.section_id",
+        "file_items.category_id",
+        "file_items.access_type",
+        "file_items.allow_version_access",
+        "file_items.current_version_id",
+        "file_items.created_at as file_created_at",
+        "file_items.updated_at as file_updated_at",
+        "own_version.id as own_version_id",
+        "own_version.version_number as own_version_number",
+        "own_version.created_at as own_version_created_at",
+        "own_version.updated_at as own_version_updated_at",
+        "own_version.deleted_at as own_version_deleted_at",
+        "own_trans.lang",
+        "own_trans.title",
+        "own_trans.description"
+      )
+      .whereNull("file_items.deleted_at");
+
+    if (q) {
+      query.whereILike("own_trans.title", `%${q}%`);
+    }
+
+    const direction = sortDir === "asc" ? "asc" : "desc";
+    if (sortBy === "title") {
+      query.leftJoin({ sort_title_pref: "file_version_translations" }, function () {
+        this.on("own_version.id", "sort_title_pref.file_version_id").andOn(
+          "sort_title_pref.lang",
+          db.raw("?", [sortLang])
+        );
+      });
+      if (sortLang !== defaultLang) {
+        query.leftJoin({ sort_title_def: "file_version_translations" }, function () {
+          this.on("own_version.id", "sort_title_def.file_version_id").andOn(
+            "sort_title_def.lang",
+            db.raw("?", [defaultLang])
+          );
+        });
+      }
+      if (sortLang !== defaultLang) {
+        query.orderByRaw(`coalesce(??, ??) ${direction}`, ["sort_title_pref.title", "sort_title_def.title"]);
+      } else {
+        query.orderByRaw(`?? ${direction}`, ["sort_title_pref.title"]);
+      }
+    } else if (sortBy === "category") {
+      query.leftJoin("categories", "file_items.category_id", "categories.id");
+      query.leftJoin({ sort_cat_pref: "categories_translations" }, function () {
+        this.on("categories.id", "sort_cat_pref.category_id").andOn("sort_cat_pref.lang", db.raw("?", [sortLang]));
+      });
+      if (sortLang !== defaultLang) {
+        query.leftJoin({ sort_cat_def: "categories_translations" }, function () {
+          this.on("categories.id", "sort_cat_def.category_id").andOn("sort_cat_def.lang", db.raw("?", [defaultLang]));
+        });
+      }
+      if (sortLang !== defaultLang) {
+        query.orderByRaw(`coalesce(??, ??) ${direction}`, ["sort_cat_pref.title", "sort_cat_def.title"]);
+      } else {
+        query.orderByRaw(`?? ${direction}`, ["sort_cat_pref.title"]);
+      }
+    } else if (sortBy === "size") {
+      const sizeTotals = db("file_version_assets")
+        .select("file_version_id")
+        .sum<{ size: string }>("size as size")
+        .whereNull("deleted_at")
+        .groupBy("file_version_id")
+        .as("size_totals");
+      query.leftJoin(sizeTotals, "size_totals.file_version_id", "own_version.id");
+      query.leftJoin({ size_pref: "file_version_assets" }, function () {
+        this.on("size_pref.file_version_id", "own_version.id").andOn("size_pref.lang", db.raw("?", [sortLang]));
+      });
+      query.orderByRaw(`coalesce(??, ??, 0) ${direction}`, ["size_pref.size", "size_totals.size"]);
+    } else if (sortBy === "updated_at") {
+      query.orderBy("own_version.updated_at", direction);
+    } else if (sortBy === "popular") {
+      query.orderBy("own_version.created_at", "desc");
+    } else {
+      query.orderBy("own_version.created_at", direction);
+    }
+
+    const countResult = await query
+      .clone()
+      .clearSelect()
+      .clearOrder()
+      .countDistinct<{ count: string }>("file_items.id as count")
+      .first();
+    const rows = await query.offset((page - 1) * pageSize).limit(pageSize);
+
+    type OwnFileRow = {
+      id: number;
+      section_id: number;
+      category_id: number;
+      access_type: string;
+      allow_version_access: boolean;
+      current_version_id: number | null;
+      file_created_at: string;
+      file_updated_at: string;
+      own_version_id: number | null;
+      own_version_number: number | null;
+      own_version_created_at: string | null;
+      own_version_updated_at: string | null;
+      own_version_deleted_at: string | null;
+      translations: FileTranslation[];
+    };
+
+    const grouped = new Map<number, OwnFileRow>();
+    rows.forEach((row: any) => {
+      if (!grouped.has(row.id)) {
+        grouped.set(row.id, {
+          id: row.id,
+          section_id: row.section_id,
+          category_id: row.category_id,
+          access_type: row.access_type,
+          allow_version_access: row.allow_version_access,
+          current_version_id: row.current_version_id,
+          file_created_at: row.file_created_at,
+          file_updated_at: row.file_updated_at,
+          own_version_id: row.own_version_id,
+          own_version_number: row.own_version_number,
+          own_version_created_at: row.own_version_created_at,
+          own_version_updated_at: row.own_version_updated_at,
+          own_version_deleted_at: row.own_version_deleted_at,
+          translations: []
+        });
+      }
+      const current = grouped.get(row.id);
+      if (row.lang && current) {
+        current.translations.push({
+          lang: row.lang,
+          title: row.title,
+          description: row.description
+        });
+      }
+    });
+
+    const baseData = Array.from(grouped.values()).map((item) => {
+      const picked = selectTranslation<FileTranslation>(item.translations, lang, defaultLang);
+      return {
+        id: item.id,
+        sectionId: item.section_id,
+        categoryId: item.category_id,
+        accessType: item.access_type,
+        allowVersionAccess: item.allow_version_access,
+        currentVersionId: item.current_version_id,
+        ownVersionId: item.own_version_id,
+        ownVersionNumber: item.own_version_number,
+        ownVersionDeletedAt: item.own_version_deleted_at,
+        createdAt: item.own_version_created_at || item.file_created_at,
+        updatedAt: item.own_version_updated_at || item.file_updated_at,
+        title: picked?.title || null,
+        description: picked?.description || null,
+        availableLangs: getAvailableLangs(item.translations)
+      };
+    });
+
+    const ownVersionIds = baseData.map((item) => item.ownVersionId).filter(Boolean) as number[];
+    const assetLangsByVersion = new Map<number, Set<string>>();
+    const assetSizesByVersion = new Map<number, number>();
+    const assetSizesByLang = new Map<number, Map<string, number>>();
+    if (ownVersionIds.length > 0) {
+      const assetRows = await this.dbService.db("file_version_assets")
+        .select("file_version_id", "lang", "size")
+        .whereIn("file_version_id", ownVersionIds)
+        .whereNull("deleted_at");
+      assetRows.forEach((row: any) => {
+        if (!assetLangsByVersion.has(row.file_version_id)) {
+          assetLangsByVersion.set(row.file_version_id, new Set<string>());
+        }
+        assetLangsByVersion.get(row.file_version_id)?.add(row.lang);
+        if (!assetSizesByLang.has(row.file_version_id)) {
+          assetSizesByLang.set(row.file_version_id, new Map<string, number>());
+        }
+        assetSizesByLang.get(row.file_version_id)?.set(row.lang, Number(row.size || 0));
+      });
+
+      const sizeRows = (await this.dbService.db("file_version_assets")
+        .select("file_version_id")
+        .sum<{ size: string }>("size as size")
+        .whereIn("file_version_id", ownVersionIds)
+        .whereNull("deleted_at")
+        .groupBy("file_version_id")) as any[];
+      sizeRows.forEach((row: any) => {
+        assetSizesByVersion.set(row.file_version_id, Number(row.size || 0));
+      });
+    }
+
+    const fileIds = baseData.map((item) => item.id);
     const departmentIds = await this.getDepartmentScopeIds(user.departmentId);
     const accessUserIds = fileIds.length
       ? await this.dbService.db("file_access_users")
@@ -833,13 +1066,14 @@ export class FilesService {
     const accessDepartmentSet = new Set<number>(accessDepartmentIds.map((id: number) => Number(id)));
     const canDownloadRestricted = Boolean(user?.permissions?.includes("file.download.restricted"));
     const favoriteIds = fileIds.length
-      ? await this.dbService.db("file_favorites").whereIn("file_item_id", fileIds).where("user_id", user.id).pluck("file_item_id")
+      ? await this.dbService.db("file_favorites")
+          .whereIn("file_item_id", fileIds)
+          .where("user_id", user.id)
+          .pluck("file_item_id")
       : [];
     const favoriteSet = new Set(favoriteIds.map((id: any) => String(id)));
 
-    const currentVersionIds = (result.data || [])
-      .map((item: any) => item.currentVersionId)
-      .filter(Boolean) as number[];
+    const currentVersionIds = baseData.map((item) => item.currentVersionId).filter(Boolean) as number[];
     const versionRows = currentVersionIds.length
       ? await this.dbService.db("file_versions")
           .leftJoin("users", "users.id", "file_versions.created_by")
@@ -866,19 +1100,35 @@ export class FilesService {
       });
     });
 
-    const data = (result.data || []).map((item: any) => ({
-      ...item,
-      canDownload:
-        item.accessType === "public" ||
-        canDownloadRestricted ||
-        accessUserSet.has(item.id) ||
-        accessDepartmentSet.has(item.id),
-      isFavorite: favoriteSet.has(String(item.id)),
-      updatedBy: versionByFileId.get(item.id) || null,
-      updatedByOther: Boolean(versionByFileId.get(item.id)?.id && versionByFileId.get(item.id)?.id !== user.id)
-    }));
+    const data = baseData.map((item) => {
+      const langs = item.ownVersionId ? Array.from(assetLangsByVersion.get(item.ownVersionId) || []) : [];
+      const sizes =
+        item.ownVersionId && assetSizesByLang.has(item.ownVersionId)
+          ? Array.from(assetSizesByLang.get(item.ownVersionId) || new Map()).map(([lang, size]) => ({
+              lang,
+              size
+            }))
+          : [];
+      const canDownload =
+        Boolean(item.ownVersionId) &&
+        !item.ownVersionDeletedAt &&
+        (item.accessType === "public" ||
+          canDownloadRestricted ||
+          accessUserSet.has(item.id) ||
+          accessDepartmentSet.has(item.id));
+      return {
+        ...item,
+        canDownload,
+        availableAssetLangs: langs.sort(),
+        availableAssetSizes: sizes.sort((a, b) => a.lang.localeCompare(b.lang)),
+        currentAssetSize: item.ownVersionId ? assetSizesByVersion.get(item.ownVersionId) || 0 : 0,
+        isFavorite: favoriteSet.has(String(item.id)),
+        updatedBy: versionByFileId.get(item.id) || null,
+        updatedByOther: Boolean(versionByFileId.get(item.id)?.id && versionByFileId.get(item.id)?.id !== user.id)
+      };
+    });
 
-    return { data, meta: result.meta };
+    return { data, meta: buildPaginationMeta(page, pageSize, Number(countResult?.count || 0)) };
   }
 
   async listDepartmentFiles(
@@ -1883,6 +2133,8 @@ export class FilesService {
     const rows = await this.dbService.db("file_items")
       .leftJoin("file_translations", "file_items.id", "file_translations.file_item_id")
       .leftJoin("file_versions", "file_items.current_version_id", "file_versions.id")
+      .leftJoin({ creator: "users" }, "file_items.created_by", "creator.id")
+      .leftJoin({ updater: "users" }, "file_versions.created_by", "updater.id")
       .select(
         "file_items.id",
         "file_items.section_id",
@@ -1891,6 +2143,17 @@ export class FilesService {
         "file_items.allow_version_access",
         "file_items.current_version_id",
         "file_versions.version_number",
+        "file_versions.created_at as current_version_created_at",
+        "creator.id as creator_id",
+        "creator.login as creator_login",
+        "creator.surname as creator_surname",
+        "creator.name as creator_name",
+        "creator.patronymic as creator_patronymic",
+        "updater.id as updater_id",
+        "updater.login as updater_login",
+        "updater.surname as updater_surname",
+        "updater.name as updater_name",
+        "updater.patronymic as updater_patronymic",
         "file_translations.lang",
         "file_translations.title",
         "file_translations.description"
@@ -1905,6 +2168,14 @@ export class FilesService {
     const defaultLang = this.getDefaultLang();
     const lang = normalizeLang(preferredLang) || null;
     const picked = selectTranslation<FileTranslation>(translations, lang, defaultLang);
+    const creatorFullName = [rows[0].creator_surname, rows[0].creator_name, rows[0].creator_patronymic]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    const updaterFullName = [rows[0].updater_surname, rows[0].updater_name, rows[0].updater_patronymic]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
 
     const assets = await this.dbService.db("file_version_assets")
       .where({ file_version_id: rows[0].current_version_id })
@@ -1948,6 +2219,21 @@ export class FilesService {
       title: picked?.title || null,
       description: picked?.description || null,
       availableLangs: getAvailableLangs(translations),
+      createdBy: rows[0].creator_id
+        ? {
+            id: rows[0].creator_id,
+            login: rows[0].creator_login,
+            fullName: creatorFullName || null
+          }
+        : null,
+      updatedBy: rows[0].updater_id
+        ? {
+            id: rows[0].updater_id,
+            login: rows[0].updater_login,
+            fullName: updaterFullName || null,
+            createdAt: rows[0].current_version_created_at || null
+          }
+        : null,
       availableAssetLangs,
       assets,
       translations,

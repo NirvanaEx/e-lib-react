@@ -1,5 +1,8 @@
 import React from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Autocomplete,
   Box,
   Button,
@@ -10,6 +13,7 @@ import {
   DialogTitle,
   IconButton,
   MenuItem,
+  Paper,
   Select,
   Stack,
   TextField,
@@ -23,6 +27,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import PublicIcon from "@mui/icons-material/Public";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
@@ -311,6 +316,35 @@ export default function FilesPage() {
     </Tooltip>
   );
 
+  const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <Stack direction="row" spacing={2} alignItems="flex-start">
+      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 140 }}>
+        {label}
+      </Typography>
+      <Typography variant="body2">{value}</Typography>
+    </Stack>
+  );
+
+  const pickVersionTitle = (version: any) => {
+    const translations = version?.translations || [];
+    return (
+      translations.find((item: any) => item.lang === currentLang)?.title ||
+      translations.find((item: any) => item.lang === "ru")?.title ||
+      translations[0]?.title ||
+      "-"
+    );
+  };
+
+  const pickVersionDescription = (version: any) => {
+    const translations = version?.translations || [];
+    return (
+      translations.find((item: any) => item.lang === currentLang)?.description ||
+      translations.find((item: any) => item.lang === "ru")?.description ||
+      translations[0]?.description ||
+      "-"
+    );
+  };
+
   const createMutation = useMutation({
     mutationFn: createFile
   });
@@ -486,6 +520,7 @@ export default function FilesPage() {
               label: t("languages"),
               render: (row) => {
                 const langs = row.availableAssetLangs || row.availableLangs || [];
+                if (langs.length === 0) return "-";
                 return (
                   <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 0.5 }}>
                     {langs.map((lang: string) => (
@@ -856,18 +891,24 @@ export default function FilesPage() {
                 </Typography>
               </Box>
               <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  {t("details")}
+                </Typography>
+                <Stack spacing={1}>
+                  <DetailRow
+                    label={t("createdBy")}
+                    value={infoFile?.createdBy ? formatUserLabel(infoFile.createdBy) : "-"}
+                  />
+                  <DetailRow
+                    label={t("updatedBy")}
+                    value={infoFile?.updatedBy ? formatUserLabel(infoFile.updatedBy) : "-"}
+                  />
+                </Stack>
+              </Box>
+              <Box>
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                   <Typography variant="subtitle2">{t("access")}</Typography>
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      borderColor: infoFile?.accessType === "restricted" ? "warning.main" : "success.main",
-                      color: infoFile?.accessType === "restricted" ? "warning.main" : "success.main",
-                      fontWeight: 600
-                    }}
-                    label={infoFile?.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}
-                  />
+                  {accessIcon(infoFile?.accessType || "public")}
                 </Stack>
                 {infoFile?.accessType === "restricted" && (
                   <Stack spacing={1}>
@@ -971,6 +1012,44 @@ export default function FilesPage() {
                   )}
                 </Stack>
               </Box>
+              <Accordion sx={{ borderRadius: 2, border: "1px solid var(--border)", boxShadow: "none" }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}>
+                  <Typography variant="subtitle2">{t("archiveVersions")}</Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{ pt: 0, px: 2, pb: 2 }}>
+                  {(infoVersions?.data || []).length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      {t("noHistory")}
+                    </Typography>
+                  ) : (
+                    <Stack spacing={1.5}>
+                      {(infoVersions?.data || []).map((version: any) => (
+                        <Paper key={version.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                          <Stack spacing={1}>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Chip size="small" label={`v${version.version_number}`} />
+                              {infoFile?.currentVersionId === version.id && (
+                                <Chip size="small" color="success" label={t("current")} />
+                              )}
+                              {version.deleted_at && <Chip size="small" color="warning" label={t("deleted")} />}
+                              <Typography variant="caption" color="text.secondary">
+                                {formatDateTime(version.created_at)}
+                              </Typography>
+                            </Stack>
+                            <Typography variant="caption" color="text.secondary">
+                              {t("createdBy")}: {version.createdBy?.fullName || version.createdBy?.login || "-"}
+                            </Typography>
+                            <Typography variant="body2">{pickVersionTitle(version)}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {pickVersionDescription(version)}
+                            </Typography>
+                          </Stack>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  )}
+                </AccordionDetails>
+              </Accordion>
             </Stack>
           )}
         </DialogContent>
