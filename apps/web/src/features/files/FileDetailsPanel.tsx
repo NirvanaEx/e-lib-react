@@ -21,6 +21,8 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DeleteIcon from "@mui/icons-material/Delete";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import PublicIcon from "@mui/icons-material/Public";
+import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchFile,
@@ -177,6 +179,27 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
           </Box>
         </React.Fragment>
       ))}
+    </Stack>
+  );
+
+  const accessIcon = (accessType: string) => (
+    <Tooltip title={accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
+      <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+        {accessType === "restricted" ? (
+          <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
+        ) : (
+          <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
+        )}
+      </Box>
+    </Tooltip>
+  );
+
+  const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <Stack direction="row" spacing={2} alignItems="flex-start">
+      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 140 }}>
+        {label}
+      </Typography>
+      <Typography variant="body2">{value}</Typography>
     </Stack>
   );
 
@@ -369,6 +392,31 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
 
   const content = (
     <>
+      <Paper sx={{ p: 2, mb: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+        <Stack spacing={2}>
+          <Box>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              {t("details")}
+            </Typography>
+            <Stack spacing={1}>
+              <DetailRow
+                label={t("createdBy")}
+                value={file?.createdBy ? formatUserLabel(file.createdBy) : "-"}
+              />
+              <DetailRow
+                label={t("updatedBy")}
+                value={file?.updatedBy ? formatUserLabel(file.updatedBy) : "-"}
+              />
+            </Stack>
+          </Box>
+          <Box>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="subtitle2">{t("access")}</Typography>
+              {accessIcon(file?.accessType || "public")}
+            </Stack>
+          </Box>
+        </Stack>
+      </Paper>
       <Paper sx={{ p: 2, mb: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
         <Tabs value={tab} onChange={(_, value) => setTab(value)}>
           <Tab label={t("metadata")} />
@@ -629,6 +677,9 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {version.comment || t("noComment")}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {t("createdBy")}: {version.createdBy?.fullName || version.createdBy?.login || "-"}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {formatDateTime(version.created_at)}

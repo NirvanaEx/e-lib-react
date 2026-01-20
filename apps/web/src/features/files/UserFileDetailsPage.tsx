@@ -1,5 +1,7 @@
 import React from "react";
-import { Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Tooltip, Typography } from "@mui/material";
+import PublicIcon from "@mui/icons-material/Public";
+import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { fetchUserFile, downloadUserFile } from "./files.api";
@@ -7,6 +9,7 @@ import { Page } from "../../shared/ui/Page";
 import { useTranslation } from "react-i18next";
 import { formatBytes } from "../../shared/utils/format";
 import { getFilenameFromDisposition } from "../../shared/utils/download";
+import { formatUserLabel } from "../../shared/utils/userLabel";
 
 export default function UserFileDetailsPage() {
   const params = useParams();
@@ -75,16 +78,51 @@ export default function UserFileDetailsPage() {
     setDownloadTarget(availableLangsSorted);
   };
 
+  const accessIcon = (accessType: string) => (
+    <Tooltip title={accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
+      <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+        {accessType === "restricted" ? (
+          <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
+        ) : (
+          <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
+        )}
+      </Box>
+    </Tooltip>
+  );
+
+  const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <Stack direction="row" spacing={2} alignItems="flex-start">
+      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 140 }}>
+        {label}
+      </Typography>
+      <Typography variant="body2">{value}</Typography>
+    </Stack>
+  );
+
   return (
     <Page title={data?.title || t("file")} subtitle={t("userFileSubtitle")}>
+      <Paper sx={{ p: 2, mb: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+        <Stack spacing={1.5}>
+          <DetailRow label={t("createdBy")} value={data?.createdBy ? formatUserLabel(data.createdBy) : "-"} />
+          <DetailRow label={t("updatedBy")} value={data?.updatedBy ? formatUserLabel(data.updatedBy) : "-"} />
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="subtitle2">{t("access")}</Typography>
+            {accessIcon(data?.accessType || "public")}
+          </Stack>
+        </Stack>
+      </Paper>
       <Paper sx={{ p: 2, mb: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
         <Typography variant="subtitle1" sx={{ mb: 1 }}>
           {t("availableLanguages")}
         </Typography>
         <Stack direction="row" spacing={1} flexWrap="wrap">
-          {(availableLangsSorted.length ? availableLangsSorted : data?.availableLangs || []).map((item: string) => (
-            <Chip key={item} size="small" label={item.toUpperCase()} />
-          ))}
+          {availableLangsSorted.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              -
+            </Typography>
+          ) : (
+            availableLangsSorted.map((item: string) => <Chip key={item} size="small" label={item.toUpperCase()} />)
+          )}
         </Stack>
       </Paper>
       <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
@@ -94,15 +132,21 @@ export default function UserFileDetailsPage() {
           </Button>
         </Stack>
         <Stack spacing={1} sx={{ mt: 3 }}>
-          {assetsSorted.map((asset: any) => (
-            <Stack key={asset.id} direction="row" spacing={2} alignItems="center">
-              <Chip size="small" label={asset.lang.toUpperCase()} />
-              <Typography variant="body2">{asset.original_name}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                {formatBytes(asset.size)}
-              </Typography>
-            </Stack>
-          ))}
+          {assetsSorted.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              -
+            </Typography>
+          ) : (
+            assetsSorted.map((asset: any) => (
+              <Stack key={asset.id} direction="row" spacing={2} alignItems="center">
+                <Chip size="small" label={asset.lang.toUpperCase()} />
+                <Typography variant="body2">{asset.original_name}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {formatBytes(asset.size)}
+                </Typography>
+              </Stack>
+            ))
+          )}
         </Stack>
       </Paper>
 

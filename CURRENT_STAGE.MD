@@ -51,6 +51,11 @@
 - Metadata updates now backfill the current version’s archived title/description if missing, so history retains old values.
 - Setting a previous version as current now restores its archived title/description when available.
 - User file details now show archived versions at the bottom in a collapsed accordion by default.
+- My Library file rows now open a details dialog with archived versions collapsed at the bottom; the warning icon opens the "updated by other" info.
+- Version cards now show who created the version in user/admin details.
+- My uploaded files now show the user's own latest version data (title/assets/dates), with a deleted/missing status indicator and downloads tied to that version.
+- Dashboard file row details now include archived versions, creator/updater info, and access shown as icons in a separate block.
+- Detail views now show created/updated by across user/admin file dialogs, and language/asset lists show all available file languages.
 
 ## Next
 

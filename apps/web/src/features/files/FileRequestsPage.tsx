@@ -589,7 +589,7 @@ export default function FileRequestsPage() {
                 label={t("category")}
                 value={detailsTarget.categoryId ? renderPath(getCategoryPath(detailsTarget.categoryId)) : "-"}
               />
-              <DetailRow label={t("access")} value={accessChip(detailsTarget.accessType)} />
+              <DetailRow label={t("access")} value={accessIcon(detailsTarget.accessType)} />
               <DetailRow label={t("status")} value={statusChip(detailsTarget.status)} />
               <CommentBlock label={t("commentFromUser")} value={detailsTarget.comment} tone="user" />
               <CommentBlock label={t("commentFromAdmin")} value={getAdminComment(detailsTarget)} tone="admin" />

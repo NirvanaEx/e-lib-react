@@ -338,6 +338,18 @@ export default function UserFilesPage() {
     return row.currentAssetSize ?? null;
   };
 
+  const accessIcon = (accessType: string) => (
+    <Tooltip title={accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
+      <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+        {accessType === "restricted" ? (
+          <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
+        ) : (
+          <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
+        )}
+      </Box>
+    </Tooltip>
+  );
+
   const isDownloadable = (row: any) => {
     const langs = row.availableAssetLangs || row.availableLangs || [];
     return Boolean(row.canDownload) && langs.length > 0;
@@ -486,6 +498,7 @@ export default function UserFilesPage() {
               ...sharedLibraryTableLayout.langs,
               render: (row) => {
                 const langs = row.availableAssetLangs || row.availableLangs || [];
+                if (langs.length === 0) return "-";
                 return (
                   <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 0.5 }}>
                     {langs.map((lang: string) => (
@@ -615,16 +628,7 @@ export default function UserFilesPage() {
               <Box>
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                   <Typography variant="subtitle2">{t("access")}</Typography>
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      borderColor: detailsData?.accessType === "restricted" ? "warning.main" : "success.main",
-                      color: detailsData?.accessType === "restricted" ? "warning.main" : "success.main",
-                      fontWeight: 600
-                    }}
-                    label={detailsData?.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}
-                  />
+                  {accessIcon(detailsData?.accessType || "public")}
                 </Stack>
                 {detailsData?.accessType === "restricted" && (
                   <Stack spacing={1}>
@@ -662,6 +666,29 @@ export default function UserFilesPage() {
                     </Box>
                   </Stack>
                 )}
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  {t("details")}
+                </Typography>
+                <Stack spacing={1}>
+                  <Stack direction="row" spacing={2} alignItems="flex-start">
+                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: 140 }}>
+                      {t("createdBy")}
+                    </Typography>
+                    <Typography variant="body2">
+                      {detailsData?.createdBy ? formatUserLabel(detailsData.createdBy) : "-"}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={2} alignItems="flex-start">
+                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: 140 }}>
+                      {t("updatedBy")}
+                    </Typography>
+                    <Typography variant="body2">
+                      {detailsData?.updatedBy ? formatUserLabel(detailsData.updatedBy) : "-"}
+                    </Typography>
+                  </Stack>
+                </Stack>
               </Box>
               <Box>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -760,6 +787,9 @@ export default function UserFilesPage() {
                                   {formatDateTime(version.createdAt)}
                                 </Typography>
                               </Stack>
+                              <Typography variant="caption" color="text.secondary">
+                                {t("createdBy")}: {version.createdBy ? formatUserLabel(version.createdBy) : "-"}
+                              </Typography>
                               <Typography variant="body2">
                                 {titleForVersionLang(version)}
                               </Typography>
