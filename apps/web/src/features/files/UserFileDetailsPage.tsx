@@ -104,7 +104,6 @@ export default function UserFileDetailsPage() {
       <Paper sx={{ p: 2, mb: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
         <Stack spacing={1.5}>
           <DetailRow label={t("createdBy")} value={data?.createdBy ? formatUserLabel(data.createdBy) : "-"} />
-          <DetailRow label={t("updatedBy")} value={data?.updatedBy ? formatUserLabel(data.updatedBy) : "-"} />
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography variant="subtitle2">{t("access")}</Typography>
             {accessIcon(data?.accessType || "public")}

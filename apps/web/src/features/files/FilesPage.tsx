@@ -899,10 +899,6 @@ export default function FilesPage() {
                     label={t("createdBy")}
                     value={infoFile?.createdBy ? formatUserLabel(infoFile.createdBy) : "-"}
                   />
-                  <DetailRow
-                    label={t("updatedBy")}
-                    value={infoFile?.updatedBy ? formatUserLabel(infoFile.updatedBy) : "-"}
-                  />
                 </Stack>
               </Box>
               <Box>

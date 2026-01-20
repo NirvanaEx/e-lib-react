@@ -403,10 +403,6 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                 label={t("createdBy")}
                 value={file?.createdBy ? formatUserLabel(file.createdBy) : "-"}
               />
-              <DetailRow
-                label={t("updatedBy")}
-                value={file?.updatedBy ? formatUserLabel(file.updatedBy) : "-"}
-              />
             </Stack>
           </Box>
           <Box>
