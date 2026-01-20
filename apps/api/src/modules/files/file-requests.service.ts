@@ -274,6 +274,15 @@ export class FileRequestsService {
       await this.deleteFileSafe(file.path);
       throw new BadRequestException("File extension not allowed");
     }
+    const allowedMimes = (this.config.get<string>("ALLOWED_MIME_TYPES", "") || "")
+      .split(",")
+      .map((x) => x.trim().toLowerCase())
+      .filter(Boolean);
+    const mime = (file.mimetype || "").toLowerCase();
+    if (allowedMimes.length && !allowedMimes.includes(mime)) {
+      await this.deleteFileSafe(file.path);
+      throw new BadRequestException("File type not allowed");
+    }
 
     const newPath = await this.buildAssetPath(file.originalname);
     await this.ensureUploadDir(path.dirname(newPath));
