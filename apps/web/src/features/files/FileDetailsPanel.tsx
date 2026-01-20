@@ -60,7 +60,7 @@ const metadataSchema = z.object({
 type MetadataForm = z.infer<typeof metadataSchema>;
 
 type AccessForm = {
-  accessType: "public" | "restricted";
+  accessType: "public" | "restricted" | "department_closed";
   accessDepartmentIds: number[];
   accessUserIds: number[];
   allowVersionAccess: boolean;
@@ -182,13 +182,23 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
     </Stack>
   );
 
+  const getAccessLabel = (accessType: string) =>
+    accessType === "restricted"
+      ? t("accessRestricted")
+      : accessType === "department_closed"
+      ? t("accessDepartmentClosed")
+      : t("accessPublic");
+
+  const getAccessColor = (accessType: string) =>
+    accessType === "restricted" ? "warning.main" : accessType === "department_closed" ? "info.main" : "success.main";
+
   const accessIcon = (accessType: string) => (
-    <Tooltip title={accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
+    <Tooltip title={getAccessLabel(accessType)}>
       <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-        {accessType === "restricted" ? (
-          <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
-        ) : (
+        {accessType === "public" ? (
           <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
+        ) : (
+          <GroupOutlinedIcon fontSize="small" sx={{ color: getAccessColor(accessType) }} />
         )}
       </Box>
     </Tooltip>
@@ -340,10 +350,12 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
   });
 
   const handleSaveAccess = accessForm.handleSubmit((values) => {
+    const allowDepartmentAccess = values.accessType !== "public";
+    const allowUserAccess = values.accessType === "restricted";
     updateAccessMutation.mutate({
       accessType: values.accessType,
-      accessDepartmentIds: values.accessDepartmentIds,
-      accessUserIds: values.accessUserIds,
+      accessDepartmentIds: allowDepartmentAccess ? values.accessDepartmentIds : [],
+      accessUserIds: allowUserAccess ? values.accessUserIds : [],
       allowVersionAccess: values.allowVersionAccess
     });
   });
@@ -493,13 +505,19 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
               control={accessForm.control}
               name="accessType"
               render={({ field }) => (
-                <TextField select label={t("access")} value={field.value} onChange={(event) => field.onChange(event.target.value)}>
+                <TextField
+                  select
+                  label={t("access")}
+                  value={field.value}
+                  onChange={(event) => field.onChange(event.target.value)}
+                >
                   <MenuItem value="public">{t("accessPublic")}</MenuItem>
                   <MenuItem value="restricted">{t("accessRestricted")}</MenuItem>
+                  <MenuItem value="department_closed">{t("accessDepartmentClosed")}</MenuItem>
                 </TextField>
               )}
             />
-            {accessForm.watch("accessType") === "restricted" && (
+            {accessForm.watch("accessType") !== "public" && (
               <Stack spacing={2}>
                 <Controller
                   control={accessForm.control}
@@ -524,29 +542,31 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                     />
                   )}
                 />
-                <Controller
-                  control={accessForm.control}
-                  name="accessUserIds"
-                  render={({ field }) => (
-                    <Autocomplete
-                      multiple
-                      options={users}
-                      getOptionLabel={(option: any) => formatUserLabel(option)}
-                      renderOption={(props, option: any) => {
-                        const { key, ...optionProps } = props;
-                        return (
-                          <li key={option.id} {...optionProps}>
-                            {formatUserLabel(option)}
-                          </li>
-                        );
-                      }}
-                      value={users.filter((user: any) => field.value.includes(user.id))}
-                      isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
-                      onChange={(_, value) => field.onChange(value.map((item: any) => item.id))}
-                      renderInput={(params) => <TextField {...params} label={t("allowedUsers")} />}
-                    />
-                  )}
-                />
+                {accessForm.watch("accessType") === "restricted" && (
+                  <Controller
+                    control={accessForm.control}
+                    name="accessUserIds"
+                    render={({ field }) => (
+                      <Autocomplete
+                        multiple
+                        options={users}
+                        getOptionLabel={(option: any) => formatUserLabel(option)}
+                        renderOption={(props, option: any) => {
+                          const { key, ...optionProps } = props;
+                          return (
+                            <li key={option.id} {...optionProps}>
+                              {formatUserLabel(option)}
+                            </li>
+                          );
+                        }}
+                        value={users.filter((user: any) => field.value.includes(user.id))}
+                        isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
+                        onChange={(_, value) => field.onChange(value.map((item: any) => item.id))}
+                        renderInput={(params) => <TextField {...params} label={t("allowedUsers")} />}
+                      />
+                    )}
+                  />
+                )}
               </Stack>
             )}
             <Controller

@@ -81,7 +81,7 @@ import {
 const requestSchema = z.object({
   sectionId: z.number().min(1),
   categoryId: z.number().min(1),
-  accessType: z.enum(["public", "restricted"]),
+  accessType: z.enum(["public", "restricted", "department_closed"]),
   accessDepartmentIds: z.array(z.number()).default([]),
   accessUserIds: z.array(z.number()).default([]),
   comment: z.string().optional()
@@ -541,12 +541,14 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     }
 
     try {
+      const allowDepartmentAccess = values.accessType !== "public";
+      const allowUserAccess = values.accessType === "restricted";
       const payload = {
         sectionId: Number(values.sectionId),
         categoryId: Number(values.categoryId),
         accessType: values.accessType,
-        accessDepartmentIds: values.accessType === "restricted" ? values.accessDepartmentIds : [],
-        accessUserIds: values.accessType === "restricted" ? values.accessUserIds : [],
+        accessDepartmentIds: allowDepartmentAccess ? values.accessDepartmentIds : [],
+        accessUserIds: allowUserAccess ? values.accessUserIds : [],
         translations: normalizedTranslations,
         comment: values.comment?.trim() || null
       };
@@ -717,13 +719,22 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     </Stack>
   );
 
+  const getAccessLabel = (accessType: string) =>
+    accessType === "restricted"
+      ? t("accessRestricted")
+      : accessType === "department_closed"
+      ? t("accessDepartmentClosed")
+      : t("accessPublic");
   const accessIcon = (accessType: string) => (
-    <Tooltip title={accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
+    <Tooltip title={getAccessLabel(accessType)}>
       <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
-        {accessType === "restricted" ? (
-          <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
-        ) : (
+        {accessType === "public" ? (
           <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
+        ) : (
+          <GroupOutlinedIcon
+            fontSize="small"
+            sx={{ color: accessType === "department_closed" ? "info.main" : "warning.main" }}
+          />
         )}
       </Box>
     </Tooltip>
@@ -774,6 +785,8 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
   const detailsAssets = detailsData?.assets || [];
   const detailsAccessDepartments = detailsData?.accessDepartments || [];
   const detailsAccessUsers = detailsData?.accessUsers || [];
+  const showAccessLists = detailsData?.accessType && detailsData.accessType !== "public";
+  const showAccessUsers = detailsData?.accessType === "restricted";
   const versions = versionsData?.data || [];
   const detailsTranslationsSorted = React.useMemo(() => {
     const items = [...detailsTranslations];
@@ -994,17 +1007,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
         label: t("access"),
         align: "center",
         ...layout.accessType,
-        render: (row: any) => (
-          <Tooltip title={row.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
-            <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
-              {row.accessType === "restricted" ? (
-                <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
-              ) : (
-                <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
-              )}
-            </Box>
-          </Tooltip>
-        )
+        render: (row: any) => accessIcon(row.accessType)
       },
       {
         key: "langs",
@@ -1411,7 +1414,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                   <Typography variant="subtitle2">{t("access")}</Typography>
                   {accessIcon(detailsData?.accessType || "public")}
                 </Stack>
-                {detailsData?.accessType === "restricted" && (
+                {showAccessLists && (
                   <Stack spacing={1}>
                     <Box>
                       <Typography variant="caption" color="text.secondary">
@@ -1429,22 +1432,24 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                         )}
                       </Stack>
                     </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("users")}
-                      </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
-                        {detailsAccessUsers.length === 0 ? (
-                          <Typography variant="body2" color="text.secondary">
-                            -
-                          </Typography>
-                        ) : (
-                          detailsAccessUsers.map((item: any) => (
-                            <Chip key={item.id} size="small" label={formatUserLabel(item)} />
-                          ))
-                        )}
-                      </Stack>
-                    </Box>
+                    {showAccessUsers && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          {t("users")}
+                        </Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
+                          {detailsAccessUsers.length === 0 ? (
+                            <Typography variant="body2" color="text.secondary">
+                              -
+                            </Typography>
+                          ) : (
+                            detailsAccessUsers.map((item: any) => (
+                              <Chip key={item.id} size="small" label={formatUserLabel(item)} />
+                            ))
+                          )}
+                        </Stack>
+                      </Box>
+                    )}
                   </Stack>
                 )}
               </Box>
@@ -1680,6 +1685,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                     <TextField select label={t("access")} value={field.value} onChange={(event) => field.onChange(event.target.value)}>
                       <MenuItem value="public">{t("accessPublic")}</MenuItem>
                       <MenuItem value="restricted">{t("accessRestricted")}</MenuItem>
+                      <MenuItem value="department_closed">{t("accessDepartmentClosed")}</MenuItem>
                     </TextField>
                   )}
                 />

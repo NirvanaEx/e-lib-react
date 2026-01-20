@@ -78,13 +78,23 @@ export default function UserFileDetailsPage() {
     setDownloadTarget(availableLangsSorted);
   };
 
+  const getAccessLabel = (accessType: string) =>
+    accessType === "restricted"
+      ? t("accessRestricted")
+      : accessType === "department_closed"
+      ? t("accessDepartmentClosed")
+      : t("accessPublic");
+
+  const getAccessColor = (accessType: string) =>
+    accessType === "restricted" ? "warning.main" : accessType === "department_closed" ? "info.main" : "success.main";
+
   const accessIcon = (accessType: string) => (
-    <Tooltip title={accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
+    <Tooltip title={getAccessLabel(accessType)}>
       <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-        {accessType === "restricted" ? (
-          <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
-        ) : (
+        {accessType === "public" ? (
           <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
+        ) : (
+          <GroupOutlinedIcon fontSize="small" sx={{ color: getAccessColor(accessType) }} />
         )}
       </Box>
     </Tooltip>

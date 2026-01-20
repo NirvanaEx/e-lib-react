@@ -60,7 +60,7 @@ import { formatUserLabel } from "../../shared/utils/userLabel";
 const schema = z.object({
   sectionId: z.number().min(1),
   categoryId: z.number().min(1),
-  accessType: z.enum(["public", "restricted"]),
+  accessType: z.enum(["public", "restricted", "department_closed"]),
   accessDepartmentIds: z.array(z.number()).optional(),
   accessUserIds: z.array(z.number()).optional()
 });
@@ -293,6 +293,8 @@ export default function FilesPage() {
       return user ? formatUserLabel(user) : `#${id}`;
     });
   }, [infoFile, usersById]);
+  const showInfoAccessLists = infoFile?.accessType && infoFile.accessType !== "public";
+  const showInfoUsers = infoFile?.accessType === "restricted";
   const infoTitleForLang = (lang?: string | null) =>
     infoTranslations.find((item: any) => item.lang === lang)?.title || infoFile?.title || "file";
 
@@ -304,13 +306,22 @@ export default function FilesPage() {
     return row.currentAssetSize ?? null;
   };
 
+  const getAccessLabel = (accessType: string) =>
+    accessType === "restricted"
+      ? t("accessRestricted")
+      : accessType === "department_closed"
+      ? t("accessDepartmentClosed")
+      : t("accessPublic");
   const accessIcon = (accessType: string) => (
-    <Tooltip title={accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
+    <Tooltip title={getAccessLabel(accessType)}>
       <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
-        {accessType === "restricted" ? (
-          <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
-        ) : (
+        {accessType === "public" ? (
           <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
+        ) : (
+          <GroupOutlinedIcon
+            fontSize="small"
+            sx={{ color: accessType === "department_closed" ? "info.main" : "warning.main" }}
+          />
         )}
       </Box>
     </Tooltip>
@@ -425,7 +436,7 @@ export default function FilesPage() {
       sectionId: Number(values.sectionId),
       categoryId: Number(values.categoryId),
       accessType: values.accessType,
-      accessDepartmentIds: values.accessType === "restricted" ? values.accessDepartmentIds : [],
+      accessDepartmentIds: values.accessType !== "public" ? values.accessDepartmentIds : [],
       accessUserIds: values.accessType === "restricted" ? values.accessUserIds : [],
       translations: normalizedTranslations
     };
@@ -696,22 +707,23 @@ export default function FilesPage() {
                   {t("createCategory")}
                 </Button>
               )}
-              <Controller
-                control={control}
-                name="accessType"
-                render={({ field }) => (
-                  <TextField
-                    select
-                    label={t("access")}
-                    value={field.value}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  >
-                    <MenuItem value="public">{t("accessPublic")}</MenuItem>
-                    <MenuItem value="restricted">{t("accessRestricted")}</MenuItem>
-                  </TextField>
-                )}
-              />
-              {accessType === "restricted" && (
+                <Controller
+                  control={control}
+                  name="accessType"
+                  render={({ field }) => (
+                    <TextField
+                      select
+                      label={t("access")}
+                      value={field.value}
+                      onChange={(event) => field.onChange(event.target.value)}
+                    >
+                      <MenuItem value="public">{t("accessPublic")}</MenuItem>
+                      <MenuItem value="restricted">{t("accessRestricted")}</MenuItem>
+                      <MenuItem value="department_closed">{t("accessDepartmentClosed")}</MenuItem>
+                    </TextField>
+                  )}
+                />
+              {accessType !== "public" && (
                 <Stack spacing={2}>
                   <Controller
                     control={control}
@@ -736,29 +748,31 @@ export default function FilesPage() {
                       />
                     )}
                   />
-                  <Controller
-                    control={control}
-                    name="accessUserIds"
-                    render={({ field }) => (
-                      <Autocomplete
-                        multiple
-                        options={users}
-                        getOptionLabel={(option: any) => formatUserLabel(option)}
-                        renderOption={(props, option: any) => {
-                          const { key, ...optionProps } = props;
-                          return (
-                            <li key={option.id} {...optionProps}>
-                              {formatUserLabel(option)}
-                            </li>
-                          );
-                        }}
-                        value={users.filter((user: any) => field.value?.includes(user.id))}
-                        isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
-                        onChange={(_, value) => field.onChange(value.map((item: any) => item.id))}
-                        renderInput={(params) => <TextField {...params} label={t("allowedUsers")} />}
-                      />
-                    )}
-                  />
+                  {accessType === "restricted" && (
+                    <Controller
+                      control={control}
+                      name="accessUserIds"
+                      render={({ field }) => (
+                        <Autocomplete
+                          multiple
+                          options={users}
+                          getOptionLabel={(option: any) => formatUserLabel(option)}
+                          renderOption={(props, option: any) => {
+                            const { key, ...optionProps } = props;
+                            return (
+                              <li key={option.id} {...optionProps}>
+                                {formatUserLabel(option)}
+                              </li>
+                            );
+                          }}
+                          value={users.filter((user: any) => field.value?.includes(user.id))}
+                          isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
+                          onChange={(_, value) => field.onChange(value.map((item: any) => item.id))}
+                          renderInput={(params) => <TextField {...params} label={t("allowedUsers")} />}
+                        />
+                      )}
+                    />
+                  )}
                 </Stack>
               )}
               <TranslationsEditor
@@ -910,7 +924,7 @@ export default function FilesPage() {
                   <Typography variant="subtitle2">{t("access")}</Typography>
                   {accessIcon(infoFile?.accessType || "public")}
                 </Stack>
-                {infoFile?.accessType === "restricted" && (
+                {showInfoAccessLists && (
                   <Stack spacing={1}>
                     <Box>
                       <Typography variant="caption" color="text.secondary">
@@ -926,20 +940,22 @@ export default function FilesPage() {
                         )}
                       </Stack>
                     </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("users")}
-                      </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
-                        {infoUsers.length === 0 ? (
-                          <Typography variant="body2" color="text.secondary">
-                            -
-                          </Typography>
-                        ) : (
-                          infoUsers.map((name) => <Chip key={name} size="small" label={name} />)
-                        )}
-                      </Stack>
-                    </Box>
+                    {showInfoUsers && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          {t("users")}
+                        </Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
+                          {infoUsers.length === 0 ? (
+                            <Typography variant="body2" color="text.secondary">
+                              -
+                            </Typography>
+                          ) : (
+                            infoUsers.map((name) => <Chip key={name} size="small" label={name} />)
+                          )}
+                        </Stack>
+                      </Box>
+                    )}
                   </Stack>
                 )}
               </Box>
