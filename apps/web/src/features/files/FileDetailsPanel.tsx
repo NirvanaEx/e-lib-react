@@ -5,10 +5,12 @@ import {
   Button,
   Chip,
   Divider,
+  FormControlLabel,
   IconButton,
   MenuItem,
   Paper,
   Stack,
+  Switch,
   Tab,
   Tabs,
   TextField,
@@ -59,6 +61,7 @@ type AccessForm = {
   accessType: "public" | "restricted";
   accessDepartmentIds: number[];
   accessUserIds: number[];
+  allowVersionAccess: boolean;
 };
 
 type CategoryOption = { id: number; title?: string | null; parentId?: number | null };
@@ -72,7 +75,7 @@ type FileDetailsPanelProps = {
 export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelProps) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const languageOptions = ["ru", "en", "uz"];
   const [tab, setTab] = React.useState(0);
   const [translations, setTranslations] = React.useState<any[]>([]);
@@ -116,7 +119,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
   });
 
   const accessForm = useForm<AccessForm>({
-    defaultValues: { accessType: "public", accessDepartmentIds: [], accessUserIds: [] }
+    defaultValues: { accessType: "public", accessDepartmentIds: [], accessUserIds: [], allowVersionAccess: true }
   });
 
   const categoryPathById = React.useMemo(
@@ -186,7 +189,8 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
       accessForm.reset({
         accessType: file.accessType,
         accessDepartmentIds: file.accessDepartmentIds || [],
-        accessUserIds: file.accessUserIds || []
+        accessUserIds: file.accessUserIds || [],
+        allowVersionAccess: file.allowVersionAccess ?? true
       });
       setTranslations(file.translations || []);
     }
@@ -316,9 +320,30 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
     updateAccessMutation.mutate({
       accessType: values.accessType,
       accessDepartmentIds: values.accessDepartmentIds,
-      accessUserIds: values.accessUserIds
+      accessUserIds: values.accessUserIds,
+      allowVersionAccess: values.allowVersionAccess
     });
   });
+
+  const currentLang = (i18n.language || "ru").split("-")[0];
+  const pickTranslationTitle = (items: any[]) => {
+    if (!items || items.length === 0) return null;
+    return (
+      items.find((item: any) => item.lang === currentLang)?.title ||
+      items.find((item: any) => item.lang === "ru")?.title ||
+      items[0]?.title ||
+      null
+    );
+  };
+  const pickTranslationDescription = (items: any[]) => {
+    if (!items || items.length === 0) return null;
+    return (
+      items.find((item: any) => item.lang === currentLang)?.description ||
+      items.find((item: any) => item.lang === "ru")?.description ||
+      items[0]?.description ||
+      null
+    );
+  };
 
   const handleCreateVersion = () => {
     if (!newVersionAssets.length || newVersionAssets.some((item) => !item.file)) {
@@ -480,6 +505,16 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                 />
               </Stack>
             )}
+            <Controller
+              control={accessForm.control}
+              name="allowVersionAccess"
+              render={({ field }) => (
+                <FormControlLabel
+                  control={<Switch checked={field.value} onChange={(event) => field.onChange(event.target.checked)} />}
+                  label={t("allowVersionAccess")}
+                />
+              )}
+            />
             <Button variant="contained" onClick={handleSaveAccess} disabled={updateAccessMutation.isPending}>
               {t("saveChanges")}
             </Button>
@@ -586,6 +621,12 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                         )}
                         {version.deleted_at && <Chip size="small" color="warning" label={t("deleted")} />}
                       </Stack>
+                      <Typography variant="body2">
+                        {t("title")}: {pickTranslationTitle(version.translations || []) || file?.title || "-"}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {pickTranslationDescription(version.translations || []) || "-"}
+                      </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {version.comment || t("noComment")}
                       </Typography>

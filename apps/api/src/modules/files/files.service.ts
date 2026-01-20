@@ -237,6 +237,7 @@ export class FilesService {
         "file_items.section_id",
         "file_items.category_id",
         "file_items.access_type",
+        "file_items.allow_version_access",
         "file_items.current_version_id",
         "file_items.deleted_at",
         "file_items.created_at",
@@ -315,6 +316,7 @@ export class FilesService {
       section_id: number;
       category_id: number;
       access_type: string;
+      allow_version_access: boolean;
       current_version_id: number | null;
       created_at: string;
       updated_at: string;
@@ -329,6 +331,7 @@ export class FilesService {
           section_id: row.section_id,
           category_id: row.category_id,
           access_type: row.access_type,
+          allow_version_access: row.allow_version_access,
           current_version_id: row.current_version_id,
           created_at: row.created_at,
           updated_at: row.updated_at,
@@ -352,6 +355,7 @@ export class FilesService {
         sectionId: item.section_id,
         categoryId: item.category_id,
         accessType: item.access_type,
+        allowVersionAccess: item.allow_version_access,
         currentVersionId: item.current_version_id,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
@@ -423,6 +427,7 @@ export class FilesService {
         "file_items.section_id",
         "file_items.category_id",
         "file_items.access_type",
+        "file_items.allow_version_access",
         "file_items.current_version_id",
         "file_items.created_by",
         "file_items.deleted_at",
@@ -455,6 +460,7 @@ export class FilesService {
       sectionId: base.section_id,
       categoryId: base.category_id,
       accessType: base.access_type,
+      allowVersionAccess: base.allow_version_access,
       currentVersionId: base.current_version_id,
       title: picked?.title || null,
       description: picked?.description || null,
@@ -511,6 +517,14 @@ export class FilesService {
         description: t.description || null
       }));
       await trx("file_translations").insert(translations);
+      await trx("file_version_translations").insert(
+        translations.map((t: any) => ({
+          file_version_id: versionId,
+          lang: t.lang,
+          title: t.title,
+          description: t.description || null
+        }))
+      );
 
       if (dto.accessType === "restricted") {
         if (dto.accessDepartmentIds && dto.accessDepartmentIds.length > 0) {
@@ -568,6 +582,25 @@ export class FilesService {
       }
 
       if (dto.translations && dto.translations.length > 0) {
+        const existingTranslations = await trx("file_translations")
+          .where({ file_item_id: fileItemId })
+          .select("lang", "title", "description");
+        if (file.current_version_id) {
+          const versionSnapshot = await trx("file_version_translations")
+            .where({ file_version_id: file.current_version_id })
+            .first();
+          if (!versionSnapshot && existingTranslations.length > 0) {
+            await trx("file_version_translations").insert(
+              existingTranslations.map((t: any) => ({
+                file_version_id: file.current_version_id,
+                lang: t.lang,
+                title: t.title,
+                description: t.description || null
+              }))
+            );
+          }
+        }
+
         await trx("file_translations").where({ file_item_id: fileItemId }).delete();
         const rows = dto.translations.map((t: any) => ({
           file_item_id: fileItemId,
@@ -594,8 +627,12 @@ export class FilesService {
     if (!file) throw new NotFoundException();
 
     await this.dbService.db.transaction(async (trx) => {
+      const nextAllowVersions =
+        dto.allowVersionAccess === undefined || dto.allowVersionAccess === null
+          ? file.allow_version_access
+          : Boolean(dto.allowVersionAccess);
       await trx("file_items")
-        .update({ access_type: dto.accessType, updated_at: trx.fn.now() })
+        .update({ access_type: dto.accessType, allow_version_access: nextAllowVersions, updated_at: trx.fn.now() })
         .where({ id: fileItemId });
       await trx("file_access_departments").where({ file_item_id: fileItemId }).delete();
       await trx("file_access_users").where({ file_item_id: fileItemId }).delete();
@@ -882,6 +919,7 @@ export class FilesService {
         "file_items.section_id",
         "file_items.category_id",
         "file_items.access_type",
+        "file_items.allow_version_access",
         "file_items.current_version_id",
         "file_items.created_at",
         "file_items.updated_at",
@@ -957,6 +995,7 @@ export class FilesService {
       section_id: number;
       category_id: number;
       access_type: string;
+      allow_version_access: boolean;
       current_version_id: number | null;
       created_at: string;
       updated_at: string;
@@ -970,6 +1009,7 @@ export class FilesService {
           section_id: row.section_id,
           category_id: row.category_id,
           access_type: row.access_type,
+          allow_version_access: row.allow_version_access,
           current_version_id: row.current_version_id,
           created_at: row.created_at,
           updated_at: row.updated_at,
@@ -993,6 +1033,7 @@ export class FilesService {
         sectionId: item.section_id,
         categoryId: item.category_id,
         accessType: item.access_type,
+        allowVersionAccess: item.allow_version_access,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
         title: picked?.title || null,
@@ -1178,6 +1219,23 @@ export class FilesService {
           )
       : [];
 
+    const translationRows = versionIds.length
+      ? await this.dbService.db("file_version_translations")
+          .whereIn("file_version_id", versionIds)
+          .select("file_version_id", "lang", "title", "description")
+      : [];
+    const translationsByVersion = new Map<number, any[]>();
+    translationRows.forEach((row: any) => {
+      if (!translationsByVersion.has(row.file_version_id)) {
+        translationsByVersion.set(row.file_version_id, []);
+      }
+      translationsByVersion.get(row.file_version_id)?.push({
+        lang: row.lang,
+        title: row.title,
+        description: row.description
+      });
+    });
+
     const assetsByVersion = new Map<number, any[]>();
     assets.forEach((asset: any) => {
       if (!assetsByVersion.has(asset.file_version_id)) {
@@ -1203,7 +1261,8 @@ export class FilesService {
             fullName: [version.user_surname, version.user_name, version.user_patronymic].filter(Boolean).join(" ")
           }
         : null,
-      assets: assetsByVersion.get(version.id) || []
+      assets: assetsByVersion.get(version.id) || [],
+      translations: translationsByVersion.get(version.id) || []
     }));
 
     return { data };
@@ -1232,6 +1291,20 @@ export class FilesService {
         .returning("id");
 
       const versionId = version.id || version;
+
+      const versionTranslations = await trx("file_translations")
+        .where({ file_item_id: fileItemId })
+        .select("lang", "title", "description");
+      if (versionTranslations.length) {
+        await trx("file_version_translations").insert(
+          versionTranslations.map((t: any) => ({
+            file_version_id: versionId,
+            lang: t.lang,
+            title: t.title,
+            description: t.description || null
+          }))
+        );
+      }
 
       if (dto.copyFromCurrent && file.current_version_id) {
         const assets = await trx("file_version_assets")
@@ -1276,7 +1349,27 @@ export class FilesService {
       .first();
     if (!version) throw new NotFoundException();
 
-    await this.dbService.db("file_items").update({ current_version_id: versionId }).where({ id: fileItemId });
+    await this.dbService.db.transaction(async (trx) => {
+      const now = trx.fn.now();
+      await trx("file_items")
+        .update({ current_version_id: versionId, updated_at: now })
+        .where({ id: fileItemId });
+
+      const translations = await trx("file_version_translations")
+        .where({ file_version_id: versionId })
+        .select("lang", "title", "description");
+      if (translations.length) {
+        await trx("file_translations").where({ file_item_id: fileItemId }).delete();
+        await trx("file_translations").insert(
+          translations.map((t: any) => ({
+            file_item_id: fileItemId,
+            lang: t.lang,
+            title: t.title,
+            description: t.description || null
+          }))
+        );
+      }
+    });
 
     await this.auditService.log({
       actorUserId: actorId,
@@ -1795,6 +1888,7 @@ export class FilesService {
         "file_items.section_id",
         "file_items.category_id",
         "file_items.access_type",
+        "file_items.allow_version_access",
         "file_items.current_version_id",
         "file_versions.version_number",
         "file_translations.lang",
@@ -1848,6 +1942,7 @@ export class FilesService {
       sectionId: rows[0].section_id,
       categoryId: rows[0].category_id,
       accessType: rows[0].access_type,
+      allowVersionAccess: rows[0].allow_version_access,
       currentVersionId: rows[0].current_version_id,
       currentVersionNumber: rows[0].version_number || null,
       title: picked?.title || null,
@@ -1859,6 +1954,160 @@ export class FilesService {
       accessDepartments: accessDepartmentsWithPaths,
       accessUsers
     };
+  }
+
+  async listUserVersions(fileItemId: number, user: any) {
+    await this.validateAccess(user, fileItemId);
+
+    const file = await this.dbService.db("file_items")
+      .select("id", "allow_version_access")
+      .where({ id: fileItemId })
+      .whereNull("deleted_at")
+      .first();
+    if (!file) throw new NotFoundException();
+    if (!file.allow_version_access) {
+      return { data: [] };
+    }
+
+    const versions = await this.dbService.db("file_versions")
+      .leftJoin("users", "users.id", "file_versions.created_by")
+      .select(
+        "file_versions.id",
+        "file_versions.file_item_id",
+        "file_versions.version_number",
+        "file_versions.comment",
+        "file_versions.created_at",
+        "users.id as user_id",
+        "users.login as user_login",
+        "users.surname as user_surname",
+        "users.name as user_name",
+        "users.patronymic as user_patronymic"
+      )
+      .where({ file_item_id: fileItemId })
+      .whereNull("file_versions.deleted_at")
+      .orderBy("version_number", "desc");
+
+    const versionIds = versions.map((version: any) => version.id);
+    const assets = versionIds.length
+      ? await this.dbService.db("file_version_assets")
+          .whereIn("file_version_id", versionIds)
+          .whereNull("deleted_at")
+          .select("id", "file_version_id", "lang", "original_name", "mime", "size", "path", "created_at")
+      : [];
+
+    const translationRows = versionIds.length
+      ? await this.dbService.db("file_version_translations")
+          .whereIn("file_version_id", versionIds)
+          .select("file_version_id", "lang", "title", "description")
+      : [];
+    const translationsByVersion = new Map<number, any[]>();
+    translationRows.forEach((row: any) => {
+      if (!translationsByVersion.has(row.file_version_id)) {
+        translationsByVersion.set(row.file_version_id, []);
+      }
+      translationsByVersion.get(row.file_version_id)?.push({
+        lang: row.lang,
+        title: row.title,
+        description: row.description
+      });
+    });
+
+    const assetsByVersion = new Map<number, any[]>();
+    assets.forEach((asset: any) => {
+      if (!assetsByVersion.has(asset.file_version_id)) {
+        assetsByVersion.set(asset.file_version_id, []);
+      }
+      assetsByVersion.get(asset.file_version_id)?.push({
+        id: asset.id,
+        lang: asset.lang,
+        originalName: asset.original_name,
+        mime: asset.mime,
+        size: asset.size,
+        path: asset.path,
+        createdAt: asset.created_at
+      });
+    });
+
+    const data = versions.map((version: any) => ({
+      id: version.id,
+      fileItemId: version.file_item_id,
+      versionNumber: version.version_number,
+      comment: version.comment || null,
+      createdAt: version.created_at,
+      createdBy: version.user_id
+        ? {
+            id: version.user_id,
+            login: version.user_login,
+            fullName: [version.user_surname, version.user_name, version.user_patronymic].filter(Boolean).join(" ")
+          }
+        : null,
+      assets: assetsByVersion.get(version.id) || [],
+      translations: translationsByVersion.get(version.id) || []
+    }));
+
+    return { data };
+  }
+
+  async downloadVersion(fileItemId: number, versionId: number, user: any, preferredLang: string | null) {
+    await this.validateAccess(user, fileItemId);
+
+    const file = await this.dbService.db("file_items")
+      .select("id", "allow_version_access")
+      .where({ id: fileItemId })
+      .whereNull("deleted_at")
+      .first();
+    if (!file) throw new NotFoundException();
+    if (!file.allow_version_access) throw new ForbiddenException("Access denied");
+
+    const version = await this.dbService.db("file_versions")
+      .where({ id: versionId, file_item_id: fileItemId })
+      .whereNull("deleted_at")
+      .first();
+    if (!version) throw new NotFoundException();
+
+    const assets = await this.dbService.db("file_version_assets")
+      .where({ file_version_id: versionId })
+      .whereNull("deleted_at")
+      .select("id", "lang", "path", "original_name", "mime");
+    if (!assets.length) throw new NotFoundException("No assets");
+
+    const defaultLang = this.getDefaultLang();
+    const lang = normalizeLang(preferredLang) || null;
+    const selected = assets.find((a) => a.lang === (lang || defaultLang)) || assets.find((a) => a.lang === defaultLang) || assets[0];
+
+    const translationRows = await this.dbService.db("file_version_translations")
+      .where({ file_version_id: versionId })
+      .select("lang", "title");
+    const versionTranslations: FileTranslation[] = translationRows
+      .filter((row: any) => row.lang)
+      .map((row: any) => ({ lang: row.lang as Lang, title: row.title, description: null }));
+
+    let title =
+      versionTranslations.find((t) => t.lang === selected.lang)?.title ||
+      (lang ? versionTranslations.find((t) => t.lang === lang)?.title : null) ||
+      null;
+    if (!title) {
+      const fallbackRows = await this.dbService.db("file_translations")
+        .where({ file_item_id: fileItemId })
+        .select("lang", "title");
+      const fallbackTranslations: FileTranslation[] = fallbackRows
+        .filter((row: any) => row.lang)
+        .map((row: any) => ({ lang: row.lang as Lang, title: row.title, description: null }));
+      title =
+        fallbackTranslations.find((t) => t.lang === selected.lang)?.title ||
+        (lang ? fallbackTranslations.find((t) => t.lang === lang)?.title : null) ||
+        null;
+    }
+
+    await this.downloadsService.log({
+      userId: user.id,
+      fileItemId: fileItemId,
+      fileVersionId: versionId,
+      fileVersionAssetId: selected.id,
+      lang: selected.lang
+    });
+
+    return { ...selected, title };
   }
 
   async download(fileItemId: number, user: any, preferredLang: string | null) {

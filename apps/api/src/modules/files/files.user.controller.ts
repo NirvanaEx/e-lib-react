@@ -117,6 +117,12 @@ export class FilesUserController {
     return this.filesService.getUserFile(id, user, lang);
   }
 
+  @Get("files/:id/versions")
+  @Access("file.read")
+  async listVersions(@Param("id", ParseIntPipe) id: number, @User() user: any) {
+    return this.filesService.listUserVersions(id, user);
+  }
+
   @Post("files/:id/download")
   @Access("file.download")
   async download(
@@ -126,6 +132,20 @@ export class FilesUserController {
     @Res() res: Response
   ) {
     const asset = await this.filesService.download(id, user, body.lang || null);
+    const filename = this.buildDownloadName(asset.original_name, asset.lang, asset.title);
+    return res.download(asset.path, filename);
+  }
+
+  @Post("files/:id/versions/:versionId/download")
+  @Access("file.download")
+  async downloadVersion(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("versionId", ParseIntPipe) versionId: number,
+    @User() user: any,
+    @Body() body: DownloadDto,
+    @Res() res: Response
+  ) {
+    const asset = await this.filesService.downloadVersion(id, versionId, user, body.lang || null);
     const filename = this.buildDownloadName(asset.original_name, asset.lang, asset.title);
     return res.download(asset.path, filename);
   }

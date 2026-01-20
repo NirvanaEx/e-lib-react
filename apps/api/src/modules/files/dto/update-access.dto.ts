@@ -1,4 +1,4 @@
-import { IsArray, IsIn, IsInt, IsOptional } from "class-validator";
+import { IsArray, IsBoolean, IsIn, IsInt, IsOptional } from "class-validator";
 import { Type } from "class-transformer";
 
 export class UpdateAccessDto {
@@ -16,4 +16,8 @@ export class UpdateAccessDto {
   @Type(() => Number)
   @IsInt({ each: true })
   accessUserIds?: number[];
+
+  @IsOptional()
+  @IsBoolean()
+  allowVersionAccess?: boolean;
 }
