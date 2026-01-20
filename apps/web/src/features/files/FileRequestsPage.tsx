@@ -358,6 +358,7 @@ export default function FileRequestsPage() {
     {
       key: "title",
       label: t("title"),
+      cellWrap: true,
       render: (row: RequestRow) => row.title || t("file"),
       sortValue: (row: RequestRow) => row.title || ""
     },
@@ -365,6 +366,7 @@ export default function FileRequestsPage() {
       key: "department",
       label: t("department"),
       width: 180,
+      cellWrap: true,
       render: (row: RequestRow) => row.createdBy?.department || "-",
       sortValue: (row: RequestRow) => row.createdBy?.department || ""
     },
@@ -378,6 +380,7 @@ export default function FileRequestsPage() {
     {
       key: "category",
       label: t("category"),
+      cellWrap: true,
       render: (row: RequestRow) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-"),
       sortValue: (row: RequestRow) => (row.categoryId ? getCategoryPath(row.categoryId).join(" / ") : "")
     },
@@ -457,6 +460,7 @@ export default function FileRequestsPage() {
     {
       key: "title",
       label: t("title"),
+      cellWrap: true,
       render: (row: RequestRow) => row.title || t("file"),
       sortValue: (row: RequestRow) => row.title || ""
     },
@@ -464,6 +468,7 @@ export default function FileRequestsPage() {
       key: "department",
       label: t("department"),
       width: 180,
+      cellWrap: true,
       render: (row: RequestRow) => row.createdBy?.department || "-",
       sortValue: (row: RequestRow) => row.createdBy?.department || ""
     },
@@ -477,6 +482,7 @@ export default function FileRequestsPage() {
     {
       key: "category",
       label: t("category"),
+      cellWrap: true,
       render: (row: RequestRow) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-"),
       sortValue: (row: RequestRow) => (row.categoryId ? getCategoryPath(row.categoryId).join(" / ") : "")
     },

@@ -497,6 +497,13 @@ export default function FilesPage() {
             setSort(direction ? { key, direction } : { key: null, direction: null })
           }columns={[
             {
+              key: "title",
+              label: t("title"),
+              sortable: true,
+              sortKey: "title",
+              render: (row) => row.title || t("file")
+            },
+            {
               key: "section",
               label: t("section"),
               render: (row) => formatSectionLabel(row.sectionId)
@@ -539,13 +546,6 @@ export default function FilesPage() {
               },
               sortable: true,
               sortKey: "size"
-            },
-            {
-              key: "createdAt",
-              label: t("createdAt"),
-              render: (row) => formatDateTime(row.createdAt),
-              sortable: true,
-              sortKey: "created_at"
             },
             {
               key: "updatedAt",
@@ -898,6 +898,10 @@ export default function FilesPage() {
                   <DetailRow
                     label={t("createdBy")}
                     value={infoFile?.createdBy ? formatUserLabel(infoFile.createdBy) : "-"}
+                  />
+                  <DetailRow
+                    label={t("createdAt")}
+                    value={infoFile?.createdAt ? formatDateTime(infoFile.createdAt) : "-"}
                   />
                 </Stack>
               </Box>
