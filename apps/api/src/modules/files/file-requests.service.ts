@@ -842,6 +842,14 @@ export class FileRequestsService {
           description: t.description || null
         }))
       );
+      await trx("file_version_translations").insert(
+        translations.map((t: any) => ({
+          file_version_id: versionId,
+          lang: t.lang,
+          title: t.title,
+          description: t.description || null
+        }))
+      );
 
       if (request.access_type === "restricted" && accessDepartments.length) {
         await trx("file_access_departments").insert(
@@ -967,6 +975,17 @@ export class FileRequestsService {
         .returning("id");
 
       const versionId = version.id || version;
+
+      if (translations.length > 0) {
+        await trx("file_version_translations").insert(
+          translations.map((t: any) => ({
+            file_version_id: versionId,
+            lang: t.lang,
+            title: t.title,
+            description: t.description || null
+          }))
+        );
+      }
 
       await trx("file_items")
         .update({ current_version_id: versionId, updated_at: now })

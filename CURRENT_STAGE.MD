@@ -46,6 +46,10 @@
 - Added a single leading status column (no header) that groups favorites/lock/update/warning icons.
 - Fixed widths (px) for access, languages, file size, created/updated date, and download columns.
 - DataTable now allows per-table container overflow control; file tables use page-level horizontal overflow instead of inner table scrollbars.
+- Added per-version title snapshots and history display in dashboard file/request details.
+- Users can view/download archived versions when enabled per file; admin access tab includes a toggle (default on).
+- Metadata updates now backfill the current version’s archived title/description if missing, so history retains old values.
+- Setting a previous version as current now restores its archived title/description when available.
 
 ## Next
 

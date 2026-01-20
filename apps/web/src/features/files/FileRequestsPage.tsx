@@ -80,7 +80,7 @@ type CategoryOption = { id: number; title?: string | null; parentId?: number | n
 const autoRefreshMs = 10000;
 
 export default function FileRequestsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const [tab, setTab] = React.useState(0);
@@ -262,6 +262,26 @@ export default function FileRequestsPage() {
 
   const requestTypeLabel = (requestType?: string | null) =>
     requestType === "update" ? t("requestTypeUpdate") : t("requestTypeNew");
+
+  const currentLang = (i18n.language || "ru").split("-")[0];
+  const pickVersionTitle = (version: any) => {
+    const translations = version?.translations || [];
+    return (
+      translations.find((item: any) => item.lang === currentLang)?.title ||
+      translations.find((item: any) => item.lang === "ru")?.title ||
+      translations[0]?.title ||
+      null
+    );
+  };
+  const pickVersionDescription = (version: any) => {
+    const translations = version?.translations || [];
+    return (
+      translations.find((item: any) => item.lang === currentLang)?.description ||
+      translations.find((item: any) => item.lang === "ru")?.description ||
+      translations[0]?.description ||
+      null
+    );
+  };
 
   const approveMutation = useMutation({
     mutationFn: (id: number) => approveDashboardRequest(id),
@@ -644,11 +664,19 @@ export default function FileRequestsPage() {
                     ) : (
                       <Stack spacing={1}>
                         {versions.map((version: any) => (
-                          <Stack key={version.id} direction="row" spacing={1} alignItems="center">
-                            <Chip size="small" label={`v${version.version_number}`} />
-                            <Typography variant="body2">{formatDateTime(version.created_at)}</Typography>
+                          <Stack key={version.id} spacing={0.5}>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Chip size="small" label={`v${version.version_number}`} />
+                              <Typography variant="body2">{formatDateTime(version.created_at)}</Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {version.createdBy?.fullName || version.createdBy?.login || "-"}
+                              </Typography>
+                            </Stack>
                             <Typography variant="caption" color="text.secondary">
-                              {version.createdBy?.fullName || version.createdBy?.login || "-"}
+                              {pickVersionTitle(version) || "-"}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {pickVersionDescription(version) || "-"}
                             </Typography>
                           </Stack>
                         ))}

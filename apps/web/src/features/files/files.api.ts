@@ -102,8 +102,17 @@ export async function fetchUserFile(id: number) {
   return data;
 }
 
+export async function fetchUserFileVersions(id: number) {
+  const { data } = await api.get(`/user/files/${id}/versions`);
+  return data;
+}
+
 export async function downloadUserFile(id: number, lang?: string) {
   return api.post(`/user/files/${id}/download`, { lang }, { responseType: "blob" });
+}
+
+export async function downloadUserFileVersion(id: number, versionId: number, lang?: string) {
+  return api.post(`/user/files/${id}/versions/${versionId}/download`, { lang }, { responseType: "blob" });
 }
 
 export async function fetchMenu() {
