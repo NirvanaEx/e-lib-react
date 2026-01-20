@@ -211,6 +211,12 @@ export class FilesService {
           .whereIn("department_id", departmentIds)
           .first()
       : null;
+    if (file.access_type === "department_closed") {
+      if (!hasDept) {
+        throw new ForbiddenException("Access denied");
+      }
+      return;
+    }
     const hasUser = await this.dbService.db("file_access_users")
       .where({ file_item_id: fileItemId, user_id: user.id })
       .first();
@@ -563,23 +569,23 @@ export class FilesService {
         }))
       );
 
-      if (dto.accessType === "restricted") {
-        if (dto.accessDepartmentIds && dto.accessDepartmentIds.length > 0) {
-          await trx("file_access_departments").insert(
-            dto.accessDepartmentIds.map((id: number) => ({
-              file_item_id: fileItemId,
-              department_id: id
-            }))
-          );
-        }
-        if (dto.accessUserIds && dto.accessUserIds.length > 0) {
-          await trx("file_access_users").insert(
-            dto.accessUserIds.map((id: number) => ({
-              file_item_id: fileItemId,
-              user_id: id
-            }))
-          );
-        }
+      const allowDepartmentAccess = dto.accessType !== "public";
+      const allowUserAccess = dto.accessType === "restricted";
+      if (allowDepartmentAccess && dto.accessDepartmentIds && dto.accessDepartmentIds.length > 0) {
+        await trx("file_access_departments").insert(
+          dto.accessDepartmentIds.map((id: number) => ({
+            file_item_id: fileItemId,
+            department_id: id
+          }))
+        );
+      }
+      if (allowUserAccess && dto.accessUserIds && dto.accessUserIds.length > 0) {
+        await trx("file_access_users").insert(
+          dto.accessUserIds.map((id: number) => ({
+            file_item_id: fileItemId,
+            user_id: id
+          }))
+        );
       }
 
       await this.auditService.log({
@@ -674,7 +680,9 @@ export class FilesService {
       await trx("file_access_departments").where({ file_item_id: fileItemId }).delete();
       await trx("file_access_users").where({ file_item_id: fileItemId }).delete();
 
-      if (dto.accessDepartmentIds && dto.accessDepartmentIds.length > 0) {
+      const allowDepartmentAccess = dto.accessType !== "public";
+      const allowUserAccess = dto.accessType === "restricted";
+      if (allowDepartmentAccess && dto.accessDepartmentIds && dto.accessDepartmentIds.length > 0) {
         await trx("file_access_departments").insert(
           dto.accessDepartmentIds.map((id: number) => ({
             file_item_id: fileItemId,
@@ -682,7 +690,7 @@ export class FilesService {
           }))
         );
       }
-      if (dto.accessUserIds && dto.accessUserIds.length > 0) {
+      if (allowUserAccess && dto.accessUserIds && dto.accessUserIds.length > 0) {
         await trx("file_access_users").insert(
           dto.accessUserIds.map((id: number) => ({
             file_item_id: fileItemId,
@@ -1109,13 +1117,13 @@ export class FilesService {
               size
             }))
           : [];
-      const canDownload =
-        Boolean(item.ownVersionId) &&
-        !item.ownVersionDeletedAt &&
-        (item.accessType === "public" ||
-          canDownloadRestricted ||
-          accessUserSet.has(item.id) ||
-          accessDepartmentSet.has(item.id));
+        const canDownload =
+          Boolean(item.ownVersionId) &&
+          !item.ownVersionDeletedAt &&
+          (item.accessType === "public" ||
+            canDownloadRestricted ||
+            accessDepartmentSet.has(item.id) ||
+            (item.accessType === "restricted" && accessUserSet.has(item.id)));
       return {
         ...item,
         canDownload,
@@ -1145,7 +1153,7 @@ export class FilesService {
       .whereIn("department_id", departmentIds)
       .pluck("file_item_id");
     const uniqueIds = Array.from(new Set(fileIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id))));
-    return this.listUserFiles({ ...params, fileIds: uniqueIds }, user, preferredLang);
+    return this.listUserFiles({ ...params, fileIds: uniqueIds, includeDepartmentClosed: true }, user, preferredLang);
   }
 
   async listUserFavorites(
@@ -1356,8 +1364,8 @@ export class FilesService {
       const canDownload =
         item.accessType === "public" ||
         canDownloadRestricted ||
-        accessUserSet.has(item.id) ||
-        accessDepartmentSet.has(item.id);
+        accessDepartmentSet.has(item.id) ||
+        (item.accessType === "restricted" && accessUserSet.has(item.id));
       return {
         ...item,
         canDownload,
@@ -1895,11 +1903,12 @@ export class FilesService {
       sectionId?: number;
       categoryId?: number;
       fileIds?: number[];
+      includeDepartmentClosed?: boolean;
     },
     user: any,
     preferredLang: string | null
   ) {
-    const { page, pageSize, q, sortBy, sortDir, sectionId, categoryId, fileIds: filterFileIds } = params;
+    const { page, pageSize, q, sortBy, sortDir, sectionId, categoryId, fileIds: filterFileIds, includeDepartmentClosed } = params;
     if (filterFileIds && filterFileIds.length === 0) {
       return { data: [], meta: buildPaginationMeta(page, pageSize, 0) };
     }
@@ -1923,6 +1932,9 @@ export class FilesService {
         "file_translations.description"
       )
       .whereNull("file_items.deleted_at");
+    if (!includeDepartmentClosed) {
+      query.whereNot("file_items.access_type", "department_closed");
+    }
 
     if (filterFileIds && filterFileIds.length > 0) {
       query.whereIn("file_items.id", filterFileIds);
@@ -2113,8 +2125,8 @@ export class FilesService {
       const canDownload =
         item.accessType === "public" ||
         canDownloadRestricted ||
-        accessUserSet.has(item.id) ||
-        accessDepartmentSet.has(item.id);
+        accessDepartmentSet.has(item.id) ||
+        (item.accessType === "restricted" && accessUserSet.has(item.id));
       return {
         ...item,
         canDownload,

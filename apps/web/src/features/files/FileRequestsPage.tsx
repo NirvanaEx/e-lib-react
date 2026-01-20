@@ -178,26 +178,36 @@ export default function FileRequestsPage() {
 
   const formatBadge = (count: number) => (count > 9 ? "9+" : String(count));
 
+  const getAccessLabel = (accessType: string) =>
+    accessType === "restricted"
+      ? t("accessRestricted")
+      : accessType === "department_closed"
+      ? t("accessDepartmentClosed")
+      : t("accessPublic");
+
+  const getAccessColor = (accessType: string) =>
+    accessType === "restricted" ? "warning.main" : accessType === "department_closed" ? "info.main" : "success.main";
+
   const accessChip = (accessType: string) => (
     <Chip
       size="small"
       variant="outlined"
       sx={{
-        borderColor: accessType === "restricted" ? "warning.main" : "success.main",
-        color: accessType === "restricted" ? "warning.main" : "success.main",
+        borderColor: getAccessColor(accessType),
+        color: getAccessColor(accessType),
         fontWeight: 600
       }}
-      label={accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}
+      label={getAccessLabel(accessType)}
     />
   );
 
   const accessIcon = (accessType: string) => (
-    <Tooltip title={accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
+    <Tooltip title={getAccessLabel(accessType)}>
       <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
-        {accessType === "restricted" ? (
-          <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
-        ) : (
+        {accessType === "public" ? (
           <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
+        ) : (
+          <GroupOutlinedIcon fontSize="small" sx={{ color: getAccessColor(accessType) }} />
         )}
       </Box>
     </Tooltip>

@@ -174,6 +174,8 @@ export default function UserFilesPage() {
   const assets = detailsData?.assets || [];
   const accessDepartments = detailsData?.accessDepartments || [];
   const accessUsers = detailsData?.accessUsers || [];
+  const showAccessLists = detailsData?.accessType && detailsData.accessType !== "public";
+  const showAccessUsers = detailsData?.accessType === "restricted";
   const versions = versionsData?.data || [];
   const currentLang = (i18n.language || "ru").split("-")[0];
   const translationsSorted = React.useMemo(() => {
@@ -352,8 +354,14 @@ export default function UserFilesPage() {
     return row.currentAssetSize ?? null;
   };
 
+  const getAccessLabel = (accessType: string) =>
+    accessType === "restricted"
+      ? t("accessRestricted")
+      : accessType === "department_closed"
+      ? t("accessDepartmentClosed")
+      : t("accessPublic");
   const accessIcon = (accessType: string, align: "center" | "start" = "center") => (
-    <Tooltip title={accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
+    <Tooltip title={getAccessLabel(accessType)}>
       <Box
         sx={{
           display: "inline-flex",
@@ -362,10 +370,13 @@ export default function UserFilesPage() {
           width: align === "start" ? "auto" : "100%"
         }}
       >
-        {accessType === "restricted" ? (
-          <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
-        ) : (
+        {accessType === "public" ? (
           <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
+        ) : (
+          <GroupOutlinedIcon
+            fontSize="small"
+            sx={{ color: accessType === "department_closed" ? "info.main" : "warning.main" }}
+          />
         )}
       </Box>
     </Tooltip>
@@ -563,17 +574,7 @@ export default function UserFilesPage() {
               label: t("access"),
               align: "center",
               ...sharedLibraryTableLayout.accessType,
-              render: (row) => (
-                <Tooltip title={row.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
-                  <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
-                    {row.accessType === "restricted" ? (
-                      <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
-                    ) : (
-                      <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
-                    )}
-                  </Box>
-                </Tooltip>
-              )
+              render: (row) => accessIcon(row.accessType)
             },
             {
               key: "langs",
@@ -818,7 +819,7 @@ export default function UserFilesPage() {
                   <Typography variant="subtitle2">{t("access")}</Typography>
                   {accessIcon(detailsData?.accessType || "public")}
                 </Stack>
-                {detailsData?.accessType === "restricted" && (
+                {showAccessLists && (
                   <Stack spacing={1}>
                     <Box>
                       <Typography variant="caption" color="text.secondary">
@@ -836,22 +837,24 @@ export default function UserFilesPage() {
                         )}
                       </Stack>
                     </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("users")}
-                      </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
-                        {accessUsers.length === 0 ? (
-                          <Typography variant="body2" color="text.secondary">
-                            -
-                          </Typography>
-                        ) : (
-                          accessUsers.map((user: any) => (
-                            <Chip key={user.id} size="small" label={formatUserLabel(user)} />
-                          ))
-                        )}
-                      </Stack>
-                    </Box>
+                    {showAccessUsers && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          {t("users")}
+                        </Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
+                          {accessUsers.length === 0 ? (
+                            <Typography variant="body2" color="text.secondary">
+                              -
+                            </Typography>
+                          ) : (
+                            accessUsers.map((user: any) => (
+                              <Chip key={user.id} size="small" label={formatUserLabel(user)} />
+                            ))
+                          )}
+                        </Stack>
+                      </Box>
+                    )}
                   </Stack>
                 )}
               </Box>

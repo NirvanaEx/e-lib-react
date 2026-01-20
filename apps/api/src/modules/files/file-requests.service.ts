@@ -103,11 +103,12 @@ export class FileRequestsService {
   }
 
   private async normalizeAccess(dto: { accessType: string; accessDepartmentIds?: number[]; accessUserIds?: number[] }, user: any) {
-    const accessType = dto.accessType === "public" ? "public" : "restricted";
+    const accessType =
+      dto.accessType === "public" ? "public" : dto.accessType === "department_closed" ? "department_closed" : "restricted";
     let accessDepartmentIds = (dto.accessDepartmentIds || []).map(Number).filter((id) => Number.isFinite(id));
     let accessUserIds = (dto.accessUserIds || []).map(Number).filter((id) => Number.isFinite(id));
 
-    if (accessType === "restricted") {
+    if (accessType !== "public") {
       const allowedDepartmentIds = await this.getDepartmentScopeIds(user.departmentId ?? null);
       const allowedDeptSet = new Set(allowedDepartmentIds);
       const invalidDept = accessDepartmentIds.filter((id) => !allowedDeptSet.has(id));
@@ -115,27 +116,33 @@ export class FileRequestsService {
         throw new BadRequestException("Department access not allowed");
       }
 
-      let allowedUserIds: number[] = [];
-      if (allowedDepartmentIds.length > 0) {
-        allowedUserIds = await this.dbService.db("users")
-          .whereNull("deleted_at")
-          .whereIn("department_id", allowedDepartmentIds)
-          .pluck("id");
-      } else if (user?.id) {
-        allowedUserIds = [user.id];
-      }
+      if (accessType === "restricted") {
+        let allowedUserIds: number[] = [];
+        if (allowedDepartmentIds.length > 0) {
+          allowedUserIds = await this.dbService.db("users")
+            .whereNull("deleted_at")
+            .whereIn("department_id", allowedDepartmentIds)
+            .pluck("id");
+        } else if (user?.id) {
+          allowedUserIds = [user.id];
+        }
 
-      const allowedUserSet = new Set(allowedUserIds);
-      const invalidUser = accessUserIds.filter((id) => !allowedUserSet.has(id));
-      if (invalidUser.length > 0) {
-        throw new BadRequestException("User access not allowed");
+        const allowedUserSet = new Set(allowedUserIds);
+        const invalidUser = accessUserIds.filter((id) => !allowedUserSet.has(id));
+        if (invalidUser.length > 0) {
+          throw new BadRequestException("User access not allowed");
+        }
+      } else {
+        accessUserIds = [];
       }
 
       if (accessDepartmentIds.length === 0 && accessUserIds.length === 0) {
         if (user.departmentId) {
           accessDepartmentIds = [user.departmentId];
-        } else if (user?.id) {
+        } else if (accessType === "restricted" && user?.id) {
           accessUserIds = [user.id];
+        } else if (accessType === "department_closed") {
+          throw new BadRequestException("Department access required");
         }
       }
     } else {
@@ -222,7 +229,7 @@ export class FileRequestsService {
       }))
     );
 
-    if (accessType === "restricted") {
+    if (accessType !== "public") {
       if (accessDepartmentIds.length > 0) {
         await this.dbService.db("file_request_access_departments").insert(
           accessDepartmentIds.map((id: number) => ({
@@ -231,7 +238,7 @@ export class FileRequestsService {
           }))
         );
       }
-      if (accessUserIds.length > 0) {
+      if (accessType === "restricted" && accessUserIds.length > 0) {
         await this.dbService.db("file_request_access_users").insert(
           accessUserIds.map((id: number) => ({
             file_request_id: requestId,
@@ -798,10 +805,10 @@ export class FileRequestsService {
       .where({ file_request_id: requestId })
       .pluck("user_id");
     const accessUserSet = new Set<number>(accessUsersRaw.map((id: number) => Number(id)));
-    if (request.created_by) {
+    if (request.access_type === "restricted" && request.created_by) {
       accessUserSet.add(request.created_by);
     }
-    const accessUsers = Array.from(accessUserSet);
+    const accessUsers = request.access_type === "restricted" ? Array.from(accessUserSet) : [];
 
     const now = this.dbService.db.fn.now();
 
@@ -851,7 +858,7 @@ export class FileRequestsService {
         }))
       );
 
-      if (request.access_type === "restricted" && accessDepartments.length) {
+      if (request.access_type !== "public" && accessDepartments.length) {
         await trx("file_access_departments").insert(
           accessDepartments.map((id: number) => ({
             file_item_id: fileItemId,
@@ -859,7 +866,7 @@ export class FileRequestsService {
           }))
         );
       }
-      if (accessUsers.length) {
+      if (request.access_type === "restricted" && accessUsers.length) {
         await trx("file_access_users").insert(
           accessUsers.map((id: number) => ({
             file_item_id: fileItemId,
