@@ -50,6 +50,7 @@
 - Users can view/download archived versions when enabled per file; admin access tab includes a toggle (default on).
 - Metadata updates now backfill the current version’s archived title/description if missing, so history retains old values.
 - Setting a previous version as current now restores its archived title/description when available.
+- User file details now show archived versions at the bottom in a collapsed accordion by default.
 
 ## Next
 
