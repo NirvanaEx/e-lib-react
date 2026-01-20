@@ -343,6 +343,7 @@ export class UsersService {
       .update({
         password_hash: hash,
         must_change_password: true,
+        token_version: this.dbService.db.raw("token_version + 1"),
         updated_at: this.dbService.db.fn.now()
       })
       .where({ id });
@@ -376,6 +377,7 @@ export class UsersService {
       .update({
         password_hash: hash,
         must_change_password: false,
+        token_version: this.dbService.db.raw("token_version + 1"),
         updated_at: this.dbService.db.fn.now()
       })
       .where({ id: userId });

@@ -12,10 +12,16 @@ import { SessionsModule } from "../sessions/sessions.module";
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>("JWT_SECRET", "change_me"),
-        signOptions: { expiresIn: config.get<string>("JWT_EXPIRES_IN", "1d") }
-      })
+      useFactory: (config: ConfigService) => {
+        const secret = config.get<string>("JWT_SECRET");
+        if (!secret || secret === "change_me") {
+          throw new Error("JWT_SECRET must be set to a secure value.");
+        }
+        return {
+          secret,
+          signOptions: { expiresIn: config.get<string>("JWT_EXPIRES_IN", "1d") }
+        };
+      }
     }),
     SessionsModule
   ],

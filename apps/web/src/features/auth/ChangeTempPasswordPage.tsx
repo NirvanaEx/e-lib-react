@@ -42,8 +42,8 @@ export default function ChangeTempPasswordPage() {
 
   const onSubmit = async (values: FormValues) => {
     const data = await changeTempPassword({ currentPassword: values.currentPassword, newPassword: values.newPassword });
-    if (data?.accessToken && data?.user) {
-      setAuth(data.accessToken, data.user);
+    if (data?.user) {
+      setAuth(data.user);
       navigate(getDefaultRoute(data.user));
       return;
     }

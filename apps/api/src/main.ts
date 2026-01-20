@@ -9,10 +9,26 @@ import { requestContextMiddleware } from "./common/request-context";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const configService = app.get(ConfigService);
+  const isProd = configService.get<string>("NODE_ENV") === "production";
   app.useLogger(app.get(Logger));
   app.use(requestContextMiddleware);
   app.use(helmet());
-  app.enableCors({ origin: true, credentials: true });
+  const corsOrigins = (configService.get<string>("CORS_ORIGINS", "") || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const corsOrigin =
+    corsOrigins.length > 0
+      ? (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+          if (!origin) return callback(null, true);
+          if (corsOrigins.includes(origin)) return callback(null, true);
+          return callback(new Error("Not allowed by CORS"));
+        }
+      : isProd
+        ? false
+        : true;
+  app.enableCors({ origin: corsOrigin, credentials: true });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -22,15 +38,17 @@ async function bootstrap() {
   );
   app.setGlobalPrefix("api");
 
-  const config = new DocumentBuilder()
-    .setTitle("e-lib API")
-    .setVersion("1.0")
-    .addBearerAuth()
-    .build();
-  const doc = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("/api/docs", app, doc);
-
-  const configService = app.get(ConfigService);
+  const swaggerEnabled =
+    configService.get<string>("SWAGGER_ENABLED") === "true" || !isProd;
+  if (swaggerEnabled) {
+    const config = new DocumentBuilder()
+      .setTitle("e-lib API")
+      .setVersion("1.0")
+      .addBearerAuth()
+      .build();
+    const doc = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup("/api/docs", app, doc);
+  }
   const port = configService.get<number>("APP_PORT", 3001);
   const host = configService.get<string>("APP_HOST", "0.0.0.0");
 

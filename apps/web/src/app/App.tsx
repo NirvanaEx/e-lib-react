@@ -33,8 +33,9 @@ import i18n from "./i18n";
 const queryClient = new QueryClient();
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { token, user } = useAuth();
-  if (!token) return <Navigate to="/login" replace />;
+  const { user, isInitialized } = useAuth();
+  if (!isInitialized) return null;
+  if (!user) return <Navigate to="/login" replace />;
   if (user?.mustChangePassword) {
     return <Navigate to="/change-temp-password" replace />;
   }
@@ -42,32 +43,38 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 function RequireAccess({ permissions, children }: { permissions: string[]; children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isInitialized } = useAuth();
+  if (!isInitialized) return null;
   if (!user) return <Navigate to="/login" replace />;
   if (!hasAccess(user, permissions)) return <Navigate to={getDefaultRoute(user)} replace />;
   return <>{children}</>;
 }
 
 function RequireRole({ roles, children }: { roles: string[]; children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isInitialized } = useAuth();
+  if (!isInitialized) return null;
   if (!user) return <Navigate to="/login" replace />;
   if (!roles.includes(user.role)) return <Navigate to={getDefaultRoute(user)} replace />;
   return <>{children}</>;
 }
 
 function RequireFileSubmit({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isInitialized } = useAuth();
+  if (!isInitialized) return null;
   if (!user?.canSubmitFiles) return <Navigate to="/users/my-library/favorites" replace />;
   return <>{children}</>;
 }
 
 function DefaultRedirect() {
-  const { user } = useAuth();
+  const { user, isInitialized } = useAuth();
+  if (!isInitialized) return null;
+  if (!user) return <Navigate to="/login" replace />;
   return <Navigate to={getDefaultRoute(user)} replace />;
 }
 
 function MyLibraryRedirect() {
-  const { user } = useAuth();
+  const { user, isInitialized } = useAuth();
+  if (!isInitialized) return null;
   const target = user?.canSubmitFiles ? "/users/my-library/requests" : "/users/my-library/favorites";
   return <Navigate to={target} replace />;
 }

@@ -31,7 +31,7 @@ export default function LoginPage() {
   const onSubmit = async (values: FormValues) => {
     try {
       const data = await login(values);
-      setAuth(data.accessToken, data.user);
+      setAuth(data.user);
       navigate(getDefaultRoute(data.user));
     } catch (_err) {
       showToast({ message: t("loginFailed"), severity: "error" });

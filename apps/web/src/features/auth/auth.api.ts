@@ -14,3 +14,8 @@ export async function changeTempPassword(payload: { currentPassword: string; new
   const { data } = await api.post("/auth/change-temp-password", payload);
   return data;
 }
+
+export async function logout() {
+  const { data } = await api.post("/auth/logout");
+  return data;
+}

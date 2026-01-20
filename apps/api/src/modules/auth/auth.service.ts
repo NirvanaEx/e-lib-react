@@ -49,6 +49,7 @@ export class AuthService {
         "users.role_id",
         "users.department_id",
         "users.must_change_password",
+        "users.token_version",
         "users.lang",
         "users.can_submit_files",
         "roles.name as role",
@@ -88,7 +89,8 @@ export class AuthService {
         mustChangePassword: user.must_change_password,
         lang: user.lang,
         canSubmitFiles: user.can_submit_files,
-        permissions
+        permissions,
+        tokenVersion: Number(user.token_version || 0)
       },
       { expiresIn: this.config.get<string>("JWT_EXPIRES_IN", "1d") }
     );
@@ -184,7 +186,12 @@ export class AuthService {
 
     const hash = await bcrypt.hash(newPassword, 10);
     await this.dbService.db("users")
-      .update({ password_hash: hash, must_change_password: false, updated_at: this.dbService.db.fn.now() })
+      .update({
+        password_hash: hash,
+        must_change_password: false,
+        token_version: this.dbService.db.raw("token_version + 1"),
+        updated_at: this.dbService.db.fn.now()
+      })
       .where({ id: userId });
 
     const refreshed = await this.dbService.db("users")
@@ -200,6 +207,7 @@ export class AuthService {
         "users.department_id",
         "users.lang",
         "users.must_change_password",
+        "users.token_version",
         "users.can_submit_files",
         "roles.name as role",
         "roles.level as role_level",
@@ -230,7 +238,8 @@ export class AuthService {
         mustChangePassword: false,
         lang: refreshed.lang,
         canSubmitFiles: refreshed.can_submit_files,
-        permissions
+        permissions,
+        tokenVersion: Number(refreshed.token_version || 0)
       },
       { expiresIn: this.config.get<string>("JWT_EXPIRES_IN", "1d") }
     );
