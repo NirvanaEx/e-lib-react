@@ -116,6 +116,11 @@ export async function fetchMyFiles(params: { page: number; pageSize: number; q?:
   return data;
 }
 
+export async function fetchDepartmentFiles(params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string }) {
+  const { data } = await api.get("/user/department-files", { params });
+  return data;
+}
+
 export async function fetchUserFavorites(params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string }) {
   const { data } = await api.get("/user/favorites", { params });
   return data;
