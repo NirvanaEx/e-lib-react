@@ -1465,10 +1465,6 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                     label={t("createdBy")}
                     value={detailsData?.createdBy ? formatUserLabel(detailsData.createdBy) : "-"}
                   />
-                  <DetailRow
-                    label={t("updatedBy")}
-                    value={detailsData?.updatedBy ? formatUserLabel(detailsData.updatedBy) : "-"}
-                  />
                 </Stack>
               </Box>
               <Box>

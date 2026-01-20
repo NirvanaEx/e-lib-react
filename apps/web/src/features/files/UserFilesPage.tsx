@@ -13,6 +13,8 @@ import {
   IconButton,
   Paper,
   Stack,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography
 } from "@mui/material";
@@ -25,6 +27,8 @@ import StarIcon from "@mui/icons-material/Star";
 import PublicIcon from "@mui/icons-material/Public";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ViewListIcon from "@mui/icons-material/ViewList";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addUserFavorite,
@@ -66,6 +70,10 @@ export default function UserFilesPage() {
     key: null,
     direction: null
   });
+  const [viewMode, setViewMode] = React.useState<"table" | "cards">(() => {
+    const stored = localStorage.getItem("shared-library-view");
+    return stored === "cards" ? "cards" : "table";
+  });
   const [downloadTarget, setDownloadTarget] = React.useState<{
     id: number;
     title: string | null;
@@ -80,6 +88,10 @@ export default function UserFilesPage() {
   React.useEffect(() => {
     setPage(1);
   }, [search, pageSize, sort.key, sort.direction, sectionId, categoryId]);
+
+  React.useEffect(() => {
+    localStorage.setItem("shared-library-view", viewMode);
+  }, [viewMode]);
 
   const resetFilters = () => {
     setSearch("");
@@ -156,6 +168,7 @@ export default function UserFilesPage() {
   const categories = menuData?.categories || [];
   const sectionsById = React.useMemo(() => new Map(sections.map((item: any) => [item.id, item])), [sections]);
   const categoriesById = React.useMemo(() => new Map(categories.map((item: any) => [item.id, item])), [categories]);
+  const formatSectionLabel = (sectionId: number) => sectionsById.get(sectionId)?.title || `#${sectionId}`;
   const translations = detailsData?.translations || [];
   const assets = detailsData?.assets || [];
   const accessDepartments = detailsData?.accessDepartments || [];
@@ -355,7 +368,7 @@ export default function UserFilesPage() {
     return Boolean(row.canDownload) && langs.length > 0;
   };
 
-  const renderStatusIcons = (row: any) => {
+  const renderStatusIcons = (row: any, variant: "table" | "card" = "table") => {
     const items: Array<{ key: string; node: React.ReactNode }> = [];
 
     items.push({
@@ -395,8 +408,11 @@ export default function UserFilesPage() {
 
     if (!items.length) return null;
 
+    const justifyContent = variant === "card" ? "flex-end" : "center";
+    const width = variant === "card" ? "auto" : "100%";
+
     return (
-      <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center" sx={{ width: "100%" }}>
+      <Stack direction="row" spacing={0.5} alignItems="center" justifyContent={justifyContent} sx={{ width }}>
         {items.map((item) => (
           <Box key={item.key} sx={{ display: "inline-flex", alignItems: "center" }}>
             {item.node}
@@ -406,9 +422,68 @@ export default function UserFilesPage() {
     );
   };
 
+  const renderDownloadAction = (row: any) => {
+    const langs = row.availableAssetLangs || row.availableLangs || [];
+    const sizes = (row.availableAssetSizes || []).reduce<Record<string, number>>((acc: Record<string, number>, item: any) => {
+      acc[item.lang] = item.size;
+      return acc;
+    }, {});
+    if (!isDownloadable(row)) {
+      return (
+        <Tooltip title={row.canDownload ? t("noAssets") : t("noAccess")}>
+          <Box sx={{ display: "inline-flex", alignItems: "center" }}>
+            <LockOutlinedIcon sx={{ fontSize: 18 }} color="action" />
+          </Box>
+        </Tooltip>
+      );
+    }
+    return (
+      <Tooltip title={t("download")}>
+        <span>
+          <IconButton
+            size="small"
+            color="primary"
+            sx={{ backgroundColor: "rgba(29, 77, 79, 0.12)" }}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (langs.length > 1) {
+                setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
+                return;
+              }
+              const lang = langs[0];
+              downloadMutation.mutate({ id: row.id, lang, title: row.title });
+            }}
+          >
+            <DownloadIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+    );
+  };
+
   return (
     <Page title={t("sharedLibrary")} subtitle={t("userFilesSubtitle")}>
-      <FiltersBar>
+      <FiltersBar
+        actions={
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={viewMode}
+            onChange={(_event, value) => value && setViewMode(value)}
+          >
+            <ToggleButton value="table" aria-label={t("viewTable")}>
+              <Tooltip title={t("viewTable")}>
+                <ViewListIcon fontSize="small" />
+              </Tooltip>
+            </ToggleButton>
+            <ToggleButton value="cards" aria-label={t("viewCards")}>
+              <Tooltip title={t("viewCards")}>
+                <ViewModuleIcon fontSize="small" />
+              </Tooltip>
+            </ToggleButton>
+          </ToggleButtonGroup>
+        }
+      >
         <SearchField value={search} onChange={setSearch} placeholder={t("searchFiles")} />
         <Tooltip title={t("resetFilters")}>
           <span>
@@ -423,7 +498,7 @@ export default function UserFilesPage() {
         <LoadingState rows={6} />
       ) : displayRows.length === 0 ? (
         <EmptyState title={t("noFiles")} subtitle={t("noFilesSubtitle")} />
-      ) : (
+      ) : viewMode === "table" ? (
         <DataTable
           rows={displayRows}
           onRowClick={(row) => {
@@ -573,6 +648,94 @@ export default function UserFilesPage() {
             }
           ]}
         />
+      ) : (
+        <Box
+          sx={{
+            display: "grid",
+            gap: 1.5,
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" }
+          }}
+        >
+          {displayRows.map((row: any) => {
+            const langs = row.availableAssetLangs || row.availableLangs || [];
+            const size = resolveRowSize(row);
+            return (
+              <Paper
+                key={row.id}
+                onClick={() => {
+                  if (!isDownloadable(row)) return;
+                  setDetailsId(row.id);
+                }}
+                sx={{
+                  p: 2,
+                  borderRadius: 3,
+                  border: "1px solid var(--border)",
+                  background: "linear-gradient(140deg, rgba(29, 77, 79, 0.06), rgba(255, 255, 255, 0.98) 55%)",
+                  boxShadow: "none",
+                  cursor: isDownloadable(row) ? "pointer" : "default",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  "&:hover": isDownloadable(row)
+                    ? { transform: "translateY(-1px)" }
+                    : undefined
+                }}
+              >
+                <Stack spacing={1.25}>
+                  <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.15 }}>
+                        {row.title || t("file")}
+                      </Typography>
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.75, flexWrap: "wrap" }}>
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={row.sectionId ? formatSectionLabel(row.sectionId) : "-"}
+                        />
+                        {row.categoryId ? (
+                          <Chip size="small" variant="outlined" label={renderPath(getCategoryPath(row.categoryId))} />
+                        ) : (
+                          <Chip size="small" variant="outlined" label="-" />
+                        )}
+                      </Stack>
+                    </Box>
+                    {renderStatusIcons(row, "card")}
+                  </Stack>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="caption" color="text.secondary">
+                        {t("access")}
+                      </Typography>
+                      {accessIcon(row.accessType)}
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary">
+                      {t("fileSize")}: {size === null || size === undefined ? "-" : formatBytes(size)}
+                    </Typography>
+                  </Stack>
+                  <Box sx={{ mt: 0.25 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {t("languages")}
+                    </Typography>
+                    <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", rowGap: 0.5, mt: 0.5 }}>
+                      {langs.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary">
+                          -
+                        </Typography>
+                      ) : (
+                        langs.map((lang: string) => <Chip key={lang} size="small" label={lang.toUpperCase()} />)
+                      )}
+                    </Stack>
+                  </Box>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Typography variant="caption" color="text.secondary">
+                      {t("updatedAt")}: {formatDateTime(row.updatedAt)}
+                    </Typography>
+                    {renderDownloadAction(row)}
+                  </Stack>
+                </Stack>
+              </Paper>
+            );
+          })}
+        </Box>
       )}
 
       <PaginationBar
@@ -678,14 +841,6 @@ export default function UserFilesPage() {
                     </Typography>
                     <Typography variant="body2">
                       {detailsData?.createdBy ? formatUserLabel(detailsData.createdBy) : "-"}
-                    </Typography>
-                  </Stack>
-                  <Stack direction="row" spacing={2} alignItems="flex-start">
-                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: 140 }}>
-                      {t("updatedBy")}
-                    </Typography>
-                    <Typography variant="body2">
-                      {detailsData?.updatedBy ? formatUserLabel(detailsData.updatedBy) : "-"}
                     </Typography>
                   </Stack>
                 </Stack>

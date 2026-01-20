@@ -56,6 +56,11 @@
 - My uploaded files now show the user's own latest version data (title/assets/dates), with a deleted/missing status indicator and downloads tied to that version.
 - Dashboard file row details now include archived versions, creator/updater info, and access shown as icons in a separate block.
 - Detail views now show created/updated by across user/admin file dialogs, and language/asset lists show all available file languages.
+- File detail views now only show the creator (no updater) in the details block.
+- Shared library now supports table and card views with a toggle in the filters bar.
+- Fixed shared library card view to use the section label helper.
+- Refined shared library card layout with a tighter grid, clearer hierarchy, and improved visual styling.
+- Compact card sizing and removed shadow effects for the shared library cards.
 
 ## Next
 
