@@ -34,6 +34,8 @@
 - DataTable headers now wrap instead of truncating, and file-related tables rely on flexible column sizing with wrapping to fit the screen without horizontal scroll.
 - DataTable UI reverted to the latest commit state; file-related tables no longer use wrap/layout overrides.
 - Trash list now hides assets for deleted versions and shows file title/details in the trash table.
+- My Library sidebar now includes a Department files tab with a dedicated endpoint and list view filtered to the user's department scope.
+- Fixed listUserFiles filter naming to avoid compile errors when the department files view is enabled.
 
 ## Next
 
@@ -42,3 +44,4 @@
 - Verify shared library shows locked items correctly and download is disabled.
 - Confirm creator access persists after toggling public/restricted in file access settings.
 - Verify shared library favorites stay highlighted after refresh.
+- Verify the Department files tab loads for users with a department and shows department-scoped files.

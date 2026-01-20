@@ -322,6 +322,18 @@ export default function App() {
                 }
               />
               <Route
+                path="/users/my-library/department"
+                element={
+                  <RequireAuth>
+                    <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
+                      <MyLibraryLayout>
+                        <UserLibraryPage view="department" />
+                      </MyLibraryLayout>
+                    </RequireRole>
+                  </RequireAuth>
+                }
+              />
+              <Route
                 path="/users/:id"
                 element={
                   <RequireAuth>

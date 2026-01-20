@@ -63,6 +63,22 @@ export class FilesUserController {
     );
   }
 
+  @Get("department-files")
+  @Access("file.read")
+  async departmentFiles(@Query() query: FilesQueryDto, @User() user: any, @Lang() lang: string | null) {
+    return this.filesService.listDepartmentFiles(
+      {
+        page: query.page || 1,
+        pageSize: query.pageSize || 20,
+        q: query.q,
+        sortBy: query.sortBy,
+        sortDir: query.sortDir
+      },
+      user,
+      lang
+    );
+  }
+
   @Get("favorites")
   @Access("file.read")
   async favorites(@Query() query: FilesQueryDto, @User() user: any, @Lang() lang: string | null) {

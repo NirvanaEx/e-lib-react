@@ -54,6 +54,7 @@ import {
   cancelUserRequest,
   createUserRequest,
   downloadUserFile,
+  fetchDepartmentFiles,
   fetchMenu,
   fetchMyFiles,
   fetchUserFavorites,
@@ -77,7 +78,7 @@ type AssetRow = { lang: "ru" | "en" | "uz"; file: File | null };
 
 const languageOptions: Array<TranslationRow["lang"]> = ["ru", "en", "uz"];
 
-export default function UserLibraryPage({ view }: { view: "requests" | "files" | "favorites" }) {
+export default function UserLibraryPage({ view }: { view: "requests" | "files" | "favorites" | "department" }) {
   const { t, i18n } = useTranslation();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
@@ -89,6 +90,8 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
   const [requestsSearch, setRequestsSearch] = React.useState("");
   const [myFilesPage, setMyFilesPage] = React.useState(1);
   const [myFilesPageSize, setMyFilesPageSize] = React.useState(20);
+  const [departmentPage, setDepartmentPage] = React.useState(1);
+  const [departmentPageSize, setDepartmentPageSize] = React.useState(20);
   const [favoritesPage, setFavoritesPage] = React.useState(1);
   const [favoritesPageSize, setFavoritesPageSize] = React.useState(20);
   const [searchFiles, setSearchFiles] = React.useState("");
@@ -131,6 +134,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
   const isRequestsView = view === "requests";
   const isFavoritesView = view === "favorites";
   const isFilesView = view === "files";
+  const isDepartmentView = view === "department";
 
   React.useEffect(() => {
     if (!isRequestsView) return;
@@ -147,6 +151,11 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     if (!isFilesView) return;
     setMyFilesPage(1);
   }, [isFilesView, myFilesPageSize, searchFiles, sortFiles.key, sortFiles.direction]);
+
+  React.useEffect(() => {
+    if (!isDepartmentView) return;
+    setDepartmentPage(1);
+  }, [isDepartmentView, departmentPageSize, searchFiles, sortFiles.key, sortFiles.direction]);
 
   React.useEffect(() => {
     if (!isFavoritesView) return;
@@ -215,6 +224,26 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     enabled: isFilesView
   });
 
+  const { data: departmentFilesData, isLoading: departmentFilesLoading } = useQuery({
+    queryKey: [
+      "user-department-files",
+      departmentPage,
+      departmentPageSize,
+      searchFiles,
+      sortFiles.key,
+      sortFiles.direction
+    ],
+    queryFn: () =>
+      fetchDepartmentFiles({
+        page: departmentPage,
+        pageSize: departmentPageSize,
+        q: searchFiles,
+        sortBy: sortFiles.direction ? sortFiles.key || undefined : undefined,
+        sortDir: sortFiles.direction || undefined
+      }),
+    enabled: isDepartmentView
+  });
+
   const { data: favoritesData, isLoading: favoritesLoading } = useQuery({
     queryKey: ["user-favorites", favoritesPage, favoritesPageSize, searchFiles, sortFiles.key, sortFiles.direction],
     queryFn: () =>
@@ -267,6 +296,8 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
 
   const myFilesRows = myFilesData?.data || [];
   const myFilesMeta = myFilesData?.meta || { page: myFilesPage, pageSize: myFilesPageSize, total: 0 };
+  const departmentRows = departmentFilesData?.data || [];
+  const departmentMeta = departmentFilesData?.meta || { page: departmentPage, pageSize: departmentPageSize, total: 0 };
   const favoritesRows = favoritesData?.data || [];
   const favoritesMeta = favoritesData?.meta || { page: favoritesPage, pageSize: favoritesPageSize, total: 0 };
 
@@ -523,6 +554,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     setSearchFiles("");
     setSortFiles({ key: null, direction: null });
     setMyFilesPage(1);
+    setDepartmentPage(1);
     setFavoritesPage(1);
   };
 
@@ -539,15 +571,23 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     });
   }, [downloadTarget, i18n.language]);
 
-  const fileRows = isFavoritesView ? favoritesRows : myFilesRows;
-  const fileMeta = isFavoritesView ? favoritesMeta : myFilesMeta;
-  const fileLoading = isFavoritesView ? favoritesLoading : myFilesLoading;
+  const fileRows = isFavoritesView ? favoritesRows : isDepartmentView ? departmentRows : myFilesRows;
+  const fileMeta = isFavoritesView ? favoritesMeta : isDepartmentView ? departmentMeta : myFilesMeta;
+  const fileLoading = isFavoritesView ? favoritesLoading : isDepartmentView ? departmentFilesLoading : myFilesLoading;
   const fileEmptyTitle = isFavoritesView ? t("favoritesEmpty") : t("noFiles");
   const fileEmptySubtitle = isFavoritesView ? t("favoritesEmptySubtitle") : t("noFilesSubtitle");
 
   return (
     <Page
-      title={isRequestsView ? t("requests") : isFavoritesView ? t("favorites") : t("myUploadedFiles")}
+      title={
+        isRequestsView
+          ? t("requests")
+          : isFavoritesView
+            ? t("favorites")
+            : isDepartmentView
+              ? t("departmentFiles")
+              : t("myUploadedFiles")
+      }
       subtitle={t("myLibrarySubtitle")}
       action={
         isRequestsView && canSubmitFiles ? (
@@ -873,8 +913,8 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
             page={fileMeta.page}
             pageSize={fileMeta.pageSize}
             total={fileMeta.total}
-            onPageChange={isFavoritesView ? setFavoritesPage : setMyFilesPage}
-            onPageSizeChange={isFavoritesView ? setFavoritesPageSize : setMyFilesPageSize}
+            onPageChange={isFavoritesView ? setFavoritesPage : isDepartmentView ? setDepartmentPage : setMyFilesPage}
+            onPageSizeChange={isFavoritesView ? setFavoritesPageSize : isDepartmentView ? setDepartmentPageSize : setMyFilesPageSize}
           />
         </Box>
       )}

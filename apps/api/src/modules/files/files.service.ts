@@ -813,6 +813,23 @@ export class FilesService {
     return { data, meta: result.meta };
   }
 
+  async listDepartmentFiles(
+    params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string },
+    user: any,
+    preferredLang: string | null
+  ) {
+    const departmentIds = await this.getDepartmentScopeIds(user.departmentId ?? null);
+    if (departmentIds.length === 0) {
+      return { data: [], meta: buildPaginationMeta(params.page, params.pageSize, 0) };
+    }
+
+    const fileIds = await this.dbService.db("file_access_departments")
+      .whereIn("department_id", departmentIds)
+      .pluck("file_item_id");
+    const uniqueIds = Array.from(new Set(fileIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id))));
+    return this.listUserFiles({ ...params, fileIds: uniqueIds }, user, preferredLang);
+  }
+
   async listUserFavorites(
     params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string },
     user: any,
@@ -1478,8 +1495,24 @@ export class FilesService {
     return { success: true };
   }
 
-  async listUserFiles(params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string; sectionId?: number; categoryId?: number }, user: any, preferredLang: string | null) {
-    const { page, pageSize, q, sortBy, sortDir, sectionId, categoryId } = params;
+  async listUserFiles(
+    params: {
+      page: number;
+      pageSize: number;
+      q?: string;
+      sortBy?: string;
+      sortDir?: string;
+      sectionId?: number;
+      categoryId?: number;
+      fileIds?: number[];
+    },
+    user: any,
+    preferredLang: string | null
+  ) {
+    const { page, pageSize, q, sortBy, sortDir, sectionId, categoryId, fileIds: filterFileIds } = params;
+    if (filterFileIds && filterFileIds.length === 0) {
+      return { data: [], meta: buildPaginationMeta(page, pageSize, 0) };
+    }
     const db = this.dbService.db;
     const defaultLang = this.getDefaultLang();
     const lang = normalizeLang(preferredLang) || null;
@@ -1500,6 +1533,10 @@ export class FilesService {
         "file_translations.description"
       )
       .whereNull("file_items.deleted_at");
+
+    if (filterFileIds && filterFileIds.length > 0) {
+      query.whereIn("file_items.id", filterFileIds);
+    }
 
     if (sectionId) {
       query.where("file_items.section_id", sectionId);
@@ -1656,14 +1693,17 @@ export class FilesService {
       });
     }
 
-    const fileIds = baseData.map((item) => item.id);
-    const accessUserIds = fileIds.length
-      ? await db("file_access_users").whereIn("file_item_id", fileIds).where("user_id", user.id).pluck("file_item_id")
+    const baseFileIds = baseData.map((item) => item.id);
+    const accessUserIds = baseFileIds.length
+      ? await db("file_access_users")
+          .whereIn("file_item_id", baseFileIds)
+          .where("user_id", user.id)
+          .pluck("file_item_id")
       : [];
     const accessDepartmentIds =
-      fileIds.length && departmentIds.length
+      baseFileIds.length && departmentIds.length
         ? await db("file_access_departments")
-            .whereIn("file_item_id", fileIds)
+            .whereIn("file_item_id", baseFileIds)
             .whereIn("department_id", departmentIds)
             .pluck("file_item_id")
         : [];

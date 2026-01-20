@@ -4,6 +4,7 @@ import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import StarBorderOutlinedIcon from "@mui/icons-material/StarBorderOutlined";
+import ApartmentOutlinedIcon from "@mui/icons-material/ApartmentOutlined";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { BaseLayout } from "./BaseLayout";
@@ -71,8 +72,12 @@ function MyLibrarySidebarMenu({ collapsed }: { collapsed: boolean }) {
   const location = useLocation();
   const navigate = useNavigate();
   const canSubmitFiles = Boolean(user?.canSubmitFiles);
+  const hasDepartment = Boolean(user?.departmentId);
   const items = [
     { label: t("favorites"), path: "/users/my-library/favorites", icon: <StarBorderOutlinedIcon fontSize="small" /> },
+    ...(hasDepartment
+      ? [{ label: t("departmentFiles"), path: "/users/my-library/department", icon: <ApartmentOutlinedIcon fontSize="small" /> }]
+      : []),
     ...(canSubmitFiles
       ? [
           { label: t("requests"), path: "/users/my-library/requests", icon: <PendingActionsOutlinedIcon fontSize="small" /> },
