@@ -65,6 +65,9 @@
 - Shared library cards now use single-line aligned values (ellipsis for long titles/paths) with a more compact layout.
 - Access and download icons are now left-aligned and sized consistently in shared library cards.
 - Fixed access icon alignment to start in shared library cards.
+- Removed the created-at column from user/shared library file tables and set non-wrapping header min widths for access, languages, file size, updated date, and download columns.
+- Dashboard requests now allow wrapping in title/department/category cells; dashboard files table adds a title column, removes created-at, and shows created-at inside the file details dialog.
+- Shared/My library tables now clip hover highlights to the rounded container without forcing the table to expand beyond the page width.
 
 ## Next
 

@@ -6,49 +6,44 @@ export const sharedLibraryTableLayout = {
   title: {
     width: "28%",
     minWidth: 220,
-    headerWrap: true,
+    headerWrap: false,
     cellWrap: true
   },
   section: {
     width: "12%",
     minWidth: 140,
-    headerWrap: true,
+    headerWrap: false,
     cellWrap: true
   },
   category: {
     width: "14%",
     minWidth: 160,
-    headerWrap: true,
+    headerWrap: false,
     cellWrap: true
   },
   accessType: {
-    width: 64,
-    minWidth: 64
+    width: 90,
+    minWidth: 90
   },
   langs: {
     width: 120,
     minWidth: 120,
-    headerWrap: true,
+    headerWrap: false,
     cellWrap: true
   },
   size: {
-    width: 110,
-    minWidth: 110,
-    headerWrap: true
-  },
-  createdAt: {
     width: 140,
     minWidth: 140,
-    headerWrap: true
+    headerWrap: false
   },
   updatedAt: {
-    width: 140,
-    minWidth: 140,
-    headerWrap: true
+    width: 160,
+    minWidth: 160,
+    headerWrap: false
   },
   download: {
-    width: 64,
-    minWidth: 64
+    width: 90,
+    minWidth: 90
   }
 };
 
@@ -61,49 +56,44 @@ export const userLibraryTableLayouts = {
     title: {
       width: "28%",
       minWidth: 220,
-      headerWrap: true,
+      headerWrap: false,
       cellWrap: true
     },
     section: {
       width: "12%",
       minWidth: 140,
-      headerWrap: true,
+      headerWrap: false,
       cellWrap: true
     },
     category: {
       width: "14%",
       minWidth: 160,
-      headerWrap: true,
+      headerWrap: false,
       cellWrap: true
     },
     accessType: {
-      width: 64,
-      minWidth: 64
+      width: 90,
+      minWidth: 90
     },
     langs: {
       width: 120,
       minWidth: 120,
-      headerWrap: true,
+      headerWrap: false,
       cellWrap: true
     },
     size: {
-      width: 110,
-      minWidth: 110,
-      headerWrap: true
-    },
-    createdAt: {
       width: 140,
       minWidth: 140,
-      headerWrap: true
+      headerWrap: false
     },
     updatedAt: {
-      width: 140,
-      minWidth: 140,
-      headerWrap: true
+      width: 160,
+      minWidth: 160,
+      headerWrap: false
     },
     download: {
-      width: 64,
-      minWidth: 64
+      width: 90,
+      minWidth: 90
     }
   },
   department: {
@@ -114,49 +104,44 @@ export const userLibraryTableLayouts = {
     title: {
       width: "28%",
       minWidth: 220,
-      headerWrap: true,
+      headerWrap: false,
       cellWrap: true
     },
     section: {
       width: "12%",
       minWidth: 140,
-      headerWrap: true,
+      headerWrap: false,
       cellWrap: true
     },
     category: {
       width: "14%",
       minWidth: 160,
-      headerWrap: true,
+      headerWrap: false,
       cellWrap: true
     },
     accessType: {
-      width: 64,
-      minWidth: 64
+      width: 90,
+      minWidth: 90
     },
     langs: {
       width: 120,
       minWidth: 120,
-      headerWrap: true,
+      headerWrap: false,
       cellWrap: true
     },
     size: {
-      width: 110,
-      minWidth: 110,
-      headerWrap: true
-    },
-    createdAt: {
       width: 140,
       minWidth: 140,
-      headerWrap: true
+      headerWrap: false
     },
     updatedAt: {
-      width: 140,
-      minWidth: 140,
-      headerWrap: true
+      width: 160,
+      minWidth: 160,
+      headerWrap: false
     },
     download: {
-      width: 64,
-      minWidth: 64
+      width: 90,
+      minWidth: 90
     }
   },
   favorites: {
@@ -167,49 +152,44 @@ export const userLibraryTableLayouts = {
     title: {
       width: "28%",
       minWidth: 220,
-      headerWrap: true,
+      headerWrap: false,
       cellWrap: true
     },
     section: {
       width: "12%",
       minWidth: 140,
-      headerWrap: true,
+      headerWrap: false,
       cellWrap: true
     },
     category: {
       width: "14%",
       minWidth: 160,
-      headerWrap: true,
+      headerWrap: false,
       cellWrap: true
     },
     accessType: {
-      width: 64,
-      minWidth: 64
+      width: 90,
+      minWidth: 90
     },
     langs: {
       width: 120,
       minWidth: 120,
-      headerWrap: true,
+      headerWrap: false,
       cellWrap: true
     },
     size: {
-      width: 110,
-      minWidth: 110,
-      headerWrap: true
-    },
-    createdAt: {
       width: 140,
       minWidth: 140,
-      headerWrap: true
+      headerWrap: false
     },
     updatedAt: {
-      width: 140,
-      minWidth: 140,
-      headerWrap: true
+      width: 160,
+      minWidth: 160,
+      headerWrap: false
     },
     download: {
-      width: 64,
-      minWidth: 64
+      width: 90,
+      minWidth: 90
     }
   }
 };

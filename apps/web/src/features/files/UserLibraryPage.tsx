@@ -1034,14 +1034,6 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
         sortKey: "size"
       },
       {
-        key: "createdAt",
-        label: t("createdAt"),
-        ...layout.createdAt,
-        render: (row: any) => formatDateTime(row.createdAt),
-        sortable: true,
-        sortKey: "created_at"
-      },
-      {
         key: "updatedAt",
         label: t("updatedAt"),
         ...layout.updatedAt,
@@ -1286,7 +1278,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
               }
               sortIconVariant="chevron"
               tableLayout="fixed"
-              containerSx={{ overflowX: "visible" }}
+              containerSx={{ overflow: "hidden" }}
               columns={fileColumns}
               onRowClick={handleOpenDetails}
             />

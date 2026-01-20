@@ -519,7 +519,7 @@ export default function UserFilesPage() {
           }
           sortIconVariant="chevron"
           tableLayout="fixed"
-          containerSx={{ overflowX: "visible" }}
+          containerSx={{ overflow: "hidden" }}
           columns={[
             {
               key: "status",
@@ -601,14 +601,6 @@ export default function UserFilesPage() {
               },
               sortable: true,
               sortKey: "size"
-            },
-            {
-              key: "createdAt",
-              label: t("createdAt"),
-              ...sharedLibraryTableLayout.createdAt,
-              render: (row) => formatDateTime(row.createdAt),
-              sortable: true,
-              sortKey: "created_at"
             },
             {
               key: "updatedAt",
