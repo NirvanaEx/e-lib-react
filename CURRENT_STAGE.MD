@@ -69,6 +69,7 @@
 - Dashboard requests now allow wrapping in title/department/category cells; dashboard files table adds a title column, removes created-at, and shows created-at inside the file details dialog.
 - Shared/My library tables now clip hover highlights to the rounded container without forcing the table to expand beyond the page width.
 - Added department_closed access type handling: UI labels/icons updated, access lists now show departments for non-public types, and access checks only honor user lists for restricted.
+- Shared library status column widened with tighter padding so favorite/lock icons no longer overlap.
 
 ## Next
 

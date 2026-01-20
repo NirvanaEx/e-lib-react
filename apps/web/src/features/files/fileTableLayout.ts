@@ -1,7 +1,9 @@
 export const sharedLibraryTableLayout = {
   status: {
-    width: 64,
-    minWidth: 64
+    width: 80,
+    minWidth: 80,
+    cellSx: { px: 1 },
+    headerSx: { px: 1 }
   },
   title: {
     width: "28%",
