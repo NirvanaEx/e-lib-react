@@ -1,5 +1,21 @@
 import React from "react";
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Paper, Stack, Tooltip, Typography } from "@mui/material";
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Paper,
+  Stack,
+  Tooltip,
+  Typography
+} from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
@@ -8,6 +24,7 @@ import StarBorderIcon from "@mui/icons-material/StarBorder";
 import StarIcon from "@mui/icons-material/Star";
 import PublicIcon from "@mui/icons-material/Public";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addUserFavorite,
@@ -654,76 +671,6 @@ export default function UserFilesPage() {
                   {detailsData?.currentVersionNumber ? `#${detailsData.currentVersionNumber}` : "-"}
                 </Typography>
               </Box>
-              {allowVersionAccess ? (
-                <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    {t("archiveVersions")}
-                  </Typography>
-                  {versionsLoading ? (
-                    <Typography variant="body2" color="text.secondary">
-                      {t("loading")}
-                    </Typography>
-                  ) : versions.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">
-                      {t("noHistory")}
-                    </Typography>
-                  ) : (
-                    <Stack spacing={1.5}>
-                      {versions.map((version: any) => (
-                        <Paper key={version.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                          <Stack spacing={1}>
-                            <Stack direction="row" spacing={1} alignItems="center">
-                              <Chip size="small" label={`v${version.versionNumber}`} />
-                              {detailsData?.currentVersionId === version.id && (
-                                <Chip size="small" color="success" label={t("current")} />
-                              )}
-                              <Typography variant="caption" color="text.secondary">
-                                {formatDateTime(version.createdAt)}
-                              </Typography>
-                            </Stack>
-                            <Typography variant="body2">
-                              {titleForVersionLang(version)}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {descriptionForVersion(version) || "-"}
-                            </Typography>
-                            {(version.assets || []).length === 0 ? (
-                              <Typography variant="body2" color="text.secondary">
-                                {t("noAssets")}
-                              </Typography>
-                            ) : (
-                              (version.assets || []).map((asset: any) => (
-                                <Stack key={asset.id} direction="row" spacing={1} alignItems="center">
-                                  <Chip size="small" label={asset.lang.toUpperCase()} />
-                                  <Typography variant="body2" sx={{ flex: 1 }}>
-                                    {asset.originalName}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    {formatBytes(asset.size)}
-                                  </Typography>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      downloadVersionMutation.mutate({
-                                        id: detailsId as number,
-                                        versionId: version.id,
-                                        lang: asset.lang,
-                                        title: titleForVersionLang(version, asset.lang)
-                                      })
-                                    }
-                                  >
-                                    <DownloadIcon fontSize="small" />
-                                  </IconButton>
-                                </Stack>
-                              ))
-                            )}
-                          </Stack>
-                        </Paper>
-                      ))}
-                    </Stack>
-                  )}
-                </Box>
-              ) : null}
               <Box>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
                   {t("titlesByLanguage")}
@@ -785,6 +732,78 @@ export default function UserFilesPage() {
                   )}
                 </Stack>
               </Box>
+              {allowVersionAccess ? (
+                <Accordion sx={{ borderRadius: 2, border: "1px solid var(--border)", boxShadow: "none" }}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}>
+                    <Typography variant="subtitle2">{t("archiveVersions")}</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ pt: 0, px: 2, pb: 2 }}>
+                    {versionsLoading ? (
+                      <Typography variant="body2" color="text.secondary">
+                        {t("loading")}
+                      </Typography>
+                    ) : versions.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">
+                        {t("noHistory")}
+                      </Typography>
+                    ) : (
+                      <Stack spacing={1.5}>
+                        {versions.map((version: any) => (
+                          <Paper key={version.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                            <Stack spacing={1}>
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                <Chip size="small" label={`v${version.versionNumber}`} />
+                                {detailsData?.currentVersionId === version.id && (
+                                  <Chip size="small" color="success" label={t("current")} />
+                                )}
+                                <Typography variant="caption" color="text.secondary">
+                                  {formatDateTime(version.createdAt)}
+                                </Typography>
+                              </Stack>
+                              <Typography variant="body2">
+                                {titleForVersionLang(version)}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {descriptionForVersion(version) || "-"}
+                              </Typography>
+                              {(version.assets || []).length === 0 ? (
+                                <Typography variant="body2" color="text.secondary">
+                                  {t("noAssets")}
+                                </Typography>
+                              ) : (
+                                (version.assets || []).map((asset: any) => (
+                                  <Stack key={asset.id} direction="row" spacing={1} alignItems="center">
+                                    <Chip size="small" label={asset.lang.toUpperCase()} />
+                                    <Typography variant="body2" sx={{ flex: 1 }}>
+                                      {asset.originalName}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {formatBytes(asset.size)}
+                                    </Typography>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() =>
+                                        downloadVersionMutation.mutate({
+                                          id: detailsId as number,
+                                          versionId: version.id,
+                                          lang: asset.lang,
+                                          title: titleForVersionLang(version, asset.lang)
+                                        })
+                                      }
+                                    >
+                                      <DownloadIcon fontSize="small" />
+                                    </IconButton>
+                                  </Stack>
+                                ))
+                              )}
+                            </Stack>
+                          </Paper>
+                        ))}
+                      </Stack>
+                    )}
+                  </AccordionDetails>
+                </Accordion>
+              ) : null}
             </Stack>
           )}
         </DialogContent>
