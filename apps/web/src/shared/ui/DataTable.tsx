@@ -24,6 +24,8 @@ export type Column<T> = {
   align?: "left" | "center" | "right";
   width?: number | string;
   minWidth?: number | string;
+  headerWrap?: boolean;
+  cellWrap?: boolean;
   headerSx?: SxProps<Theme>;
   cellSx?: SxProps<Theme>;
   sortable?: boolean;
@@ -39,7 +41,9 @@ export function DataTable<T extends { id: number | string }>({
   sort,
   onSortChange,
   reverseSortIcons = false,
-  sortIconVariant = "chevron"
+  sortIconVariant = "chevron",
+  tableLayout = "auto",
+  containerSx
 }: {
   rows: T[];
   columns: Column<T>[];
@@ -49,6 +53,8 @@ export function DataTable<T extends { id: number | string }>({
   onSortChange?: (key: string, direction: "asc" | "desc" | null) => void;
   reverseSortIcons?: boolean;
   sortIconVariant?: "arrow" | "chevron";
+  tableLayout?: "auto" | "fixed";
+  containerSx?: SxProps<Theme>;
 }) {
   const [internalSort, setInternalSort] = React.useState<{ key: string | null; direction: "asc" | "desc" | null }>({
     key: null,
@@ -109,10 +115,11 @@ export function DataTable<T extends { id: number | string }>({
       sx={{
         borderRadius: 3,
         boxShadow: "var(--shadow)",
-        border: "1px solid var(--border)"
+        border: "1px solid var(--border)",
+        ...containerSx
       }}
     >
-      <Table size="small" stickyHeader sx={{ tableLayout: "auto" }}>
+      <Table size="small" stickyHeader sx={{ tableLayout }}>
         <TableHead>
           <TableRow>
             {columns.map((col) => {
@@ -120,6 +127,7 @@ export function DataTable<T extends { id: number | string }>({
               const sortable = col.sortable ?? Boolean(col.sortKey || col.sortValue || !isControlledSort);
               const isActive = activeSort.key === key;
               const direction = isActive ? activeSort.direction : null;
+              const headerWrap = Boolean(col.headerWrap);
               const handleSort = () => {
                 if (!sortable) return;
                 const nextDirection = !isActive || direction === null ? "asc" : direction === "asc" ? "desc" : null;
@@ -144,7 +152,9 @@ export function DataTable<T extends { id: number | string }>({
                     letterSpacing: "0.04em",
                     fontSize: "0.7rem",
                     borderBottomColor: "var(--border)",
-                    whiteSpace: "nowrap",
+                    whiteSpace: headerWrap ? "normal" : "nowrap",
+                    overflowWrap: headerWrap ? "anywhere" : "normal",
+                    wordBreak: headerWrap ? "break-word" : "normal",
                     verticalAlign: "middle",
                     width: col.width,
                     minWidth: col.minWidth,
@@ -152,8 +162,18 @@ export function DataTable<T extends { id: number | string }>({
                     ...col.headerSx
                   }}
                 >
-                  <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.3 }}>
-                    <span>{col.label}</span>
+                  <Box
+                    sx={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 0.3,
+                      flexWrap: headerWrap ? "wrap" : "nowrap",
+                      width: headerWrap ? "100%" : "auto"
+                    }}
+                  >
+                    <Box component="span" sx={{ minWidth: 0, lineHeight: 1.2 }}>
+                      {col.label}
+                    </Box>
                     {sortable && (
                       <IconButton size="small" sx={{ p: 0, fontSize: 14 }}>
                         {sortIcon}
@@ -190,7 +210,21 @@ export function DataTable<T extends { id: number | string }>({
                     ...col.cellSx
                   }}
                 >
-                  <Box sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <Box
+                    sx={
+                      col.cellWrap
+                        ? {
+                            whiteSpace: "normal",
+                            overflowWrap: "anywhere",
+                            wordBreak: "break-word"
+                          }
+                        : {
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap"
+                          }
+                    }
+                  >
                     {col.render ? col.render(row) : (row as any)[col.key]}
                   </Box>
                 </TableCell>

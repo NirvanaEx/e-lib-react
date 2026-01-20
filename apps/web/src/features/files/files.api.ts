@@ -141,6 +141,11 @@ export async function createUserRequest(payload: any) {
   return data;
 }
 
+export async function createUserUpdateRequest(fileId: number, payload: any) {
+  const { data } = await api.post(`/user/requests/update/${fileId}`, payload);
+  return data;
+}
+
 export async function uploadUserRequestAsset(requestId: number, payload: FormData) {
   const { data } = await api.post(`/user/requests/${requestId}/assets`, payload, {
     headers: { "Content-Type": "multipart/form-data" }

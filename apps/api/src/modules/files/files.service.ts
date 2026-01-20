@@ -800,6 +800,35 @@ export class FilesService {
       : [];
     const favoriteSet = new Set(favoriteIds.map((id: any) => String(id)));
 
+    const currentVersionIds = (result.data || [])
+      .map((item: any) => item.currentVersionId)
+      .filter(Boolean) as number[];
+    const versionRows = currentVersionIds.length
+      ? await this.dbService.db("file_versions")
+          .leftJoin("users", "users.id", "file_versions.created_by")
+          .select(
+            "file_versions.id",
+            "file_versions.file_item_id",
+            "file_versions.created_at",
+            "users.id as user_id",
+            "users.login as user_login",
+            "users.surname as user_surname",
+            "users.name as user_name",
+            "users.patronymic as user_patronymic"
+          )
+          .whereIn("file_versions.id", currentVersionIds)
+      : [];
+    const versionByFileId = new Map<number, any>();
+    versionRows.forEach((row: any) => {
+      if (!row.file_item_id) return;
+      versionByFileId.set(Number(row.file_item_id), {
+        id: row.user_id,
+        login: row.user_login,
+        fullName: [row.user_surname, row.user_name, row.user_patronymic].filter(Boolean).join(" ").trim() || null,
+        createdAt: row.created_at || null
+      });
+    });
+
     const data = (result.data || []).map((item: any) => ({
       ...item,
       canDownload:
@@ -807,7 +836,9 @@ export class FilesService {
         canDownloadRestricted ||
         accessUserSet.has(item.id) ||
         accessDepartmentSet.has(item.id),
-      isFavorite: favoriteSet.has(String(item.id))
+      isFavorite: favoriteSet.has(String(item.id)),
+      updatedBy: versionByFileId.get(item.id) || null,
+      updatedByOther: Boolean(versionByFileId.get(item.id)?.id && versionByFileId.get(item.id)?.id !== user.id)
     }));
 
     return { data, meta: result.meta };
@@ -1118,6 +1149,15 @@ export class FilesService {
 
   async listVersions(fileItemId: number) {
     const versions = await this.dbService.db("file_versions")
+      .leftJoin("users", "users.id", "file_versions.created_by")
+      .select(
+        "file_versions.*",
+        "users.id as user_id",
+        "users.login as user_login",
+        "users.surname as user_surname",
+        "users.name as user_name",
+        "users.patronymic as user_patronymic"
+      )
       .where({ file_item_id: fileItemId })
       .orderBy("version_number", "desc");
 
@@ -1156,6 +1196,13 @@ export class FilesService {
 
     const data = versions.map((version: any) => ({
       ...version,
+      createdBy: version.user_id
+        ? {
+            id: version.user_id,
+            login: version.user_login,
+            fullName: [version.user_surname, version.user_name, version.user_patronymic].filter(Boolean).join(" ")
+          }
+        : null,
       assets: assetsByVersion.get(version.id) || []
     }));
 

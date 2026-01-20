@@ -25,6 +25,7 @@ import { getErrorMessage } from "../../shared/utils/errors";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { formatUserLabel } from "../../shared/utils/userLabel";
+import { sharedLibraryTableLayout } from "./fileTableLayout";
 
 export default function UserFilesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -270,6 +271,57 @@ export default function UserFilesPage() {
     return Boolean(row.canDownload) && langs.length > 0;
   };
 
+  const renderStatusIcons = (row: any) => {
+    const items: Array<{ key: string; node: React.ReactNode }> = [];
+
+    items.push({
+      key: "favorite",
+      node: (
+        <Tooltip title={t("favorites")}>
+          <IconButton
+            size="small"
+            onClick={(event) => {
+              event.stopPropagation();
+              favoriteMutation.mutate({ id: row.id, isFavorite: Boolean(row.isFavorite) });
+            }}
+          >
+            {row.isFavorite ? (
+              <StarIcon fontSize="small" sx={{ color: "warning.main" }} />
+            ) : (
+              <StarBorderIcon fontSize="small" sx={{ color: "text.disabled" }} />
+            )}
+          </IconButton>
+        </Tooltip>
+      )
+    });
+
+    if (!isDownloadable(row)) {
+      const tooltip = row.canDownload ? t("noAssets") : t("noAccess");
+      items.push({
+        key: "lock",
+        node: (
+          <Tooltip title={tooltip}>
+            <Box sx={{ display: "inline-flex", alignItems: "center" }}>
+              <LockOutlinedIcon sx={{ fontSize: 16, display: "block" }} color="action" />
+            </Box>
+          </Tooltip>
+        )
+      });
+    }
+
+    if (!items.length) return null;
+
+    return (
+      <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center" sx={{ width: "100%" }}>
+        {items.map((item) => (
+          <Box key={item.key} sx={{ display: "inline-flex", alignItems: "center" }}>
+            {item.node}
+          </Box>
+        ))}
+      </Stack>
+    );
+  };
+
   return (
     <Page title={t("sharedLibrary")} subtitle={t("userFilesSubtitle")}>
       <FiltersBar>
@@ -298,60 +350,24 @@ export default function UserFilesPage() {
           onSortChange={(key, direction) =>
             setSort(direction ? { key, direction } : { key: null, direction: null })
           }
-          sortIconVariant="chevron"columns={[
+          sortIconVariant="chevron"
+          tableLayout="fixed"
+          containerSx={{ overflowX: "visible" }}
+          columns={[
             {
-              key: "favorite",
+              key: "status",
               label: "",
               align: "center",
               sortable: false,
-              width: 32,
-              headerSx: { pl: 1, pr: 0.25 },
-              cellSx: { pl: 1.5, pr: 0.25 },
-              render: (row) => (
-                <Tooltip title={t("favorites")}>
-                  <IconButton
-                    size="small"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      favoriteMutation.mutate({ id: row.id, isFavorite: Boolean(row.isFavorite) });
-                    }}
-                  >
-                    {row.isFavorite ? (
-                      <StarIcon fontSize="small" sx={{ color: "warning.main" }} />
-                    ) : (
-                      <StarBorderIcon fontSize="small" sx={{ color: "text.disabled" }} />
-                    )}
-                  </IconButton>
-                </Tooltip>
-              )
-            },
-            {
-              key: "lock",
-              label: "",
-              align: "left",
-              sortable: false,
-              width: 32,
-              headerSx: { pl: 0.5, pr: 0.25 },
-              cellSx: { pl: 0.5, pr: 0.25 },
-              render: (row) => {
-                if (isDownloadable(row)) return null;
-                const tooltip = row.canDownload ? t("noAssets") : t("noAccess");
-                return (
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", width: "100%" }}>
-                    <Tooltip title={tooltip}>
-                      <Box component="span" sx={{ display: "inline-flex", alignItems: "center" }}>
-                        <LockOutlinedIcon sx={{ fontSize: 16, display: "block" }} color="action" />
-                      </Box>
-                    </Tooltip>
-                  </Box>
-                );
-              }
+              ...sharedLibraryTableLayout.status,
+              render: (row) => renderStatusIcons(row)
             },
             {
               key: "title",
               label: t("title"),
               sortable: true,
               sortKey: "title",
+              ...sharedLibraryTableLayout.title,
               render: (row) => (
                 <Box component="span" sx={{ color: "text.primary" }}>
                   {row.title || t("file")}
@@ -361,6 +377,7 @@ export default function UserFilesPage() {
             {
               key: "section",
               label: t("section"),
+              ...sharedLibraryTableLayout.section,
               render: (row) => {
                 const item = row.sectionId ? sectionsById.get(row.sectionId) : null;
                 return item?.title || (row.sectionId ? `#${row.sectionId}` : "-");
@@ -369,6 +386,7 @@ export default function UserFilesPage() {
             {
               key: "category",
               label: t("category"),
+              ...sharedLibraryTableLayout.category,
               render: (row) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-"),
               sortable: true,
               sortKey: "category",
@@ -377,7 +395,7 @@ export default function UserFilesPage() {
               key: "accessType",
               label: t("access"),
               align: "center",
-              width: 48,
+              ...sharedLibraryTableLayout.accessType,
               render: (row) => (
                 <Tooltip title={row.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
                   <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
@@ -393,6 +411,7 @@ export default function UserFilesPage() {
             {
               key: "langs",
               label: t("languages"),
+              ...sharedLibraryTableLayout.langs,
               render: (row) => {
                 const langs = row.availableAssetLangs || row.availableLangs || [];
                 return (
@@ -407,6 +426,7 @@ export default function UserFilesPage() {
             {
               key: "size",
               label: t("fileSize"),
+              ...sharedLibraryTableLayout.size,
               render: (row) => {
                 const size = resolveRowSize(row);
                 return size === null || size === undefined ? "-" : formatBytes(size);
@@ -417,6 +437,7 @@ export default function UserFilesPage() {
             {
               key: "createdAt",
               label: t("createdAt"),
+              ...sharedLibraryTableLayout.createdAt,
               render: (row) => formatDateTime(row.createdAt),
               sortable: true,
               sortKey: "created_at"
@@ -424,6 +445,7 @@ export default function UserFilesPage() {
             {
               key: "updatedAt",
               label: t("updatedAt"),
+              ...sharedLibraryTableLayout.updatedAt,
               render: (row) => formatDateTime(row.updatedAt),
               sortable: true,
               sortKey: "updated_at"
@@ -432,7 +454,7 @@ export default function UserFilesPage() {
               key: "download",
               label: t("download"),
               align: "center",
-              width: 56,
+              ...sharedLibraryTableLayout.download,
               render: (row) => {
                 const langs = row.availableAssetLangs || row.availableLangs || [];
                 if (!isDownloadable(row)) return "-";

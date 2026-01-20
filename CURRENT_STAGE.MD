@@ -36,6 +36,16 @@
 - Trash list now hides assets for deleted versions and shows file title/details in the trash table.
 - My Library sidebar now includes a Department files tab with a dedicated endpoint and list view filtered to the user's department scope.
 - Fixed listUserFiles filter naming to avoid compile errors when the department files view is enabled.
+- Department files now support update requests via a leading update icon, with new/update request type icons shown in user/admin request tables.
+- Update requests create new versions on approval, and admin request details include version history for updates.
+- My uploaded files now flag updates by other users with a warning icon and a details dialog showing who updated.
+- Fixed Russian labels added for request types/department files by using Unicode escapes to avoid encoding issues.
+- DataTable now supports fixed layout and per-column wrapping; My Library file tables use fixed column widths with wrapping for long titles/headers.
+- Centralized My Library file table column sizing/word-wrap in `fileTableLayout.ts` for easy manual tuning.
+- Shared library file table now uses its own layout config; user library tables have per-view layouts.
+- Added a single leading status column (no header) that groups favorites/lock/update/warning icons.
+- Fixed widths (px) for access, languages, file size, created/updated date, and download columns.
+- DataTable now allows per-table container overflow control; file tables use page-level horizontal overflow instead of inner table scrollbars.
 
 ## Next
 
@@ -45,3 +55,4 @@
 - Confirm creator access persists after toggling public/restricted in file access settings.
 - Verify shared library favorites stay highlighted after refresh.
 - Verify the Department files tab loads for users with a department and shows department-scoped files.
+- Run the new request type migration and verify update requests flow from Department files into Requests.
