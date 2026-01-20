@@ -22,6 +22,7 @@ import { FileRequestsService } from "./file-requests.service";
 import { CreateFileRequestDto } from "./dto/create-file-request.dto";
 import { FileRequestsQueryDto } from "./dto/file-requests-query.dto";
 import { UploadAssetDto } from "./dto/upload-asset.dto";
+import { UpdateFileRequestDto } from "./dto/update-file-request.dto";
 
 const rawUploadDir = process.env.UPLOAD_DIR || "uploads";
 const uploadDir = path.isAbsolute(rawUploadDir) ? rawUploadDir : path.resolve(process.cwd(), rawUploadDir);
@@ -62,6 +63,15 @@ export class FileRequestsUserController {
   @Post()
   async create(@Body() body: CreateFileRequestDto, @User() user: any) {
     return this.fileRequestsService.createRequest(body, user);
+  }
+
+  @Post("update/:id")
+  async updateRequest(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: UpdateFileRequestDto,
+    @User() user: any
+  ) {
+    return this.fileRequestsService.createUpdateRequest(id, body, user);
   }
 
   @ApiConsumes("multipart/form-data")

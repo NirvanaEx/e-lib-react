@@ -28,8 +28,11 @@ import StarBorderIcon from "@mui/icons-material/StarBorder";
 import StarIcon from "@mui/icons-material/Star";
 import PublicIcon from "@mui/icons-material/Public";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
+import SystemUpdateAltOutlinedIcon from "@mui/icons-material/SystemUpdateAltOutlined";
+import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,14 +52,17 @@ import { formatBytes } from "../../shared/utils/format";
 import { getFilenameFromDisposition } from "../../shared/utils/download";
 import { buildPathMap, formatPath } from "../../shared/utils/tree";
 import { getErrorMessage } from "../../shared/utils/errors";
+import { userLibraryTableLayouts } from "./fileTableLayout";
 import {
   addUserFavorite,
   cancelUserRequest,
   createUserRequest,
+  createUserUpdateRequest,
   downloadUserFile,
   fetchDepartmentFiles,
   fetchMenu,
   fetchMyFiles,
+  fetchUserFile,
   fetchUserFavorites,
   fetchUserRequests,
   removeUserFavorite,
@@ -83,6 +89,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const canSubmitFiles = Boolean(user?.canSubmitFiles);
   const [requestsTab, setRequestsTab] = React.useState(0);
   const [requestsPage, setRequestsPage] = React.useState(1);
@@ -106,12 +113,18 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     sizes: Record<string, number>;
   } | null>(null);
   const [submitOpen, setSubmitOpen] = React.useState(false);
+  const [submitMode, setSubmitMode] = React.useState<"new" | "update">("new");
   const [initialLang, setInitialLang] = React.useState<TranslationRow["lang"]>("ru");
   const [initialFile, setInitialFile] = React.useState<File | null>(null);
   const [extraAssets, setExtraAssets] = React.useState<AssetRow[]>([]);
   const [translations, setTranslations] = React.useState<TranslationRow[]>([]);
+  const [updateTarget, setUpdateTarget] = React.useState<any | null>(null);
+  const [updateDetails, setUpdateDetails] = React.useState<any | null>(null);
+  const [updateComment, setUpdateComment] = React.useState("");
+  const [updateLoading, setUpdateLoading] = React.useState(false);
   const [cancelTarget, setCancelTarget] = React.useState<{ id: number; title?: string | null } | null>(null);
   const [requestDetails, setRequestDetails] = React.useState<any | null>(null);
+  const [updateInfoTarget, setUpdateInfoTarget] = React.useState<any | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
   const requestDefaults: RequestForm = React.useMemo(
@@ -366,7 +379,11 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
 
   const createMutation = useMutation({ mutationFn: createUserRequest });
 
-  const handleOpenSubmit = () => {
+  const handleOpenNewRequest = () => {
+    setSubmitMode("new");
+    setUpdateTarget(null);
+    setUpdateDetails(null);
+    setUpdateComment("");
     requestForm.reset(requestDefaults);
     setTranslations([{ lang: "ru", title: "", description: "" }]);
     setInitialFile(null);
@@ -375,8 +392,41 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     setSubmitOpen(true);
   };
 
+  const handleOpenUpdateRequest = async (row: any) => {
+    setSubmitMode("update");
+    setUpdateTarget(row);
+    setUpdateComment("");
+    setUpdateDetails(null);
+    setTranslations([]);
+    setInitialFile(null);
+    setInitialLang("ru");
+    setExtraAssets([]);
+    setSubmitOpen(true);
+    setUpdateLoading(true);
+    try {
+      const data = await fetchUserFile(row.id);
+      setUpdateDetails(data);
+      const nextTranslations = (data?.translations || []).map((item: any) => ({
+        lang: item.lang,
+        title: item.title,
+        description: item.description
+      }));
+      setTranslations(nextTranslations.length ? nextTranslations : [{ lang: "ru", title: "", description: "" }]);
+      setInitialLang(nextTranslations[0]?.lang || "ru");
+    } catch (error) {
+      showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" });
+      setSubmitOpen(false);
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
   const handleCloseSubmit = () => {
     setSubmitOpen(false);
+    setSubmitMode("new");
+    setUpdateTarget(null);
+    setUpdateDetails(null);
+    setUpdateComment("");
     requestForm.reset(requestDefaults);
     setInitialLang("ru");
     setInitialFile(null);
@@ -390,7 +440,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     setExtraAssets((prev) => [...prev, { lang: nextLang, file: null }]);
   };
 
-  const handleSubmitRequest = requestForm.handleSubmit(async (values) => {
+  const submitNewRequest = requestForm.handleSubmit(async (values) => {
     setSubmitting(true);
     if (!initialFile) {
       showToast({ message: t("fileRequired"), severity: "error" });
@@ -467,12 +517,84 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
       queryClient.invalidateQueries({ queryKey: ["user-requests"] });
       setSubmitOpen(false);
       showToast({ message: t("requestCreated"), severity: "success" });
+      navigate("/users/my-library/requests");
     } catch (error) {
       showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" });
     } finally {
       setSubmitting(false);
     }
   });
+
+  const submitUpdateRequest = async () => {
+    if (!updateTarget?.id) return;
+    setSubmitting(true);
+    if (!initialFile) {
+      showToast({ message: t("fileRequired"), severity: "error" });
+      setSubmitting(false);
+      return;
+    }
+
+    const normalizedTranslations = translations
+      .map((item) => ({
+        lang: item.lang,
+        title: (item.title || "").trim(),
+        description: (item.description || "").trim() || null
+      }))
+      .filter((item) => item.title.length > 0);
+
+    if (normalizedTranslations.length === 0) {
+      showToast({ message: t("translationsRequired"), severity: "error" });
+      setSubmitting(false);
+      return;
+    }
+
+    const extraWithFile = extraAssets.filter((item) => item.file);
+    if (extraWithFile.length !== extraAssets.length) {
+      showToast({ message: t("selectFileForLang"), severity: "error" });
+      setSubmitting(false);
+      return;
+    }
+    const usedLangs = new Set([initialLang]);
+    for (const item of extraWithFile) {
+      if (usedLangs.has(item.lang)) {
+        showToast({ message: t("languageDuplicate"), severity: "error" });
+        setSubmitting(false);
+        return;
+      }
+      usedLangs.add(item.lang);
+    }
+
+    try {
+      const payload = {
+        translations: normalizedTranslations,
+        comment: updateComment.trim() || null
+      };
+
+      const result = await createUserUpdateRequest(updateTarget.id, payload);
+      const requestId = result.id;
+      if (requestId) {
+        const form = new FormData();
+        form.append("lang", initialLang);
+        form.append("file", initialFile);
+        await uploadUserRequestAsset(requestId, form);
+        for (const item of extraWithFile) {
+          const extraForm = new FormData();
+          extraForm.append("lang", item.lang);
+          extraForm.append("file", item.file as File);
+          await uploadUserRequestAsset(requestId, extraForm);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["user-requests"] });
+      setSubmitOpen(false);
+      showToast({ message: t("requestCreated"), severity: "success" });
+      navigate("/users/my-library/requests");
+    } catch (error) {
+      showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const statusChip = (status: string) => {
     if (status === "approved") {
@@ -486,6 +608,25 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     }
     return <Chip size="small" color="warning" label={t("requestPending")} />;
   };
+
+  const requestTypeIcon = (requestType?: string | null) => {
+    const isUpdate = requestType === "update";
+    const label = isUpdate ? t("requestTypeUpdate") : t("requestTypeNew");
+    return (
+      <Tooltip title={label}>
+        <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+          {isUpdate ? (
+            <SystemUpdateAltOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
+          ) : (
+            <AddCircleOutlineIcon fontSize="small" sx={{ color: "success.main" }} />
+          )}
+        </Box>
+      </Tooltip>
+    );
+  };
+
+  const requestTypeLabel = (requestType?: string | null) =>
+    requestType === "update" ? t("requestTypeUpdate") : t("requestTypeNew");
 
   const getAdminComment = (row: any) => row?.adminComment ?? row?.rejectionReason ?? null;
 
@@ -577,6 +718,248 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
   const fileEmptyTitle = isFavoritesView ? t("favoritesEmpty") : t("noFiles");
   const fileEmptySubtitle = isFavoritesView ? t("favoritesEmptySubtitle") : t("noFilesSubtitle");
 
+  const fileColumns = React.useMemo(() => {
+    const columns: any[] = [];
+    const layout = isDepartmentView ? userLibraryTableLayouts.department : isFavoritesView ? userLibraryTableLayouts.favorites : userLibraryTableLayouts.files;
+
+    const renderStatusIcons = (row: any) => {
+      const items: Array<{ key: string; node: React.ReactNode }> = [];
+
+      if (isFilesView && row.updatedByOther) {
+        const updatedBy = row.updatedBy?.fullName || row.updatedBy?.login || "-";
+        items.push({
+          key: "warning",
+          node: (
+            <Tooltip title={t("fileUpdatedByOther", { user: updatedBy })}>
+              <Box sx={{ display: "inline-flex", alignItems: "center" }}>
+                <WarningAmberOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
+              </Box>
+            </Tooltip>
+          )
+        });
+      }
+
+      if (isDepartmentView && canSubmitFiles) {
+        items.push({
+          key: "update",
+          node: (
+            <Tooltip title={t("updateFile")}>
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleOpenUpdateRequest(row);
+                  }}
+                >
+                  <SystemUpdateAltOutlinedIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          )
+        });
+      }
+
+      items.push({
+        key: "favorite",
+        node: (
+          <Tooltip title={t("favorites")}>
+            <IconButton
+              size="small"
+              onClick={(event) => {
+                event.stopPropagation();
+                favoriteMutation.mutate({ id: row.id, isFavorite: Boolean(row.isFavorite) });
+              }}
+            >
+              {row.isFavorite ? (
+                <StarIcon fontSize="small" sx={{ color: "warning.main" }} />
+              ) : (
+                <StarBorderIcon fontSize="small" sx={{ color: "text.disabled" }} />
+              )}
+            </IconButton>
+          </Tooltip>
+        )
+      });
+
+      if (!isDownloadable(row)) {
+        const tooltip = row.canDownload ? t("noAssets") : t("noAccess");
+        items.push({
+          key: "lock",
+          node: (
+            <Tooltip title={tooltip}>
+              <Box sx={{ display: "inline-flex", alignItems: "center" }}>
+                <LockOutlinedIcon sx={{ fontSize: 16, display: "block" }} color="action" />
+              </Box>
+            </Tooltip>
+          )
+        });
+      }
+
+      if (!items.length) return null;
+
+      return (
+        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center" sx={{ width: "100%" }}>
+          {items.map((item) => (
+            <Box key={item.key} sx={{ display: "inline-flex", alignItems: "center" }}>
+              {item.node}
+            </Box>
+          ))}
+        </Stack>
+      );
+    };
+
+    columns.push(
+      {
+        key: "status",
+        label: "",
+        align: "center",
+        sortable: false,
+        ...layout.status,
+        render: renderStatusIcons
+      },
+      {
+        key: "title",
+        label: t("title"),
+        sortable: true,
+        sortKey: "title",
+        ...layout.title,
+        render: (row: any) => (
+          <Box component="span" sx={{ color: "text.primary" }}>
+            {row.title || t("file")}
+          </Box>
+        )
+      },
+      {
+        key: "section",
+        label: t("section"),
+        ...layout.section,
+        render: (row: any) => {
+          const item = row.sectionId ? sectionsById.get(row.sectionId) : null;
+          return item?.title || (row.sectionId ? `#${row.sectionId}` : "-");
+        }
+      },
+      {
+        key: "category",
+        label: t("category"),
+        ...layout.category,
+        render: (row: any) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-"),
+        sortable: true,
+        sortKey: "category"
+      },
+      {
+        key: "accessType",
+        label: t("access"),
+        align: "center",
+        ...layout.accessType,
+        render: (row: any) => (
+          <Tooltip title={row.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
+            <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+              {row.accessType === "restricted" ? (
+                <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
+              ) : (
+                <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
+              )}
+            </Box>
+          </Tooltip>
+        )
+      },
+      {
+        key: "langs",
+        label: t("languages"),
+        ...layout.langs,
+        render: (row: any) => {
+          const langs = row.availableAssetLangs || row.availableLangs || [];
+          return (
+            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 0.5 }}>
+              {langs.map((lang: string) => (
+                <Chip key={lang} size="small" label={lang.toUpperCase()} />
+              ))}
+            </Stack>
+          );
+        }
+      },
+      {
+        key: "size",
+        label: t("fileSize"),
+        ...layout.size,
+        render: (row: any) => {
+          const size = resolveRowSize(row);
+          return size === null || size === undefined ? "-" : formatBytes(size);
+        },
+        sortable: true,
+        sortKey: "size"
+      },
+      {
+        key: "createdAt",
+        label: t("createdAt"),
+        ...layout.createdAt,
+        render: (row: any) => formatDateTime(row.createdAt),
+        sortable: true,
+        sortKey: "created_at"
+      },
+      {
+        key: "updatedAt",
+        label: t("updatedAt"),
+        ...layout.updatedAt,
+        render: (row: any) => formatDateTime(row.updatedAt),
+        sortable: true,
+        sortKey: "updated_at"
+      },
+      {
+        key: "download",
+        label: t("download"),
+        align: "center",
+        ...layout.download,
+        render: (row: any) => {
+          const langs = row.availableAssetLangs || row.availableLangs || [];
+          if (!isDownloadable(row)) return "-";
+          const sizes = (row.availableAssetSizes || []).reduce<Record<string, number>>((acc: Record<string, number>, item: any) => {
+            acc[item.lang] = item.size;
+            return acc;
+          }, {});
+          return (
+            <Tooltip title={t("download")}>
+              <span>
+                <IconButton
+                  size="small"
+                  color="primary"
+                  sx={{ backgroundColor: "rgba(29, 77, 79, 0.12)" }}
+                  onClick={() => {
+                    if (langs.length > 1) {
+                      setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
+                      return;
+                    }
+                    const lang = langs[0];
+                    downloadMutation.mutate({ id: row.id, lang, title: row.title });
+                  }}
+                >
+                  <DownloadIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          );
+        }
+      }
+    );
+
+    return columns;
+  }, [
+    isFilesView,
+    isDepartmentView,
+    isFavoritesView,
+    canSubmitFiles,
+    sectionsById,
+    getCategoryPath,
+    renderPath,
+    favoriteMutation,
+    downloadMutation,
+    handleOpenUpdateRequest,
+    setDownloadTarget,
+    resolveRowSize,
+    isDownloadable,
+    t
+  ]);
+
   return (
     <Page
       title={
@@ -591,7 +974,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
       subtitle={t("myLibrarySubtitle")}
       action={
         isRequestsView && canSubmitFiles ? (
-          <Button variant="contained" onClick={handleOpenSubmit}>
+          <Button variant="contained" onClick={handleOpenNewRequest}>
             {t("submitForPublication")}
           </Button>
         ) : undefined
@@ -633,6 +1016,14 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
               rows={requestRows}
               sortIconVariant="chevron"
               onRowClick={(row) => setRequestDetails(row)}columns={[
+                {
+                  key: "type",
+                  label: "",
+                  align: "center",
+                  width: 40,
+                  render: (row) => requestTypeIcon(row.requestType),
+                  sortValue: (row) => row.requestType || "new"
+                },
                 {
                   key: "title",
                   label: t("title"),
@@ -740,172 +1131,15 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
               onSortChange={(key, direction) =>
                 setSortFiles(direction ? { key, direction } : { key: null, direction: null })
               }
-              sortIconVariant="chevron"columns={[
-                {
-                  key: "favorite",
-                  label: "",
-                  align: "center",
-                  sortable: false,
-                  width: 32,
-                  headerSx: { pl: 1, pr: 0.25 },
-                  cellSx: { pl: 1.5, pr: 0.25 },
-                  render: (row) => (
-                    <Tooltip title={t("favorites")}>
-                      <IconButton
-                        size="small"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          favoriteMutation.mutate({ id: row.id, isFavorite: Boolean(row.isFavorite) });
-                        }}
-                      >
-                        {row.isFavorite ? (
-                          <StarIcon fontSize="small" sx={{ color: "warning.main" }} />
-                        ) : (
-                          <StarBorderIcon fontSize="small" sx={{ color: "text.disabled" }} />
-                        )}
-                      </IconButton>
-                    </Tooltip>
-                  )
-                },
-                {
-                  key: "lock",
-                  label: "",
-                  align: "left",
-                  sortable: false,
-                  width: 32,
-                  headerSx: { pl: 0.5, pr: 0.25 },
-                  cellSx: { pl: 0.5, pr: 0.25 },
-                  render: (row) => {
-                    if (isDownloadable(row)) return null;
-                    const tooltip = row.canDownload ? t("noAssets") : t("noAccess");
-                    return (
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", width: "100%" }}>
-                        <Tooltip title={tooltip}>
-                          <Box component="span" sx={{ display: "inline-flex", alignItems: "center" }}>
-                            <LockOutlinedIcon sx={{ fontSize: 16, display: "block" }} color="action" />
-                          </Box>
-                        </Tooltip>
-                      </Box>
-                    );
-                  }
-                },
-                {
-                  key: "title",
-                  label: t("title"),
-                  sortable: true,
-                  sortKey: "title",
-                  render: (row) => (
-                    <Box component="span" sx={{ color: "text.primary" }}>
-                      {row.title || t("file")}
-                    </Box>
-                  )
-                },
-                {
-                  key: "section",
-                  label: t("section"),
-                  render: (row) => {
-                    const item = row.sectionId ? sectionsById.get(row.sectionId) : null;
-                    return item?.title || (row.sectionId ? `#${row.sectionId}` : "-");
-                  }
-                },
-                {
-                  key: "category",
-                  label: t("category"),
-                  render: (row) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-"),
-                  sortable: true,
-                  sortKey: "category",
-                },
-                {
-                  key: "accessType",
-                  label: t("access"),
-                  align: "center",
-                  width: 48,
-                  render: (row) => (
-                    <Tooltip title={row.accessType === "restricted" ? t("accessRestricted") : t("accessPublic")}>
-                      <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
-                        {row.accessType === "restricted" ? (
-                          <GroupOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
-                        ) : (
-                          <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
-                        )}
-                      </Box>
-                    </Tooltip>
-                  )
-                },
-                {
-                  key: "langs",
-                  label: t("languages"),
-                  render: (row) => {
-                    const langs = row.availableAssetLangs || row.availableLangs || [];
-                    return (
-                      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 0.5 }}>
-                        {langs.map((lang: string) => (
-                          <Chip key={lang} size="small" label={lang.toUpperCase()} />
-                        ))}
-                      </Stack>
-                    );
-                  }
-                },
-                {
-                  key: "size",
-                  label: t("fileSize"),
-                  render: (row) => {
-                    const size = resolveRowSize(row);
-                    return size === null || size === undefined ? "-" : formatBytes(size);
-                  },
-                  sortable: true,
-                  sortKey: "size"
-                },
-                {
-                  key: "createdAt",
-                  label: t("createdAt"),
-                  render: (row) => formatDateTime(row.createdAt),
-                  sortable: true,
-                  sortKey: "created_at"
-                },
-                {
-                  key: "updatedAt",
-                  label: t("updatedAt"),
-                  render: (row) => formatDateTime(row.updatedAt),
-                  sortable: true,
-                  sortKey: "updated_at"
-                },
-                {
-                  key: "download",
-                  label: t("download"),
-                  align: "center",
-                  width: 56,
-                  render: (row) => {
-                    const langs = row.availableAssetLangs || row.availableLangs || [];
-                    if (!isDownloadable(row)) return "-";
-                    const sizes = (row.availableAssetSizes || []).reduce<Record<string, number>>((acc: Record<string, number>, item: any) => {
-                      acc[item.lang] = item.size;
-                      return acc;
-                    }, {});
-                    return (
-                      <Tooltip title={t("download")}>
-                        <span>
-                          <IconButton
-                            size="small"
-                            color="primary"
-                            sx={{ backgroundColor: "rgba(29, 77, 79, 0.12)" }}
-                            onClick={() => {
-                              if (langs.length > 1) {
-                                setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
-                                return;
-                              }
-                              const lang = langs[0];
-                              downloadMutation.mutate({ id: row.id, lang, title: row.title });
-                            }}
-                          >
-                            <DownloadIcon fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                    );
-                  }
+              sortIconVariant="chevron"
+              tableLayout="fixed"
+              containerSx={{ overflowX: "visible" }}
+              columns={fileColumns}
+              onRowClick={(row) => {
+                if (isFilesView && row.updatedByOther) {
+                  setUpdateInfoTarget(row);
                 }
-              ]}
+              }}
             />
           )}
 
@@ -925,6 +1159,10 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
           {requestDetails && (
             <Stack spacing={2} sx={{ mt: 1 }}>
               <DetailRow label={t("title")} value={requestDetails.title || t("file")} />
+              <DetailRow label={t("requestType")} value={requestTypeLabel(requestDetails.requestType)} />
+              {requestDetails.requestType === "update" ? (
+                <DetailRow label={t("targetFile")} value={requestDetails.targetTitle || t("file")} />
+              ) : null}
               <DetailRow label={t("status")} value={statusChip(requestDetails.status)} />
               <DetailRow label={t("access")} value={accessIcon(requestDetails.accessType)} />
               <CommentBlock label={t("commentFromUser")} value={requestDetails.comment} tone="user" />
@@ -934,6 +1172,28 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setRequestDetails(null)}>{t("cancel")}</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!updateInfoTarget} onClose={() => setUpdateInfoTarget(null)} fullWidth maxWidth="sm">
+        <DialogTitle>{t("fileUpdatedByOtherTitle")}</DialogTitle>
+        <DialogContent>
+          {updateInfoTarget && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <DetailRow label={t("file")} value={updateInfoTarget.title || t("file")} />
+              <DetailRow
+                label={t("updatedBy")}
+                value={updateInfoTarget.updatedBy?.fullName || updateInfoTarget.updatedBy?.login || "-"}
+              />
+              <DetailRow
+                label={t("updatedAt")}
+                value={updateInfoTarget.updatedBy?.createdAt ? formatDateTime(updateInfoTarget.updatedBy.createdAt) : "-"}
+              />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUpdateInfoTarget(null)}>{t("cancel")}</Button>
         </DialogActions>
       </Dialog>
 
@@ -965,63 +1225,81 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
       </Dialog>
 
       <Dialog open={submitOpen} onClose={handleCloseSubmit} fullWidth maxWidth="md">
-        <DialogTitle>{t("submitForPublication")}</DialogTitle>
+        <DialogTitle>{submitMode === "update" ? t("updateFileRequest") : t("submitForPublication")}</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
+          {submitMode === "update" && updateLoading ? (
+            <LoadingState rows={4} />
+          ) : (
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <Controller
-              control={requestForm.control}
-              name="sectionId"
-              render={({ field }) => (
-                <Autocomplete
-                  options={sortedSections}
-                  getOptionLabel={(option: any) => option.title || `#${option.id}`}
-                  renderOption={(props, option: any) => {
-                    const { key, ...optionProps } = props;
-                    return (
-                      <li key={option.id} {...optionProps}>
-                        {option.title || `#${option.id}`}
-                      </li>
-                    );
-                  }}
-                  value={sortedSections.find((section: any) => section.id === field.value) || null}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  onChange={(_, value) => field.onChange(value ? value.id : 0)}
-                  renderInput={(params) => <TextField {...params} label={t("section")} required />}
+            {submitMode === "update" && (
+              <Paper
+                variant="outlined"
+                sx={{ p: 2, borderRadius: 2, backgroundColor: "rgba(29, 77, 79, 0.06)" }}
+              >
+                <Typography variant="subtitle2">{t("file")}</Typography>
+                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                  {updateDetails?.title || updateTarget?.title || updateDetails?.id || updateTarget?.id || "-"}
+                </Typography>
+              </Paper>
+            )}
+            {submitMode === "new" && (
+              <>
+                <Controller
+                  control={requestForm.control}
+                  name="sectionId"
+                  render={({ field }) => (
+                    <Autocomplete
+                      options={sortedSections}
+                      getOptionLabel={(option: any) => option.title || `#${option.id}`}
+                      renderOption={(props, option: any) => {
+                        const { key, ...optionProps } = props;
+                        return (
+                          <li key={option.id} {...optionProps}>
+                            {option.title || `#${option.id}`}
+                          </li>
+                        );
+                      }}
+                      value={sortedSections.find((section: any) => section.id === field.value) || null}
+                      isOptionEqualToValue={(option, value) => option.id === value.id}
+                      onChange={(_, value) => field.onChange(value ? value.id : 0)}
+                      renderInput={(params) => <TextField {...params} label={t("section")} required />}
+                    />
+                  )}
                 />
-              )}
-            />
-            <Controller
-              control={requestForm.control}
-              name="categoryId"
-              render={({ field }) => (
-                <Autocomplete
-                  options={sortedCategories}
-                  getOptionLabel={(option: any) => formatPath(getCategoryOptionPath(option.id))}
-                  renderOption={(props, option: any) => {
-                    const { key, ...optionProps } = props;
-                    return (
-                      <li key={option.id} {...optionProps}>
-                        {renderPath(getCategoryOptionPath(option.id))}
-                      </li>
-                    );
-                  }}
-                  value={sortedCategories.find((cat: any) => cat.id === field.value) || null}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  onChange={(_, value) => field.onChange(value ? value.id : 0)}
-                  renderInput={(params) => <TextField {...params} label={t("category")} required />}
+                <Controller
+                  control={requestForm.control}
+                  name="categoryId"
+                  render={({ field }) => (
+                    <Autocomplete
+                      options={sortedCategories}
+                      getOptionLabel={(option: any) => formatPath(getCategoryOptionPath(option.id))}
+                      renderOption={(props, option: any) => {
+                        const { key, ...optionProps } = props;
+                        return (
+                          <li key={option.id} {...optionProps}>
+                            {renderPath(getCategoryOptionPath(option.id))}
+                          </li>
+                        );
+                      }}
+                      value={sortedCategories.find((cat: any) => cat.id === field.value) || null}
+                      isOptionEqualToValue={(option, value) => option.id === value.id}
+                      onChange={(_, value) => field.onChange(value ? value.id : 0)}
+                      renderInput={(params) => <TextField {...params} label={t("category")} required />}
+                    />
+                  )}
                 />
-              )}
-            />
-            <Controller
-              control={requestForm.control}
-              name="accessType"
-              render={({ field }) => (
-                <TextField select label={t("access")} value={field.value} onChange={(event) => field.onChange(event.target.value)}>
-                  <MenuItem value="public">{t("accessPublic")}</MenuItem>
-                  <MenuItem value="restricted">{t("accessRestricted")}</MenuItem>
-                </TextField>
-              )}
-            />
+                <Controller
+                  control={requestForm.control}
+                  name="accessType"
+                  render={({ field }) => (
+                    <TextField select label={t("access")} value={field.value} onChange={(event) => field.onChange(event.target.value)}>
+                      <MenuItem value="public">{t("accessPublic")}</MenuItem>
+                      <MenuItem value="restricted">{t("accessRestricted")}</MenuItem>
+                    </TextField>
+                  )}
+                />
+              </>
+            )}
             <TranslationsEditor
               value={translations}
               onChange={setTranslations}
@@ -1128,25 +1406,41 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                 backgroundColor: "rgba(29, 77, 79, 0.06)"
               }}
             >
-              <Controller
-                control={requestForm.control}
-                name="comment"
-                render={({ field }) => (
-                  <TextField
-                    label={t("commentForAdmin")}
-                    multiline
-                    minRows={3}
-                    fullWidth
-                    {...field}
-                  />
-                )}
-              />
+              {submitMode === "new" ? (
+                <Controller
+                  control={requestForm.control}
+                  name="comment"
+                  render={({ field }) => (
+                    <TextField
+                      label={t("commentForAdmin")}
+                      multiline
+                      minRows={3}
+                      fullWidth
+                      {...field}
+                    />
+                  )}
+                />
+              ) : (
+                <TextField
+                  label={t("commentForAdmin")}
+                  multiline
+                  minRows={3}
+                  fullWidth
+                  value={updateComment}
+                  onChange={(event) => setUpdateComment(event.target.value)}
+                />
+              )}
             </Paper>
           </Stack>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseSubmit}>{t("cancel")}</Button>
-          <Button variant="contained" onClick={handleSubmitRequest} disabled={createMutation.isPending || submitting}>
+          <Button
+            variant="contained"
+            onClick={submitMode === "update" ? submitUpdateRequest : submitNewRequest}
+            disabled={createMutation.isPending || submitting}
+          >
             {t("submitRequest")}
           </Button>
         </DialogActions>

@@ -204,6 +204,8 @@ export class FileRequestsService {
         status: "pending",
         comment,
         created_by: actor.id,
+        request_type: "new",
+        file_item_id: null,
         created_at: this.dbService.db.fn.now(),
         updated_at: this.dbService.db.fn.now()
       })
@@ -244,6 +246,81 @@ export class FileRequestsService {
       action: "FILE_REQUEST_CREATED",
       entityType: "FILE_REQUEST",
       entityId: requestId
+    });
+
+    return { id: requestId };
+  }
+
+  async createUpdateRequest(fileItemId: number, dto: any, actor: any) {
+    await this.assertUserCanSubmit(actor.id);
+
+    if (!dto.translations || dto.translations.length === 0) {
+      throw new BadRequestException("Translations required");
+    }
+
+    const file = await this.dbService.db("file_items")
+      .select("id", "section_id", "category_id", "access_type", "deleted_at")
+      .where({ id: fileItemId })
+      .first();
+    if (!file || file.deleted_at) {
+      throw new NotFoundException();
+    }
+
+    const departmentIds = await this.getDepartmentScopeIds(actor.departmentId ?? null);
+    const hasDepartment = departmentIds.length
+      ? await this.dbService.db("file_access_departments")
+          .where({ file_item_id: fileItemId })
+          .whereIn("department_id", departmentIds)
+          .first()
+      : null;
+    if (!hasDepartment) {
+      throw new ForbiddenException("Department access required");
+    }
+
+    const normalizedTranslations = dto.translations.map((t: any) => ({
+      lang: t.lang,
+      title: String(t.title || "").trim(),
+      description: t.description ? String(t.description).trim() || null : null
+    })).filter((t: any) => t.title);
+
+    if (normalizedTranslations.length === 0) {
+      throw new BadRequestException("Translations required");
+    }
+
+    const comment = dto.comment ? String(dto.comment).trim() || null : null;
+
+    const [request] = await this.dbService.db("file_requests")
+      .insert({
+        section_id: file.section_id,
+        category_id: file.category_id,
+        access_type: file.access_type,
+        status: "pending",
+        comment,
+        created_by: actor.id,
+        request_type: "update",
+        file_item_id: fileItemId,
+        created_at: this.dbService.db.fn.now(),
+        updated_at: this.dbService.db.fn.now()
+      })
+      .returning("id");
+
+    const requestId = request.id || request;
+
+    await this.dbService.db("file_request_translations").insert(
+      normalizedTranslations.map((t: any) => ({
+        file_request_id: requestId,
+        lang: t.lang,
+        title: t.title,
+        description: t.description
+      }))
+    );
+
+    await this.auditService.log({
+      actorUserId: actor.id,
+      action: "FILE_UPDATE_REQUEST_CREATED",
+      entityType: "FILE_REQUEST",
+      entityId: requestId,
+      meta: { fileItemId }
     });
 
     return { id: requestId };
@@ -335,11 +412,17 @@ export class FileRequestsService {
     const lang = normalizeLang(preferredLang) || null;
     const query = db("file_requests")
       .leftJoin("file_request_translations", "file_requests.id", "file_request_translations.file_request_id")
+      .leftJoin({ target_title: "file_translations" }, function () {
+        this.on("target_title.file_item_id", "file_requests.file_item_id")
+          .andOn("target_title.lang", db.raw("?", [lang || defaultLang]));
+      })
       .select(
         "file_requests.id",
         "file_requests.section_id",
         "file_requests.category_id",
         "file_requests.access_type",
+        "file_requests.request_type",
+        "file_requests.file_item_id",
         "file_requests.status",
         "file_requests.comment",
         "file_requests.rejection_reason",
@@ -348,7 +431,8 @@ export class FileRequestsService {
         "file_requests.resolved_at",
         "file_request_translations.lang",
         "file_request_translations.title",
-        "file_request_translations.description"
+        "file_request_translations.description",
+        "target_title.title as target_title"
       )
       .where("file_requests.created_by", user.id);
 
@@ -388,6 +472,9 @@ export class FileRequestsService {
       category_id: number;
       access_type: string;
       status: string;
+      request_type?: string | null;
+      file_item_id?: number | null;
+      target_title?: string | null;
       comment?: string | null;
       rejection_reason?: string | null;
       created_at: string;
@@ -404,6 +491,9 @@ export class FileRequestsService {
           section_id: row.section_id,
           category_id: row.category_id,
           access_type: row.access_type,
+          request_type: row.request_type,
+          file_item_id: row.file_item_id,
+          target_title: row.target_title,
           status: row.status,
           comment: row.comment,
           rejection_reason: row.rejection_reason,
@@ -431,6 +521,8 @@ export class FileRequestsService {
         categoryId: item.category_id,
         accessType: item.access_type,
         status: item.status,
+        requestType: item.request_type || "new",
+        fileItemId: item.file_item_id || null,
         comment: item.comment || null,
         rejectionReason: item.rejection_reason || null,
         createdAt: item.created_at,
@@ -438,6 +530,7 @@ export class FileRequestsService {
         resolvedAt: item.resolved_at || null,
         title: picked?.title || null,
         description: picked?.description || null,
+        targetTitle: item.target_title || null,
         availableLangs: getAvailableLangs(item.translations)
       };
     });
@@ -460,11 +553,17 @@ export class FileRequestsService {
       .leftJoin("file_request_translations", "file_requests.id", "file_request_translations.file_request_id")
       .leftJoin("users", "users.id", "file_requests.created_by")
       .leftJoin("departments", "departments.id", "users.department_id")
+      .leftJoin({ target_title: "file_translations" }, function () {
+        this.on("target_title.file_item_id", "file_requests.file_item_id")
+          .andOn("target_title.lang", db.raw("?", [lang || defaultLang]));
+      })
       .select(
         "file_requests.id",
         "file_requests.section_id",
         "file_requests.category_id",
         "file_requests.access_type",
+        "file_requests.request_type",
+        "file_requests.file_item_id",
         "file_requests.status",
         "file_requests.comment",
         "file_requests.rejection_reason",
@@ -479,7 +578,8 @@ export class FileRequestsService {
         "users.surname as user_surname",
         "users.name as user_name",
         "users.patronymic as user_patronymic",
-        "departments.name as user_department"
+        "departments.name as user_department",
+        "target_title.title as target_title"
       );
 
     if (scope === "pending") {
@@ -523,6 +623,9 @@ export class FileRequestsService {
       category_id: number;
       access_type: string;
       status: string;
+      request_type?: string | null;
+      file_item_id?: number | null;
+      target_title?: string | null;
       comment?: string | null;
       rejection_reason?: string | null;
       created_at: string;
@@ -545,6 +648,9 @@ export class FileRequestsService {
           section_id: row.section_id,
           category_id: row.category_id,
           access_type: row.access_type,
+          request_type: row.request_type,
+          file_item_id: row.file_item_id,
+          target_title: row.target_title,
           status: row.status,
           comment: row.comment,
           rejection_reason: row.rejection_reason,
@@ -578,6 +684,8 @@ export class FileRequestsService {
         categoryId: item.category_id,
         accessType: item.access_type,
         status: item.status,
+        requestType: item.request_type || "new",
+        fileItemId: item.file_item_id || null,
         comment: item.comment || null,
         rejectionReason: item.rejection_reason || null,
         createdAt: item.created_at,
@@ -585,6 +693,7 @@ export class FileRequestsService {
         resolvedAt: item.resolved_at || null,
         title: picked?.title || null,
         description: picked?.description || null,
+        targetTitle: item.target_title || null,
         availableLangs: getAvailableLangs(item.translations),
         createdBy: item.user_id
           ? {
@@ -668,6 +777,10 @@ export class FileRequestsService {
       .first();
     if (!request) throw new NotFoundException();
     if (request.status !== "pending") throw new BadRequestException("Request is not pending");
+
+    if (request.request_type === "update") {
+      return this.approveUpdateRequest(request, actor);
+    }
 
     const translations = await this.dbService.db("file_request_translations")
       .where({ file_request_id: requestId });
@@ -799,6 +912,118 @@ export class FileRequestsService {
     });
 
     return { fileItemId };
+  }
+
+  private async approveUpdateRequest(request: any, actor: any) {
+    const requestId = request.id;
+    if (!request.file_item_id) {
+      throw new BadRequestException("Target file missing");
+    }
+
+    const file = await this.dbService.db("file_items")
+      .where({ id: request.file_item_id })
+      .whereNull("deleted_at")
+      .first();
+    if (!file) throw new NotFoundException();
+
+    const translations = await this.dbService.db("file_request_translations")
+      .where({ file_request_id: requestId });
+    const assets = await this.dbService.db("file_request_assets")
+      .where({ file_request_id: requestId });
+
+    if (!assets.length) {
+      throw new BadRequestException("Request assets missing");
+    }
+
+    const now = this.dbService.db.fn.now();
+    const maxVersionRow = await this.dbService.db("file_versions")
+      .where({ file_item_id: request.file_item_id })
+      .max<{ max: number }>("version_number as max")
+      .first();
+    const nextVersionNumber = Number(maxVersionRow?.max || 0) + 1;
+
+    const { versionId } = await this.dbService.db.transaction(async (trx) => {
+      if (translations.length > 0) {
+        await trx("file_translations").where({ file_item_id: request.file_item_id }).delete();
+        await trx("file_translations").insert(
+          translations.map((t: any) => ({
+            file_item_id: request.file_item_id,
+            lang: t.lang,
+            title: t.title,
+            description: t.description || null
+          }))
+        );
+      }
+
+      const [version] = await trx("file_versions")
+        .insert({
+          file_item_id: request.file_item_id,
+          version_number: nextVersionNumber,
+          comment: request.comment || null,
+          created_by: request.created_by,
+          created_at: now,
+          updated_at: now
+        })
+        .returning("id");
+
+      const versionId = version.id || version;
+
+      await trx("file_items")
+        .update({ current_version_id: versionId, updated_at: now })
+        .where({ id: request.file_item_id });
+
+      await trx("file_version_assets").insert(
+        assets.map((asset: any) => ({
+          file_version_id: versionId,
+          lang: asset.lang,
+          original_name: asset.original_name,
+          mime: asset.mime,
+          size: asset.size,
+          path: asset.path,
+          checksum: asset.checksum || null,
+          created_at: now,
+          updated_at: now
+        }))
+      );
+
+      await trx("file_requests")
+        .update({
+          status: "approved",
+          rejection_reason: null,
+          resolved_by: actor.id,
+          resolved_at: now,
+          updated_at: now
+        })
+        .where({ id: requestId });
+
+      await trx("file_request_assets").where({ file_request_id: requestId }).delete();
+
+      return { versionId };
+    });
+
+    await this.auditService.log({
+      actorUserId: actor.id,
+      action: "FILE_REQUEST_APPROVED",
+      entityType: "FILE_REQUEST",
+      entityId: requestId
+    });
+
+    await this.auditService.log({
+      actorUserId: actor.id,
+      action: "FILE_UPDATED",
+      entityType: "FILE",
+      entityId: request.file_item_id
+    });
+
+    await this.auditService.log({
+      actorUserId: actor.id,
+      action: "FILE_VERSION_CREATED",
+      entityType: "FILE_VERSION",
+      entityId: versionId,
+      meta: { versionNumber: nextVersionNumber }
+    });
+
+    return { fileItemId: request.file_item_id };
   }
 
   async rejectRequest(requestId: number, actor: any, reason?: string | null) {

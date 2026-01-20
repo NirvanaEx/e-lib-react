@@ -22,6 +22,8 @@ import HighlightOffIcon from "@mui/icons-material/HighlightOff";
 import DownloadIcon from "@mui/icons-material/Download";
 import PublicIcon from "@mui/icons-material/Public";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import SystemUpdateAltOutlinedIcon from "@mui/icons-material/SystemUpdateAltOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Page } from "../../shared/ui/Page";
@@ -44,7 +46,8 @@ import {
   fetchDashboardRequestAssets,
   fetchDashboardRequests,
   rejectDashboardRequest,
-  downloadDashboardRequestAsset
+  downloadDashboardRequestAsset,
+  fetchVersions
 } from "./files.api";
 
 type RequestRow = {
@@ -54,6 +57,9 @@ type RequestRow = {
   sectionId?: number | null;
   categoryId?: number | null;
   accessType: string;
+  requestType?: string | null;
+  fileItemId?: number | null;
+  targetTitle?: string | null;
   status: string;
   comment?: string | null;
   rejectionReason?: string | null;
@@ -163,6 +169,12 @@ export default function FileRequestsPage() {
     enabled: Boolean(detailsTarget?.id)
   });
   const assets = assetsData?.data || [];
+  const { data: versionsData, isLoading: versionsLoading } = useQuery({
+    queryKey: ["dashboard-request-versions", detailsTarget?.fileItemId],
+    queryFn: () => fetchVersions(detailsTarget?.fileItemId as number),
+    enabled: Boolean(detailsTarget?.fileItemId && detailsTarget?.requestType === "update")
+  });
+  const versions = versionsData?.data || [];
 
   const formatBadge = (count: number) => (count > 9 ? "9+" : String(count));
 
@@ -232,6 +244,25 @@ export default function FileRequestsPage() {
     return <Chip size="small" color="warning" label={t("requestPending")} />;
   };
 
+  const requestTypeIcon = (requestType?: string | null) => {
+    const isUpdate = requestType === "update";
+    const label = isUpdate ? t("requestTypeUpdate") : t("requestTypeNew");
+    return (
+      <Tooltip title={label}>
+        <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+          {isUpdate ? (
+            <SystemUpdateAltOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
+          ) : (
+            <AddCircleOutlineIcon fontSize="small" sx={{ color: "success.main" }} />
+          )}
+        </Box>
+      </Tooltip>
+    );
+  };
+
+  const requestTypeLabel = (requestType?: string | null) =>
+    requestType === "update" ? t("requestTypeUpdate") : t("requestTypeNew");
+
   const approveMutation = useMutation({
     mutationFn: (id: number) => approveDashboardRequest(id),
     onSuccess: () => {
@@ -283,6 +314,14 @@ export default function FileRequestsPage() {
   });
 
   const pendingColumns = [
+    {
+      key: "type",
+      label: "",
+      align: "center",
+      width: 40,
+      render: (row: RequestRow) => requestTypeIcon(row.requestType),
+      sortValue: (row: RequestRow) => row.requestType || "new"
+    },
     {
       key: "login",
       label: t("login"),
@@ -374,6 +413,14 @@ export default function FileRequestsPage() {
   ];
 
   const historyColumns = [
+    {
+      key: "type",
+      label: "",
+      align: "center",
+      width: 40,
+      render: (row: RequestRow) => requestTypeIcon(row.requestType),
+      sortValue: (row: RequestRow) => row.requestType || "new"
+    },
     {
       key: "login",
       label: t("login"),
@@ -497,6 +544,10 @@ export default function FileRequestsPage() {
           {detailsTarget && (
             <Stack spacing={2} sx={{ mt: 1 }}>
               <DetailRow label={t("title")} value={detailsTarget.title || t("file")} />
+              <DetailRow label={t("requestType")} value={requestTypeLabel(detailsTarget.requestType)} />
+              {detailsTarget.requestType === "update" ? (
+                <DetailRow label={t("targetFile")} value={detailsTarget.targetTitle || detailsTarget.title || t("file")} />
+              ) : null}
               {detailsTarget.description ? (
                 <DetailRow label={t("description")} value={detailsTarget.description} />
               ) : null}
@@ -578,6 +629,34 @@ export default function FileRequestsPage() {
                   )
                 }
               />
+              {detailsTarget.requestType === "update" && (
+                <DetailRow
+                  label={t("changeHistory")}
+                  value={
+                    versionsLoading ? (
+                      <Typography variant="body2" color="text.secondary">
+                        {t("loading")}
+                      </Typography>
+                    ) : versions.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">
+                        {t("noHistory")}
+                      </Typography>
+                    ) : (
+                      <Stack spacing={1}>
+                        {versions.map((version: any) => (
+                          <Stack key={version.id} direction="row" spacing={1} alignItems="center">
+                            <Chip size="small" label={`v${version.version_number}`} />
+                            <Typography variant="body2">{formatDateTime(version.created_at)}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {version.createdBy?.fullName || version.createdBy?.login || "-"}
+                            </Typography>
+                          </Stack>
+                        ))}
+                      </Stack>
+                    )
+                  }
+                />
+              )}
             </Stack>
           )}
         </DialogContent>
