@@ -584,7 +584,7 @@ export default function FilesPage() {
                         size="small"
                         disabled={disabled}
                         color={disabled ? "default" : "primary"}
-                        sx={disabled ? undefined : { backgroundColor: "rgba(29, 77, 79, 0.12)" }}
+                        sx={disabled ? undefined : { backgroundColor: "rgba(37, 99, 235, 0.12)" }}
                         onClick={(event) => {
                           event.stopPropagation();
                           if (langs.length > 1) {

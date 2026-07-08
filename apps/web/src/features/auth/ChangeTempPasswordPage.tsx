@@ -64,7 +64,7 @@ export default function ChangeTempPasswordPage() {
         placeItems: "center",
         p: 2,
         background:
-          "radial-gradient(600px 380px at 15% 10%, rgba(198,138,63,0.18), transparent 70%), radial-gradient(700px 400px at 100% 0%, rgba(29,77,79,0.18), transparent 60%)"
+          "radial-gradient(600px 380px at 15% 10%, rgba(14,165,233,0.14), transparent 70%), radial-gradient(700px 400px at 100% 0%, rgba(37,99,235,0.14), transparent 60%)"
       }}
     >
       <Paper

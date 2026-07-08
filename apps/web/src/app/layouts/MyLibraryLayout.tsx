@@ -28,14 +28,30 @@ export default function MyLibraryLayout({ children }: { children: React.ReactNod
           justifyContent: collapsed ? "center" : "flex-start"
         }}
       >
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Box sx={{ minWidth: collapsed ? 0 : 40, display: "flex", justifyContent: "center" }}>
+        <Stack direction="row" alignItems="center" spacing={1.25}>
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              display: "grid",
+              placeItems: "center",
+              border: "1px solid rgba(255,255,255,0.3)",
+              backgroundColor: "rgba(255,255,255,0.08)",
+              flexShrink: 0
+            }}
+          >
             <MenuBookOutlinedIcon fontSize="small" />
           </Box>
           {!collapsed && (
-            <Typography variant="subtitle1" sx={{ letterSpacing: "0.12em", fontWeight: 700 }}>
-              E-LIB
-            </Typography>
+            <Box sx={{ textAlign: "left" }}>
+              <Typography variant="subtitle2" sx={{ letterSpacing: "0.1em", fontWeight: 800, lineHeight: 1.2, textTransform: "uppercase" }}>
+                {t("appName")}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.65)" }}>
+                {t("heroTagline")}
+              </Typography>
+            </Box>
           )}
         </Stack>
       </ButtonBase>
@@ -58,6 +74,7 @@ export default function MyLibraryLayout({ children }: { children: React.ReactNod
         sidebarTop={sidebarTop}
         sidebarCollapsible
         sidebarPaddingTop={0.5}
+        sidebarVariant="dark"
       >
         {children}
       </BaseLayout>
@@ -90,11 +107,16 @@ function MyLibrarySidebarMenu({ collapsed }: { collapsed: boolean }) {
     mb: 0.6,
     py: 0.9,
     px: 1,
+    color: "rgba(255,255,255,0.85)",
+    "&:hover": {
+      backgroundColor: "rgba(255,255,255,0.08)"
+    },
     "&.Mui-selected": {
-      backgroundColor: "rgba(29, 77, 79, 0.12)"
+      backgroundColor: "rgba(37, 99, 235, 0.9)",
+      color: "#fff"
     },
     "&.Mui-selected:hover": {
-      backgroundColor: "rgba(29, 77, 79, 0.16)"
+      backgroundColor: "#2563eb"
     }
   };
   const menuIconSx = {
@@ -103,8 +125,8 @@ function MyLibrarySidebarMenu({ collapsed }: { collapsed: boolean }) {
     borderRadius: "50%",
     display: "grid",
     placeItems: "center",
-    backgroundColor: "rgba(29, 77, 79, 0.12)",
-    color: "primary.main"
+    backgroundColor: "rgba(255,255,255,0.1)",
+    color: "#fff"
   };
 
   return (

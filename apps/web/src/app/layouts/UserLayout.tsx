@@ -38,14 +38,30 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           justifyContent: collapsed ? "center" : "flex-start"
         }}
       >
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Box sx={{ minWidth: collapsed ? 0 : 40, display: "flex", justifyContent: "center" }}>
+        <Stack direction="row" alignItems="center" spacing={1.25}>
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              display: "grid",
+              placeItems: "center",
+              border: "1px solid rgba(255,255,255,0.3)",
+              backgroundColor: "rgba(255,255,255,0.08)",
+              flexShrink: 0
+            }}
+          >
             <MenuBookOutlinedIcon fontSize="small" />
           </Box>
           {!collapsed && (
-            <Typography variant="subtitle1" sx={{ letterSpacing: "0.12em", fontWeight: 700 }}>
-              E-LIB
-            </Typography>
+            <Box sx={{ textAlign: "left" }}>
+              <Typography variant="subtitle2" sx={{ letterSpacing: "0.1em", fontWeight: 800, lineHeight: 1.2, textTransform: "uppercase" }}>
+                {t("appName")}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.65)" }}>
+                {t("heroTagline")}
+              </Typography>
+            </Box>
           )}
         </Stack>
       </ButtonBase>
@@ -67,6 +83,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
         sidebarTop={sidebarTop}
         sidebarCollapsible
         sidebarPaddingTop={0.5}
+        sidebarVariant="dark"
       >
         {children}
       </BaseLayout>
@@ -138,11 +155,16 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
     mb: 0.6,
     py: 0.9,
     px: 1,
+    color: "rgba(255,255,255,0.85)",
+    "&:hover": {
+      backgroundColor: "rgba(255,255,255,0.08)"
+    },
     "&.Mui-selected": {
-      backgroundColor: "rgba(29, 77, 79, 0.12)"
+      backgroundColor: "rgba(37, 99, 235, 0.9)",
+      color: "#fff"
     },
     "&.Mui-selected:hover": {
-      backgroundColor: "rgba(29, 77, 79, 0.16)"
+      backgroundColor: "#2563eb"
     }
   };
   const menuIconSx = {
@@ -151,8 +173,8 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
     borderRadius: "50%",
     display: "grid",
     placeItems: "center",
-    backgroundColor: "rgba(29, 77, 79, 0.12)",
-    color: "primary.main"
+    backgroundColor: "rgba(255,255,255,0.1)",
+    color: "#fff"
   };
   const categoryLevelIcons = [
     LocalOfferOutlinedIcon,
@@ -200,6 +222,7 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
           {!collapsed && categoriesByParent[String(cat.id)]?.length ? (
             <IconButton
               size="small"
+              sx={{ color: "rgba(255,255,255,0.7)" }}
               onClick={(event) => {
                 event.stopPropagation();
                 toggleCategory(cat.id);
@@ -233,12 +256,12 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
     <Box>
       <Box>
         {!collapsed && (
-          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.16em", fontWeight: 700 }}>
+          <Typography variant="overline" sx={{ letterSpacing: "0.16em", fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>
             {t("sections")}
           </Typography>
         )}
         {sections.length === 0 ? (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          <Typography variant="body2" sx={{ mt: 1, color: "rgba(255,255,255,0.6)" }}>
             {t("noSections")}
           </Typography>
         ) : (
@@ -281,12 +304,12 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
 
       <Box sx={{ mt: collapsed ? 1 : 1.5 }}>
         {!collapsed && (
-          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.16em", fontWeight: 700 }}>
+          <Typography variant="overline" sx={{ letterSpacing: "0.16em", fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>
             {t("categories")}
           </Typography>
         )}
         {categories.length === 0 ? (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          <Typography variant="body2" sx={{ mt: 1, color: "rgba(255,255,255,0.6)" }}>
             {t("categoriesEmpty")}
           </Typography>
         ) : (

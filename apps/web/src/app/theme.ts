@@ -3,16 +3,16 @@ import { createTheme } from "@mui/material/styles";
 export const theme = createTheme({
   palette: {
     mode: "light",
-    primary: { main: "#1d4d4f" },
-    secondary: { main: "#c68a3f" },
-    background: { default: "#f3f1ec", paper: "#ffffff" },
-    text: { primary: "#1c1b19", secondary: "#7a746c" }
+    primary: { main: "#2563eb" },
+    secondary: { main: "#0ea5e9" },
+    background: { default: "#f5f7fb", paper: "#ffffff" },
+    text: { primary: "#16233d", secondary: "#64748b" }
   },
   typography: {
     fontFamily: "Manrope, Segoe UI, sans-serif",
-    h4: { fontFamily: "Source Serif 4, Times New Roman, serif", fontWeight: 700 },
-    h5: { fontFamily: "Source Serif 4, Times New Roman, serif", fontWeight: 700 },
-    h6: { fontFamily: "Source Serif 4, Times New Roman, serif", fontWeight: 600 }
+    h4: { fontWeight: 800, letterSpacing: "-0.02em" },
+    h5: { fontWeight: 700, letterSpacing: "-0.01em" },
+    h6: { fontWeight: 700 }
   },
   shape: {
     borderRadius: 14
@@ -31,14 +31,14 @@ export const theme = createTheme({
         root: {
           textTransform: "none",
           fontWeight: 600,
-          borderRadius: 12
+          borderRadius: 10
         }
       }
     },
     MuiTableHead: {
       styleOverrides: {
         root: {
-          backgroundColor: "#f3efe8"
+          backgroundColor: "#f1f5fb"
         }
       }
     }

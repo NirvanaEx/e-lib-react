@@ -700,7 +700,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
         borderRadius: 2,
         borderLeft: "4px solid",
         borderLeftColor: tone === "user" ? "info.main" : "error.main",
-        backgroundColor: tone === "user" ? "rgba(29, 77, 79, 0.06)" : "rgba(210, 47, 40, 0.08)"
+        backgroundColor: tone === "user" ? "rgba(37, 99, 235, 0.06)" : "rgba(210, 47, 40, 0.08)"
       }}
     >
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
@@ -1062,7 +1062,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                 <IconButton
                   size="small"
                   color="primary"
-                  sx={{ backgroundColor: "rgba(29, 77, 79, 0.12)" }}
+                  sx={{ backgroundColor: "rgba(37, 99, 235, 0.12)" }}
                   onClick={(event) => {
                     event.stopPropagation();
                     const versionId = isFilesView ? row.ownVersionId : undefined;
@@ -1624,7 +1624,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
             {submitMode === "update" && (
               <Paper
                 variant="outlined"
-                sx={{ p: 2, borderRadius: 2, backgroundColor: "rgba(29, 77, 79, 0.06)" }}
+                sx={{ p: 2, borderRadius: 2, backgroundColor: "rgba(37, 99, 235, 0.06)" }}
               >
                 <Typography variant="subtitle2">{t("file")}</Typography>
                 <Typography variant="body2" sx={{ mt: 0.5 }}>
@@ -1794,7 +1794,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                 p: 2,
                 borderRadius: 2,
                 borderStyle: "dashed",
-                backgroundColor: "rgba(29, 77, 79, 0.06)"
+                backgroundColor: "rgba(37, 99, 235, 0.06)"
               }}
             >
               {submitMode === "new" ? (

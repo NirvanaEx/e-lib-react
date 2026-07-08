@@ -20,11 +20,16 @@ export function LibraryPanelSwitch({ collapsed }: { collapsed: boolean }) {
     mb: 0.6,
     py: 0.9,
     px: 1,
+    color: "rgba(255,255,255,0.85)",
+    "&:hover": {
+      backgroundColor: "rgba(255,255,255,0.08)"
+    },
     "&.Mui-selected": {
-      backgroundColor: "rgba(29, 77, 79, 0.12)"
+      backgroundColor: "rgba(37, 99, 235, 0.9)",
+      color: "#fff"
     },
     "&.Mui-selected:hover": {
-      backgroundColor: "rgba(29, 77, 79, 0.16)"
+      backgroundColor: "#2563eb"
     }
   };
   const menuIconSx = {
@@ -33,8 +38,8 @@ export function LibraryPanelSwitch({ collapsed }: { collapsed: boolean }) {
     borderRadius: "50%",
     display: "grid",
     placeItems: "center",
-    backgroundColor: "rgba(29, 77, 79, 0.12)",
-    color: "primary.main"
+    backgroundColor: "rgba(255,255,255,0.1)",
+    color: "#fff"
   };
 
   return (

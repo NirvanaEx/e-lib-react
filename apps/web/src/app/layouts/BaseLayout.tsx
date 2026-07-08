@@ -52,6 +52,7 @@ export type NavSection = {
 
 const drawerWidth = 260;
 const collapsedDrawerWidth = 84;
+const darkSidebarBackground = "linear-gradient(180deg, #123a6b 0%, #0c2a52 55%, #081c39 100%)";
 
 export function BaseLayout({
   title,
@@ -66,7 +67,8 @@ export function BaseLayout({
   sidebarHeader,
   sidebarPaddingTop,
   sidebarTop,
-  sidebarCollapsible = false
+  sidebarCollapsible = false,
+  sidebarVariant = "light"
 }: {
   title: string;
   items?: NavItem[];
@@ -81,7 +83,9 @@ export function BaseLayout({
   sidebarPaddingTop?: number;
   sidebarTop?: React.ReactNode | ((options: { collapsed: boolean; toggle: () => void }) => React.ReactNode) | null;
   sidebarCollapsible?: boolean;
+  sidebarVariant?: "light" | "dark";
 }) {
+  const darkSidebar = sidebarVariant === "dark";
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const { pathname } = useLocation();
@@ -234,8 +238,10 @@ export function BaseLayout({
         minHeight: 0,
         display: "flex",
         flexDirection: "column",
-        background:
-          "linear-gradient(170deg, rgba(29,77,79,0.06) 0%, rgba(198,138,63,0.08) 45%, rgba(255,255,255,0.9) 100%)"
+        color: darkSidebar ? "#fff" : "inherit",
+        background: darkSidebar
+          ? "transparent"
+          : "linear-gradient(170deg, rgba(37,99,235,0.06) 0%, rgba(14,165,233,0.06) 45%, rgba(255,255,255,0.9) 100%)"
       }}
     >
       {resolvedSidebarHeader}
@@ -255,7 +261,7 @@ export function BaseLayout({
                 {section.label && !collapsed && (
                   <Typography
                     variant="overline"
-                    color="text.secondary"
+                    color={darkSidebar ? "rgba(255,255,255,0.6)" : "text.secondary"}
                     sx={{ letterSpacing: "0.16em", fontWeight: 700, display: "block", mb: 1 }}
                   >
                     {section.label}
@@ -299,12 +305,17 @@ export function BaseLayout({
                         py: 1.2,
                         justifyContent: collapsed ? "center" : "flex-start",
                         px: collapsed ? 1.2 : 2,
-                        "&.Mui-selected": {
-                          backgroundColor: "rgba(29, 77, 79, 0.12)"
-                        },
-                        "&.Mui-selected:hover": {
-                          backgroundColor: "rgba(29, 77, 79, 0.16)"
-                        }
+                        ...(darkSidebar
+                          ? {
+                              color: "rgba(255,255,255,0.85)",
+                              "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" },
+                              "&.Mui-selected": { backgroundColor: "rgba(37, 99, 235, 0.9)", color: "#fff" },
+                              "&.Mui-selected:hover": { backgroundColor: "#2563eb" }
+                            }
+                          : {
+                              "&.Mui-selected": { backgroundColor: "rgba(37, 99, 235, 0.12)" },
+                              "&.Mui-selected:hover": { backgroundColor: "rgba(37, 99, 235, 0.18)" }
+                            })
                       }}
                     >
                       {item.icon && (
@@ -312,7 +323,13 @@ export function BaseLayout({
                           sx={{
                             minWidth: collapsed ? 0 : 36,
                             mr: collapsed ? 0 : 1,
-                            color: active ? "primary.main" : "text.secondary"
+                            color: darkSidebar
+                              ? active
+                                ? "#fff"
+                                : "rgba(255,255,255,0.7)"
+                              : active
+                              ? "primary.main"
+                              : "text.secondary"
                           }}
                         >
                           {iconNode}
@@ -349,14 +366,14 @@ export function BaseLayout({
         )}
         {resolvedSidebarContent && (
           <Box sx={{ mt: hasNavItems ? 2 : 0 }}>
-            {hasNavItems && <Divider sx={{ mb: 2 }} />}
+            {hasNavItems && <Divider sx={{ mb: 2, borderColor: darkSidebar ? "rgba(255,255,255,0.14)" : undefined }} />}
             {resolvedSidebarContent}
           </Box>
         )}
       </Box>
       {resolvedSidebarFooter && (
         <Box sx={{ mt: "auto", pt: 2 }}>
-          <Divider sx={{ mb: 2 }} />
+          <Divider sx={{ mb: 2, borderColor: darkSidebar ? "rgba(255,255,255,0.14)" : undefined }} />
           {resolvedSidebarFooter}
         </Box>
       )}
@@ -372,7 +389,7 @@ export function BaseLayout({
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
           backdropFilter: "blur(12px)",
-          backgroundColor: "rgba(243, 241, 236, 0.9)",
+          backgroundColor: "rgba(255, 255, 255, 0.88)",
           borderBottom: "1px solid var(--border)",
           width: { md: `calc(100% - ${effectiveDrawerWidth}px)` },
           ml: { md: `${effectiveDrawerWidth}px` }
@@ -462,7 +479,7 @@ export function BaseLayout({
                   <Chip
                     label={user.role}
                     size="small"
-                    sx={{ textTransform: "capitalize", fontWeight: 600, backgroundColor: "rgba(29, 77, 79, 0.12)" }}
+                    sx={{ textTransform: "capitalize", fontWeight: 600, backgroundColor: "rgba(37, 99, 235, 0.12)" }}
                   />
                 )}
                 {userDisplayName && (
@@ -488,7 +505,12 @@ export function BaseLayout({
           ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: "block", md: "none" },
-            "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth, overflow: "hidden" }
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: drawerWidth,
+              overflow: "hidden",
+              ...(darkSidebar ? { background: darkSidebarBackground, color: "#fff" } : {})
+            }
           }}
         >
           <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -503,8 +525,9 @@ export function BaseLayout({
             "& .MuiDrawer-paper": {
               boxSizing: "border-box",
               width: effectiveDrawerWidth,
-              borderRight: "1px solid var(--border)",
-              overflow: "hidden"
+              borderRight: darkSidebar ? "none" : "1px solid var(--border)",
+              overflow: "hidden",
+              ...(darkSidebar ? { background: darkSidebarBackground, color: "#fff" } : {})
             }
           }}
           open

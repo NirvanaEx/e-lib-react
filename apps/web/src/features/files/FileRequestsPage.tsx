@@ -231,7 +231,7 @@ export default function FileRequestsPage() {
         borderRadius: 2,
         borderLeft: "4px solid",
         borderLeftColor: tone === "user" ? "info.main" : "error.main",
-        backgroundColor: tone === "user" ? "rgba(29, 77, 79, 0.06)" : "rgba(210, 47, 40, 0.08)"
+        backgroundColor: tone === "user" ? "rgba(37, 99, 235, 0.06)" : "rgba(210, 47, 40, 0.08)"
       }}
     >
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
