@@ -32,6 +32,8 @@ import { PaginationBar } from "../../shared/ui/PaginationBar";
 import { SearchField } from "../../shared/ui/SearchField";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { TranslationsEditor } from "../../shared/ui/TranslationsEditor";
+import { IconColorPicker } from "../../shared/ui/IconColorPicker";
+import { LibraryIcon } from "../../shared/ui/iconLibrary";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../../shared/utils/errors";
@@ -48,6 +50,8 @@ type CategoryRow = {
   parentId: number | null;
   depth: number;
   title: string | null;
+  icon?: string | null;
+  iconColor?: string | null;
   availableLangs?: string[];
   createdAt?: string;
   dataCount?: number;
@@ -71,6 +75,8 @@ export default function CategoriesPage() {
   const autoExpandRef = React.useRef(false);
   const [confirmDelete, setConfirmDelete] = React.useState<number | null>(null);
   const [translations, setTranslations] = React.useState<any[]>([]);
+  const [icon, setIcon] = React.useState<string | null>(null);
+  const [iconColor, setIconColor] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
@@ -117,6 +123,8 @@ export default function CategoriesPage() {
         parentId: categoryDetails.parentId || null
       });
       setTranslations(categoryDetails.translations.map((item: any) => ({ lang: item.lang, title: item.title })));
+      setIcon(categoryDetails.icon || null);
+      setIconColor(categoryDetails.iconColor || null);
     }
   }, [categoryDetails, reset]);
 
@@ -233,6 +241,8 @@ export default function CategoriesPage() {
     setCreateParentId(nextParentId);
     reset({ parentId: nextParentId });
     setTranslations([{ lang: "ru", title: "" }]);
+    setIcon(null);
+    setIconColor(null);
     setOpen(true);
   };
 
@@ -257,7 +267,9 @@ export default function CategoriesPage() {
 
     const payload = {
       parentId: (createParentId ?? values.parentId) || null,
-      translations: normalizedTranslations
+      translations: normalizedTranslations,
+      icon,
+      iconColor
     };
 
     if (editingId) {
@@ -310,6 +322,21 @@ export default function CategoriesPage() {
                 ) : (
                     <Box sx={{ width: 32 }} />
                   )}
+                  <Box
+                    sx={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "8px",
+                      display: "grid",
+                      placeItems: "center",
+                      backgroundColor: `${row.iconColor || "#2563eb"}1a`,
+                      color: row.iconColor || "#2563eb",
+                      flexShrink: 0,
+                      mr: 0.5
+                    }}
+                  >
+                    <LibraryIcon name={row.icon} sx={{ fontSize: 16 }} />
+                  </Box>
                   <Box sx={{ minWidth: 0 }}>{row.title || ""}</Box>
                 </Stack>
               )
@@ -424,6 +451,7 @@ export default function CategoriesPage() {
                 helperText={t("translationsHint")}
                 requiredTitle
               />
+              <IconColorPicker icon={icon} color={iconColor} onIconChange={setIcon} onColorChange={setIconColor} />
             </Stack>
           </DialogContent>
           <DialogActions>

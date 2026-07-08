@@ -228,7 +228,7 @@ export default function FileRequestsPage() {
       variant="outlined"
       sx={{
         p: 1.5,
-        borderRadius: 2,
+        borderRadius: "8px",
         borderLeft: "4px solid",
         borderLeftColor: tone === "user" ? "info.main" : "error.main",
         backgroundColor: tone === "user" ? "rgba(37, 99, 235, 0.06)" : "rgba(210, 47, 40, 0.08)"

@@ -1,8 +1,5 @@
 import React from "react";
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Box,
   Button,
   Chip,
@@ -10,13 +7,20 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Drawer,
   IconButton,
+  MenuItem,
   Paper,
+  Select,
   Stack,
+  Tab,
+  Tabs,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
-  Typography
+  Typography,
+  useMediaQuery,
+  useTheme
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -26,7 +30,7 @@ import StarBorderIcon from "@mui/icons-material/StarBorder";
 import StarIcon from "@mui/icons-material/Star";
 import PublicIcon from "@mui/icons-material/Public";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import CloseIcon from "@mui/icons-material/Close";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import BalanceOutlinedIcon from "@mui/icons-material/BalanceOutlined";
@@ -66,6 +70,7 @@ import { useToast } from "../../shared/ui/ToastProvider";
 import { formatUserLabel } from "../../shared/utils/userLabel";
 import { sharedLibraryTableLayout } from "./fileTableLayout";
 import { formatPath } from "../../shared/utils/tree";
+import { LibraryIcon } from "../../shared/ui/iconLibrary";
 
 const sectionIcons = [
   BalanceOutlinedIcon,
@@ -84,6 +89,60 @@ const accessChipSx = (accessType: string) =>
     ? { backgroundColor: "rgba(2, 132, 199, 0.12)", color: "#0369a1" }
     : { backgroundColor: "rgba(217, 119, 6, 0.14)", color: "#b45309" };
 
+const fileTypeInfo = (ext?: string | null) => {
+  const value = (ext || "").toLowerCase();
+  if (value === "pdf") return { label: "PDF", color: "#dc2626" };
+  if (["doc", "docx", "rtf", "odt"].includes(value)) return { label: value.toUpperCase(), color: "#2563eb" };
+  if (["xls", "xlsx", "csv", "ods"].includes(value)) return { label: value.toUpperCase(), color: "#16a34a" };
+  if (["ppt", "pptx"].includes(value)) return { label: value.toUpperCase(), color: "#ea580c" };
+  if (["zip", "rar", "7z"].includes(value)) return { label: value.toUpperCase(), color: "#7c3aed" };
+  if (["png", "jpg", "jpeg", "gif", "svg", "webp"].includes(value)) return { label: value.toUpperCase(), color: "#0ea5e9" };
+  return { label: value ? value.toUpperCase().slice(0, 4) : "DOC", color: "#64748b" };
+};
+
+const extOf = (name?: string | null) => {
+  const value = String(name || "");
+  const idx = value.lastIndexOf(".");
+  return idx > 0 ? value.slice(idx + 1) : null;
+};
+
+function FileTypeBadge({ ext, small }: { ext?: string | null; small?: boolean }) {
+  const info = fileTypeInfo(ext);
+  const width = small ? 30 : 46;
+  const height = small ? 36 : 54;
+  return (
+    <Box
+      sx={{
+        width,
+        height,
+        borderRadius: small ? "7px" : "10px",
+        backgroundColor: info.color,
+        position: "relative",
+        display: "grid",
+        placeItems: "center",
+        flexShrink: 0,
+        overflow: "hidden",
+        boxShadow: `0 6px 14px ${info.color}33`
+      }}
+    >
+      <Box
+        sx={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          width: small ? 10 : 15,
+          height: small ? 10 : 15,
+          backgroundColor: "rgba(255,255,255,0.4)",
+          borderBottomLeftRadius: small ? 6 : 8
+        }}
+      />
+      <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: small ? 8.5 : 11, letterSpacing: "0.03em", lineHeight: 1 }}>
+        {info.label}
+      </Typography>
+    </Box>
+  );
+}
+
 export default function UserFilesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { t, i18n } = useTranslation();
@@ -98,8 +157,11 @@ export default function UserFilesPage() {
   });
   const [viewMode, setViewMode] = React.useState<"table" | "cards">(() => {
     const stored = localStorage.getItem("shared-library-view");
-    return stored === "cards" ? "cards" : "table";
+    return stored === "table" ? "table" : "cards";
   });
+  const muiTheme = useTheme();
+  const lgUp = useMediaQuery(muiTheme.breakpoints.up("lg"));
+  const [detailsTab, setDetailsTab] = React.useState<"about" | "versions">("about");
   const [downloadTarget, setDownloadTarget] = React.useState<{
     id: number;
     title: string | null;
@@ -118,6 +180,10 @@ export default function UserFilesPage() {
   React.useEffect(() => {
     localStorage.setItem("shared-library-view", viewMode);
   }, [viewMode]);
+
+  React.useEffect(() => {
+    setDetailsTab("about");
+  }, [detailsId]);
 
   const resetFilters = () => {
     setSearch("");
@@ -476,6 +542,280 @@ export default function UserFilesPage() {
     );
   };
 
+  const activeRow = React.useMemo(
+    () => displayRows.find((row: any) => Number(row.id) === detailsId) || null,
+    [displayRows, detailsId]
+  );
+
+  const startDownload = (row: any) => {
+    const langs = row.availableAssetLangs || row.availableLangs || [];
+    if (!langs.length) return;
+    if (langs.length > 1) {
+      const sizes = (row.availableAssetSizes || []).reduce<Record<string, number>>(
+        (acc: Record<string, number>, item: any) => {
+          acc[item.lang] = item.size;
+          return acc;
+        },
+        {}
+      );
+      setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
+      return;
+    }
+    downloadMutation.mutate({ id: row.id, lang: langs[0], title: row.title });
+  };
+
+  const infoRow = (label: string, value: React.ReactNode) => (
+    <Box sx={{ display: "grid", gridTemplateColumns: "128px 1fr", columnGap: 1.5, alignItems: "start" }}>
+      <Typography variant="body2" color="text.secondary">
+        {label}:
+      </Typography>
+      <Box sx={{ minWidth: 0 }}>
+        {typeof value === "string" ? <Typography variant="body2">{value}</Typography> : value}
+      </Box>
+    </Box>
+  );
+
+  const renderDetailsPanel = () => (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ p: 2, pb: 1.5 }}>
+        <Typography
+          variant="subtitle1"
+          sx={{ fontWeight: 700, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        >
+          {detailsData?.title || activeRow?.title || t("file")}
+        </Typography>
+        {activeRow && (
+          <Tooltip title={t("favorites")}>
+            <IconButton
+              size="small"
+              onClick={() => favoriteMutation.mutate({ id: activeRow.id, isFavorite: Boolean(activeRow.isFavorite) })}
+            >
+              {activeRow.isFavorite ? (
+                <StarIcon fontSize="small" sx={{ color: "warning.main" }} />
+              ) : (
+                <StarBorderIcon fontSize="small" />
+              )}
+            </IconButton>
+          </Tooltip>
+        )}
+        {activeRow && isDownloadable(activeRow) && (
+          <Tooltip title={t("download")}>
+            <IconButton size="small" onClick={() => startDownload(activeRow)}>
+              <DownloadIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+        <IconButton size="small" onClick={() => setDetailsId(null)}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </Stack>
+      <Tabs
+        value={detailsTab}
+        onChange={(_event, value) => setDetailsTab(value)}
+        sx={{
+          px: 1,
+          borderBottom: "1px solid var(--border)",
+          minHeight: 40,
+          "& .MuiTab-root": { minHeight: 40, textTransform: "none", fontWeight: 600 }
+        }}
+      >
+        <Tab value="about" label={t("aboutDocument")} />
+        {allowVersionAccess ? <Tab value="versions" label={t("archiveVersions")} /> : null}
+      </Tabs>
+      <Box sx={{ p: 2, overflow: "auto", flex: 1, minHeight: 0 }}>
+        {detailsLoading ? (
+          <Typography variant="body2" color="text.secondary">
+            {t("loading")}
+          </Typography>
+        ) : detailsTab === "about" ? (
+          <Stack spacing={1.75}>
+            {infoRow(t("title"), detailsData?.title || "-")}
+            {infoRow(t("section"), activeRow?.sectionId ? formatSectionLabel(activeRow.sectionId) : "-")}
+            {infoRow(t("category"), activeRow?.categoryId ? formatPath(getCategoryPath(activeRow.categoryId)) : "-")}
+            {infoRow(t("currentVersion"), detailsData?.currentVersionNumber ? `#${detailsData.currentVersionNumber}` : "-")}
+            {infoRow(
+              t("languages"),
+              assetsSorted.length === 0 ? (
+                "-"
+              ) : (
+                <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", rowGap: 0.5 }}>
+                  {assetsSorted.map((asset: any) => (
+                    <Chip
+                      key={asset.id}
+                      size="small"
+                      label={asset.lang.toUpperCase()}
+                      color={asset.lang === currentLang ? "primary" : "default"}
+                      variant={asset.lang === currentLang ? "filled" : "outlined"}
+                    />
+                  ))}
+                </Stack>
+              )
+            )}
+            {infoRow(
+              t("fileLabel"),
+              assetsSorted.length === 0 ? (
+                "-"
+              ) : (
+                <Stack spacing={1}>
+                  {assetsSorted.map((asset: any) => (
+                    <Stack
+                      key={asset.id}
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                      onClick={() =>
+                        downloadMutation.mutate({
+                          id: detailsId as number,
+                          lang: asset.lang,
+                          title: titleForLang(asset.lang)
+                        })
+                      }
+                      sx={{ cursor: "pointer", "&:hover .file-name": { textDecoration: "underline" } }}
+                    >
+                      <FileTypeBadge ext={extOf(asset.original_name)} small />
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography
+                          className="file-name"
+                          variant="body2"
+                          sx={{
+                            color: "primary.main",
+                            fontWeight: 600,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          {asset.original_name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatBytes(asset.size)}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  ))}
+                </Stack>
+              )
+            )}
+            {infoRow(t("owner"), detailsData?.createdBy ? formatUserLabel(detailsData.createdBy) : "-")}
+            {infoRow(
+              t("access"),
+              <Chip
+                size="small"
+                label={getAccessLabel(detailsData?.accessType || "public")}
+                sx={{ fontWeight: 700, ...accessChipSx(detailsData?.accessType || "public") }}
+              />
+            )}
+            {showAccessLists && (
+              <Stack spacing={1}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    {t("departments")}
+                  </Typography>
+                  <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 0.5, rowGap: 0.5 }}>
+                    {accessDepartments.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">
+                        -
+                      </Typography>
+                    ) : (
+                      accessDepartments.map((dept: any) => (
+                        <Chip key={dept.id} size="small" label={dept.path || dept.name} />
+                      ))
+                    )}
+                  </Stack>
+                </Box>
+                {showAccessUsers && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      {t("users")}
+                    </Typography>
+                    <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 0.5, rowGap: 0.5 }}>
+                      {accessUsers.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary">
+                          -
+                        </Typography>
+                      ) : (
+                        accessUsers.map((item: any) => (
+                          <Chip key={item.id} size="small" label={formatUserLabel(item)} />
+                        ))
+                      )}
+                    </Stack>
+                  </Box>
+                )}
+              </Stack>
+            )}
+            {infoRow(t("description"), detailsData?.description || "-")}
+          </Stack>
+        ) : versionsLoading ? (
+          <Typography variant="body2" color="text.secondary">
+            {t("loading")}
+          </Typography>
+        ) : versions.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            {t("noHistory")}
+          </Typography>
+        ) : (
+          <Stack spacing={1.5}>
+            {versions.map((version: any) => (
+              <Paper key={version.id} variant="outlined" sx={{ p: 1.5, borderRadius: "8px" }}>
+                <Stack spacing={1}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip size="small" label={`v${version.versionNumber}`} />
+                    {detailsData?.currentVersionId === version.id && (
+                      <Chip size="small" color="success" label={t("current")} />
+                    )}
+                    <Typography variant="caption" color="text.secondary">
+                      {formatDateTime(version.createdAt)}
+                    </Typography>
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary">
+                    {t("createdBy")}: {version.createdBy ? formatUserLabel(version.createdBy) : "-"}
+                  </Typography>
+                  <Typography variant="body2">{titleForVersionLang(version)}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {descriptionForVersion(version) || "-"}
+                  </Typography>
+                  {(version.assets || []).length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      {t("noAssets")}
+                    </Typography>
+                  ) : (
+                    (version.assets || []).map((asset: any) => (
+                      <Stack key={asset.id} direction="row" spacing={1} alignItems="center">
+                        <Chip size="small" label={asset.lang.toUpperCase()} />
+                        <Typography
+                          variant="body2"
+                          sx={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                        >
+                          {asset.originalName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatBytes(asset.size)}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() =>
+                            downloadVersionMutation.mutate({
+                              id: detailsId as number,
+                              versionId: version.id,
+                              lang: asset.lang,
+                              title: titleForVersionLang(version, asset.lang)
+                            })
+                          }
+                        >
+                          <DownloadIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    ))
+                  )}
+                </Stack>
+              </Paper>
+            ))}
+          </Stack>
+        )}
+      </Box>
+    </Box>
+  );
+
   return (
     <Page title={t("sharedLibrary")} subtitle={t("userFilesSubtitle")}>
       {sections.length > 0 && (
@@ -488,8 +828,9 @@ export default function UserFilesPage() {
           }}
         >
           {[{ id: null, title: t("allSections") }, ...sections].map((section: any, index: number) => {
-            const Icon = section.id === null ? GridViewOutlinedIcon : sectionIcons[(index - 1) % sectionIcons.length];
-            const tone = section.id === null ? "#475569" : sectionTones[(index - 1) % sectionTones.length];
+            const FallbackIcon = section.id === null ? GridViewOutlinedIcon : sectionIcons[(index - 1) % sectionIcons.length];
+            const tone =
+              section.id === null ? "#475569" : section.iconColor || sectionTones[(index - 1) % sectionTones.length];
             const active = section.id === null ? !sectionId : section.id === sectionId;
             return (
               <Paper
@@ -497,7 +838,7 @@ export default function UserFilesPage() {
                 onClick={() => setSectionFilter(section.id)}
                 sx={{
                   p: 1.5,
-                  borderRadius: 3,
+                  borderRadius: "10px",
                   cursor: "pointer",
                   border: "1px solid",
                   borderColor: active ? "primary.main" : "var(--border)",
@@ -517,14 +858,14 @@ export default function UserFilesPage() {
                   sx={{
                     width: 38,
                     height: 38,
-                    borderRadius: 2,
+                    borderRadius: "8px",
                     display: "grid",
                     placeItems: "center",
                     backgroundColor: `${tone}1a`,
                     color: tone
                   }}
                 >
-                  <Icon fontSize="small" />
+                  <LibraryIcon name={section.icon} fallback={FallbackIcon} fontSize="small" />
                 </Box>
                 <Typography
                   variant="body2"
@@ -544,6 +885,8 @@ export default function UserFilesPage() {
         </Box>
       )}
 
+      <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
       <FiltersBar
         actions={
           <ToggleButtonGroup
@@ -552,20 +895,34 @@ export default function UserFilesPage() {
             value={viewMode}
             onChange={(_event, value) => value && setViewMode(value)}
           >
-            <ToggleButton value="table" aria-label={t("viewTable")}>
-              <Tooltip title={t("viewTable")}>
-                <ViewListIcon fontSize="small" />
-              </Tooltip>
-            </ToggleButton>
             <ToggleButton value="cards" aria-label={t("viewCards")}>
               <Tooltip title={t("viewCards")}>
                 <ViewModuleIcon fontSize="small" />
+              </Tooltip>
+            </ToggleButton>
+            <ToggleButton value="table" aria-label={t("viewTable")}>
+              <Tooltip title={t("viewTable")}>
+                <ViewListIcon fontSize="small" />
               </Tooltip>
             </ToggleButton>
           </ToggleButtonGroup>
         }
       >
         <SearchField value={search} onChange={setSearch} placeholder={t("searchFiles")} />
+        <Select
+          size="small"
+          value={sort.direction && sort.key ? `${sort.key}:${sort.direction}` : "updated_at:desc"}
+          onChange={(event) => {
+            const [key, direction] = String(event.target.value).split(":");
+            setSort({ key, direction: direction as "asc" | "desc" });
+          }}
+          sx={{ minWidth: 190, backgroundColor: "#fff", borderRadius: "8px" }}
+        >
+          <MenuItem value="updated_at:desc">{t("sortDateNew")}</MenuItem>
+          <MenuItem value="updated_at:asc">{t("sortDateOld")}</MenuItem>
+          <MenuItem value="title:asc">{t("sortTitleAsc")}</MenuItem>
+          <MenuItem value="title:desc">{t("sortTitleDesc")}</MenuItem>
+        </Select>
         <Tooltip title={t("resetFilters")}>
           <span>
             <IconButton size="small" onClick={resetFilters}>
@@ -715,13 +1072,6 @@ export default function UserFilesPage() {
         <Stack spacing={1.25}>
           {displayRows.map((row: any) => {
             const langs = row.availableAssetLangs || row.availableLangs || [];
-            const sizes = (row.availableAssetSizes || []).reduce<Record<string, number>>(
-              (acc: Record<string, number>, item: any) => {
-                acc[item.lang] = item.size;
-                return acc;
-              },
-              {}
-            );
             const size = resolveRowSize(row);
             const canOpen = isDownloadable(row);
             const metaParts = [
@@ -738,9 +1088,10 @@ export default function UserFilesPage() {
                 }}
                 sx={{
                   p: { xs: 1.5, md: 2 },
-                  borderRadius: 3,
-                  border: "1px solid var(--border)",
-                  backgroundColor: "var(--surface)",
+                  borderRadius: "10px",
+                  border: "1px solid",
+                  borderColor: detailsId === row.id ? "primary.main" : "var(--border)",
+                  backgroundColor: detailsId === row.id ? "rgba(37, 99, 235, 0.04)" : "var(--surface)",
                   display: "flex",
                   alignItems: "center",
                   gap: 2,
@@ -752,20 +1103,7 @@ export default function UserFilesPage() {
                     : undefined
                 }}
               >
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 2.5,
-                    display: "grid",
-                    placeItems: "center",
-                    backgroundColor: "rgba(37, 99, 235, 0.1)",
-                    color: "primary.main",
-                    flexShrink: 0
-                  }}
-                >
-                  <DescriptionOutlinedIcon />
-                </Box>
+                <FileTypeBadge ext={(row.availableAssetExts || [])[0]} />
                 <Box sx={{ flex: 1, minWidth: 220 }}>
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
                     <Typography
@@ -810,7 +1148,7 @@ export default function UserFilesPage() {
                     startIcon={<VisibilityOutlinedIcon />}
                     disabled={!canOpen}
                     onClick={() => setDetailsId(row.id)}
-                    sx={{ borderRadius: 99 }}
+                    sx={{ borderRadius: "8px" }}
                   >
                     {t("view")}
                   </Button>
@@ -819,14 +1157,8 @@ export default function UserFilesPage() {
                     variant="contained"
                     startIcon={<DownloadIcon />}
                     disabled={!canOpen}
-                    onClick={() => {
-                      if (langs.length > 1) {
-                        setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
-                        return;
-                      }
-                      downloadMutation.mutate({ id: row.id, lang: langs[0], title: row.title });
-                    }}
-                    sx={{ borderRadius: 99, boxShadow: "none" }}
+                    onClick={() => startDownload(row)}
+                    sx={{ borderRadius: "8px", boxShadow: "none" }}
                   >
                     {t("download")}
                   </Button>
@@ -844,6 +1176,37 @@ export default function UserFilesPage() {
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
       />
+      </Box>
+
+      {lgUp && detailsId ? (
+        <Paper
+          sx={{
+            width: 400,
+            flexShrink: 0,
+            position: "sticky",
+            top: 88,
+            maxHeight: "calc(100vh - 112px)",
+            borderRadius: "10px",
+            border: "1px solid var(--border)",
+            backgroundColor: "var(--surface)",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden"
+          }}
+        >
+          {renderDetailsPanel()}
+        </Paper>
+      ) : null}
+      </Box>
+
+      <Drawer
+        anchor="right"
+        open={Boolean(detailsId) && !lgUp}
+        onClose={() => setDetailsId(null)}
+        PaperProps={{ sx: { width: { xs: "100%", sm: 420 } } }}
+      >
+        {renderDetailsPanel()}
+      </Drawer>
 
       <Dialog open={!!downloadTarget} onClose={() => setDownloadTarget(null)} fullWidth maxWidth="xs">
         <DialogTitle>{t("download")}</DialogTitle>
@@ -872,231 +1235,6 @@ export default function UserFilesPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={!!detailsId} onClose={() => setDetailsId(null)} fullWidth maxWidth="md">
-        <DialogTitle>{detailsData?.title || t("file")}</DialogTitle>
-        <DialogContent dividers>
-          {detailsLoading ? (
-            <Typography color="text.secondary">{t("loading")}</Typography>
-          ) : (
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  {t("description")}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {detailsData?.description || "-"}
-                </Typography>
-              </Box>
-              <Box>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                  <Typography variant="subtitle2">{t("access")}</Typography>
-                  {accessIcon(detailsData?.accessType || "public")}
-                </Stack>
-                {showAccessLists && (
-                  <Stack spacing={1}>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("departments")}
-                      </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
-                        {accessDepartments.length === 0 ? (
-                          <Typography variant="body2" color="text.secondary">
-                            -
-                          </Typography>
-                        ) : (
-                          accessDepartments.map((dept: any) => (
-                            <Chip key={dept.id} size="small" label={dept.path || dept.name} />
-                          ))
-                        )}
-                      </Stack>
-                    </Box>
-                    {showAccessUsers && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          {t("users")}
-                        </Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
-                          {accessUsers.length === 0 ? (
-                            <Typography variant="body2" color="text.secondary">
-                              -
-                            </Typography>
-                          ) : (
-                            accessUsers.map((user: any) => (
-                              <Chip key={user.id} size="small" label={formatUserLabel(user)} />
-                            ))
-                          )}
-                        </Stack>
-                      </Box>
-                    )}
-                  </Stack>
-                )}
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  {t("details")}
-                </Typography>
-                <Stack spacing={1}>
-                  <Stack direction="row" spacing={2} alignItems="flex-start">
-                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: 140 }}>
-                      {t("createdBy")}
-                    </Typography>
-                    <Typography variant="body2">
-                      {detailsData?.createdBy ? formatUserLabel(detailsData.createdBy) : "-"}
-                    </Typography>
-                  </Stack>
-                </Stack>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  {t("currentVersion")}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {detailsData?.currentVersionNumber ? `#${detailsData.currentVersionNumber}` : "-"}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  {t("titlesByLanguage")}
-                </Typography>
-                <Stack spacing={1}>
-                  {translations.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">
-                      -
-                    </Typography>
-                  ) : (
-                    translationsSorted.map((item: any) => (
-                      <Stack key={item.lang} direction="row" spacing={1.5} alignItems="flex-start">
-                        <Chip
-                          size="small"
-                          label={item.lang.toUpperCase()}
-                          color={item.lang === currentLang ? "primary" : "default"}
-                          variant={item.lang === currentLang ? "filled" : "outlined"}
-                        />
-                        <Box>
-                          <Typography variant="body2">{item.title}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {item.description || "-"}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    ))
-                  )}
-                </Stack>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  {t("availableLanguages")}
-                </Typography>
-                <Stack spacing={1}>
-                  {assetsSorted.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">
-                      -
-                    </Typography>
-                  ) : (
-                    assetsSorted.map((asset: any) => (
-                      <Stack key={asset.id} direction="row" spacing={1} alignItems="center">
-                        <Chip size="small" label={asset.lang.toUpperCase()} />
-                        <Typography variant="body2" sx={{ flex: 1 }}>
-                          {asset.original_name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {formatBytes(asset.size)}
-                        </Typography>
-                        <IconButton
-                          size="small"
-                          onClick={() =>
-                            downloadMutation.mutate({ id: detailsId as number, lang: asset.lang, title: titleForLang(asset.lang) })
-                          }
-                        >
-                          <DownloadIcon fontSize="small" />
-                        </IconButton>
-                      </Stack>
-                    ))
-                  )}
-                </Stack>
-              </Box>
-              {allowVersionAccess ? (
-                <Accordion sx={{ borderRadius: 2, border: "1px solid var(--border)", boxShadow: "none" }}>
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}>
-                    <Typography variant="subtitle2">{t("archiveVersions")}</Typography>
-                  </AccordionSummary>
-                  <AccordionDetails sx={{ pt: 0, px: 2, pb: 2 }}>
-                    {versionsLoading ? (
-                      <Typography variant="body2" color="text.secondary">
-                        {t("loading")}
-                      </Typography>
-                    ) : versions.length === 0 ? (
-                      <Typography variant="body2" color="text.secondary">
-                        {t("noHistory")}
-                      </Typography>
-                    ) : (
-                      <Stack spacing={1.5}>
-                        {versions.map((version: any) => (
-                          <Paper key={version.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                            <Stack spacing={1}>
-                              <Stack direction="row" spacing={1} alignItems="center">
-                                <Chip size="small" label={`v${version.versionNumber}`} />
-                                {detailsData?.currentVersionId === version.id && (
-                                  <Chip size="small" color="success" label={t("current")} />
-                                )}
-                                <Typography variant="caption" color="text.secondary">
-                                  {formatDateTime(version.createdAt)}
-                                </Typography>
-                              </Stack>
-                              <Typography variant="caption" color="text.secondary">
-                                {t("createdBy")}: {version.createdBy ? formatUserLabel(version.createdBy) : "-"}
-                              </Typography>
-                              <Typography variant="body2">
-                                {titleForVersionLang(version)}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {descriptionForVersion(version) || "-"}
-                              </Typography>
-                              {(version.assets || []).length === 0 ? (
-                                <Typography variant="body2" color="text.secondary">
-                                  {t("noAssets")}
-                                </Typography>
-                              ) : (
-                                (version.assets || []).map((asset: any) => (
-                                  <Stack key={asset.id} direction="row" spacing={1} alignItems="center">
-                                    <Chip size="small" label={asset.lang.toUpperCase()} />
-                                    <Typography variant="body2" sx={{ flex: 1 }}>
-                                      {asset.originalName}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {formatBytes(asset.size)}
-                                    </Typography>
-                                    <IconButton
-                                      size="small"
-                                      onClick={() =>
-                                        downloadVersionMutation.mutate({
-                                          id: detailsId as number,
-                                          versionId: version.id,
-                                          lang: asset.lang,
-                                          title: titleForVersionLang(version, asset.lang)
-                                        })
-                                      }
-                                    >
-                                      <DownloadIcon fontSize="small" />
-                                    </IconButton>
-                                  </Stack>
-                                ))
-                              )}
-                            </Stack>
-                          </Paper>
-                        ))}
-                      </Stack>
-                    )}
-                  </AccordionDetails>
-                </Accordion>
-              ) : null}
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDetailsId(null)}>{t("cancel")}</Button>
-        </DialogActions>
-      </Dialog>
     </Page>
   );
 }

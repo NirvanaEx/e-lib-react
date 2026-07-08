@@ -89,7 +89,7 @@ function UserAgreementPanel() {
     <LoadingState rows={4} />
   ) : (
     <Stack spacing={2}>
-      <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+      <Paper sx={{ p: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
         <Stack spacing={2}>
           <TextField
             select
@@ -107,7 +107,7 @@ function UserAgreementPanel() {
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+      <Paper sx={{ p: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
         <TranslationsEditor
           value={translations}
           onChange={setTranslations}

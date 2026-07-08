@@ -300,7 +300,7 @@ export function BaseLayout({
                       selected={active}
                       onClick={() => navigate(item.path)}
                       sx={{
-                        borderRadius: 2.5,
+                        borderRadius: "8px",
                         mb: 0.8,
                         py: 1.2,
                         justifyContent: collapsed ? "center" : "flex-start",
@@ -434,7 +434,7 @@ export function BaseLayout({
                   showToast({ message: t("languageUpdateFailed"), severity: "error" });
                 }
               }}
-              sx={{ background: "white", borderRadius: 2, minWidth: 90 }}
+              sx={{ background: "white", borderRadius: "8px", minWidth: 90 }}
             >
               <MenuItem value="ru">RU</MenuItem>
               <MenuItem value="en">EN</MenuItem>
@@ -462,7 +462,7 @@ export function BaseLayout({
                 sx={{
                   px: 1.5,
                   py: 0.6,
-                  borderRadius: 99,
+                  borderRadius: "8px",
                   border: "1px solid var(--border)",
                   backgroundColor: "rgba(255,255,255,0.7)"
                 }}

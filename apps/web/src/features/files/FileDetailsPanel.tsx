@@ -404,7 +404,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
 
   const content = (
     <>
-      <Paper sx={{ p: 2, mb: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+      <Paper sx={{ p: 2, mb: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
         <Stack spacing={2}>
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -425,7 +425,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
           </Box>
         </Stack>
       </Paper>
-      <Paper sx={{ p: 2, mb: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+      <Paper sx={{ p: 2, mb: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
         <Tabs value={tab} onChange={(_, value) => setTab(value)}>
           <Tab label={t("metadata")} />
           <Tab label={t("access")} />
@@ -435,7 +435,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
 
       {tab === 0 && (
         <Stack spacing={2}>
-          <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+          <Paper sx={{ p: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
             <Stack spacing={2}>
               <Controller
                 control={metadataForm.control}
@@ -499,7 +499,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
       )}
 
       {tab === 1 && (
-        <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+        <Paper sx={{ p: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
           <Stack spacing={2}>
             <Controller
               control={accessForm.control}
@@ -588,7 +588,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
 
       {tab === 2 && (
         <Stack spacing={2}>
-          <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+          <Paper sx={{ p: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
             <Stack spacing={2}>
               <TextField
                 label={t("versionComment")}
@@ -674,7 +674,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
 
           <Stack spacing={2}>
             {(versions?.data || []).map((version: any) => (
-              <Paper key={version.id} sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+              <Paper key={version.id} sx={{ p: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
                 <Stack spacing={2}>
                   <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
                     <Stack spacing={0.5} sx={{ flex: 1 }}>

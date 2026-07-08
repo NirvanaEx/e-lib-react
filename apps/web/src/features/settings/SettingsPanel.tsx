@@ -60,7 +60,7 @@ export function SettingsPanel() {
 
   return (
     <Stack spacing={2}>
-      <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+      <Paper sx={{ p: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
         <Typography variant="subtitle1" sx={{ mb: 2 }}>
           {t("changePassword")}
         </Typography>
@@ -97,7 +97,7 @@ export function SettingsPanel() {
         </form>
       </Paper>
 
-      <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+      <Paper sx={{ p: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
         <Typography variant="subtitle1" sx={{ mb: 2 }}>
           {t("language")}
         </Typography>

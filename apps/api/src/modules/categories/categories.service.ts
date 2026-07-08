@@ -32,6 +32,8 @@ export class CategoriesService {
         "categories.id",
         "categories.parent_id",
         "categories.depth",
+        "categories.icon",
+        "categories.icon_color",
         "categories.created_at",
         "categories_translations.lang",
         "categories_translations.title"
@@ -55,6 +57,8 @@ export class CategoriesService {
       id: number;
       parent_id: number | null;
       depth: number;
+      icon: string | null;
+      icon_color: string | null;
       created_at: string;
       translations: CategoryTranslation[];
     };
@@ -66,6 +70,8 @@ export class CategoriesService {
           id: row.id,
           parent_id: row.parent_id,
           depth: row.depth,
+          icon: row.icon || null,
+          icon_color: row.icon_color || null,
           created_at: row.created_at,
           translations: []
         });
@@ -85,6 +91,8 @@ export class CategoriesService {
         id: item.id,
         parentId: item.parent_id,
         depth: item.depth,
+        icon: item.icon,
+        iconColor: item.icon_color,
         createdAt: item.created_at,
         title: picked?.title || null,
         availableLangs: getAvailableLangs(item.translations)
@@ -144,6 +152,8 @@ export class CategoriesService {
         "categories.id",
         "categories.parent_id",
         "categories.depth",
+        "categories.icon",
+        "categories.icon_color",
         "categories_translations.lang",
         "categories_translations.title"
       )
@@ -164,6 +174,8 @@ export class CategoriesService {
       id,
       parentId: base.parent_id,
       depth: base.depth,
+      icon: base.icon || null,
+      iconColor: base.icon_color || null,
       title: picked?.title || null,
       availableLangs: getAvailableLangs(translations),
       translations
@@ -185,6 +197,8 @@ export class CategoriesService {
         .insert({
           parent_id: dto.parentId || null,
           depth,
+          icon: dto.icon || null,
+          icon_color: dto.iconColor || null,
           created_at: trx.fn.now(),
           updated_at: trx.fn.now()
         })
@@ -260,11 +274,14 @@ export class CategoriesService {
         }
       }
 
-      await trx("categories").update({
+      const patch: Record<string, any> = {
         parent_id: newParentId,
         depth: newDepth,
         updated_at: trx.fn.now()
-      }).where({ id });
+      };
+      if (dto.icon !== undefined) patch.icon = dto.icon || null;
+      if (dto.iconColor !== undefined) patch.icon_color = dto.iconColor || null;
+      await trx("categories").update(patch).where({ id });
 
       if (dto.translations && dto.translations.length > 0) {
         await trx("categories_translations").where({ category_id: id }).delete();

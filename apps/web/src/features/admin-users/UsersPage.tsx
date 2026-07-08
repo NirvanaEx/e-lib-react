@@ -610,7 +610,7 @@ export default function UsersPage() {
             <Box
               sx={{
                 p: 2,
-                borderRadius: 2,
+                borderRadius: "8px",
                 border: "1px solid var(--border)",
                 background: "var(--surface-2)",
                 fontFamily: "monospace",

@@ -6,7 +6,7 @@ export function StatCard({ label, value }: { label: string; value: string | numb
     <Paper
       sx={{
         p: 2.5,
-        borderRadius: 3,
+        borderRadius: "10px",
         border: "1px solid var(--border)",
         boxShadow: "var(--shadow)",
         background: "linear-gradient(140deg, rgba(255,255,255,0.96), rgba(243,241,236,0.7))"

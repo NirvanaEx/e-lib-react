@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Tooltip } from "@mui/material";
+import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Tooltip } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -14,6 +14,8 @@ import { PaginationBar } from "../../shared/ui/PaginationBar";
 import { SearchField } from "../../shared/ui/SearchField";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { TranslationsEditor } from "../../shared/ui/TranslationsEditor";
+import { IconColorPicker } from "../../shared/ui/IconColorPicker";
+import { LibraryIcon } from "../../shared/ui/iconLibrary";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../../shared/utils/errors";
@@ -24,6 +26,8 @@ export default function SectionsPage() {
   const [editingId, setEditingId] = React.useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = React.useState<number | null>(null);
   const [translations, setTranslations] = React.useState<any[]>([]);
+  const [icon, setIcon] = React.useState<string | null>(null);
+  const [iconColor, setIconColor] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
@@ -52,6 +56,10 @@ export default function SectionsPage() {
         lang: item.lang,
         title: item.title
       })));
+    }
+    if (sectionDetails) {
+      setIcon(sectionDetails.icon || null);
+      setIconColor(sectionDetails.iconColor || null);
     }
   }, [sectionDetails]);
 
@@ -93,6 +101,8 @@ export default function SectionsPage() {
   const handleOpenCreate = () => {
     setEditingId(null);
     setTranslations([{ lang: "ru", title: "" }]);
+    setIcon(null);
+    setIconColor(null);
     setOpen(true);
   };
 
@@ -115,9 +125,9 @@ export default function SectionsPage() {
     }
 
     if (editingId) {
-      updateMutation.mutate({ id: editingId, payload: { translations: normalized } });
+      updateMutation.mutate({ id: editingId, payload: { translations: normalized, icon, iconColor } });
     } else {
-      createMutation.mutate({ translations: normalized });
+      createMutation.mutate({ translations: normalized, icon, iconColor });
     }
   };
 
@@ -143,7 +153,29 @@ export default function SectionsPage() {
         <DataTable
           rows={rows}
           columns={[
-            { key: "title", label: t("title") },
+            {
+              key: "title",
+              label: t("title"),
+              render: (row: any) => (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Box
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "8px",
+                      display: "grid",
+                      placeItems: "center",
+                      backgroundColor: `${row.iconColor || "#2563eb"}1a`,
+                      color: row.iconColor || "#2563eb",
+                      flexShrink: 0
+                    }}
+                  >
+                    <LibraryIcon name={row.icon} fontSize="small" />
+                  </Box>
+                  <span>{row.title}</span>
+                </Stack>
+              )
+            },
             {
               key: "langs",
               label: t("languages"),
@@ -213,6 +245,9 @@ export default function SectionsPage() {
             helperText={t("translationsHint")}
             requiredTitle
           />
+          <Box sx={{ mt: 2 }}>
+            <IconColorPicker icon={icon} color={iconColor} onIconChange={setIcon} onColorChange={setIconColor} />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => { setOpen(false); setEditingId(null); }}>{t("cancel")}</Button>

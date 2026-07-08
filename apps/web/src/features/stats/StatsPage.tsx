@@ -106,7 +106,7 @@ export default function StatsPage() {
         </Grid>
       </Grid>
 
-      <Paper sx={{ p: 2, mb: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+      <Paper sx={{ p: 2, mb: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
         <Typography variant="subtitle1" sx={{ mb: 2 }}>
           {t("downloadsByPeriod")}
         </Typography>
@@ -124,7 +124,7 @@ export default function StatsPage() {
         )}
       </Paper>
 
-      <Paper sx={{ p: 2, mb: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+      <Paper sx={{ p: 2, mb: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
         <Typography variant="subtitle1" sx={{ mb: 2 }}>
           {t("topFiles")}
         </Typography>
@@ -142,7 +142,7 @@ export default function StatsPage() {
       </Paper>
 
       {userId && (
-        <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+        <Paper sx={{ p: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
           <Typography variant="subtitle1" sx={{ mb: 2 }}>
             {t("userDownloads")}
           </Typography>

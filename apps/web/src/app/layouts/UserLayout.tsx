@@ -1,7 +1,11 @@
 import React from "react";
-import { Box, ButtonBase, Collapse, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Stack, Tooltip, Typography } from "@mui/material";
+import { Box, ButtonBase, Collapse, Divider, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Stack, Tooltip, Typography } from "@mui/material";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
-import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
+import LibraryBooksOutlinedIcon from "@mui/icons-material/LibraryBooksOutlined";
+import StarBorderOutlinedIcon from "@mui/icons-material/StarBorderOutlined";
+import ApartmentOutlinedIcon from "@mui/icons-material/ApartmentOutlined";
+import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
 import SellOutlinedIcon from "@mui/icons-material/SellOutlined";
@@ -18,9 +22,10 @@ import { useQuery } from "@tanstack/react-query";
 import { BaseLayout } from "./BaseLayout";
 import { useTranslation } from "react-i18next";
 import { fetchMenu } from "../../features/files/files.api";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { SettingsDialog } from "../../features/settings/SettingsDialog";
-import { LibraryPanelSwitch } from "./LibraryPanelSwitch";
+import { useAuth } from "../../shared/hooks/useAuth";
+import { LibraryIcon } from "../../shared/ui/iconLibrary";
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -32,7 +37,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
         onClick={() => window.location.reload()}
         sx={{
           width: "100%",
-          borderRadius: 2,
+          borderRadius: "8px",
           px: 0.5,
           py: 0.5,
           justifyContent: collapsed ? "center" : "flex-start"
@@ -69,14 +74,12 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   );
 
   const sidebarContent = ({ collapsed }: { collapsed: boolean }) => <UserSidebarMenu collapsed={collapsed} />;
-  const sidebarFooter = ({ collapsed }: { collapsed: boolean }) => <LibraryPanelSwitch collapsed={collapsed} />;
   return (
     <>
       <BaseLayout
         title={t("user")}
         items={items}
         sidebarContent={sidebarContent}
-        sidebarFooter={sidebarFooter}
         settingsAction={() => setSettingsOpen(true)}
         headerTitle={null}
         sidebarHeader={null}
@@ -94,11 +97,29 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
 
 function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data } = useQuery({ queryKey: ["user-menu-all"], queryFn: () => fetchMenu() });
   const [expandedCategories, setExpandedCategories] = React.useState<Set<number>>(new Set());
 
-  const sections = data?.sections || [];
+  const canSubmitFiles = Boolean(user?.canSubmitFiles);
+  const hasDepartment = Boolean(user?.departmentId);
+  const navItems = [
+    { label: t("sharedLibrary"), path: "/users", icon: <LibraryBooksOutlinedIcon fontSize="small" />, exact: true },
+    { label: t("favorites"), path: "/users/my-library/favorites", icon: <StarBorderOutlinedIcon fontSize="small" /> },
+    ...(hasDepartment
+      ? [{ label: t("departmentFiles"), path: "/users/my-library/department", icon: <ApartmentOutlinedIcon fontSize="small" /> }]
+      : []),
+    ...(canSubmitFiles
+      ? [
+          { label: t("requests"), path: "/users/my-library/requests", icon: <PendingActionsOutlinedIcon fontSize="small" /> },
+          { label: t("myUploadedFiles"), path: "/users/my-library/files", icon: <DescriptionOutlinedIcon fontSize="small" /> }
+        ]
+      : [])
+  ];
+
   const categories = data?.categories || [];
   const categoryById = React.useMemo(() => new Map(categories.map((cat: any) => [cat.id, cat])), [categories]);
   const selectedSectionId = Number(searchParams.get("sectionId") || 0) || null;
@@ -135,7 +156,11 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
     } else {
       params.delete("categoryId");
     }
-    setSearchParams(params, { replace: true });
+    if (location.pathname !== "/users") {
+      navigate({ pathname: "/users", search: params.toString() });
+    } else {
+      setSearchParams(params, { replace: true });
+    }
   };
 
   const toggleCategory = (id: number) => {
@@ -151,7 +176,7 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
   };
 
   const itemSx = {
-    borderRadius: 2.5,
+    borderRadius: "8px",
     mb: 0.6,
     py: 0.9,
     px: 1,
@@ -170,7 +195,7 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
   const menuIconSx = {
     width: 28,
     height: 28,
-    borderRadius: "50%",
+    borderRadius: "8px",
     display: "grid",
     placeItems: "center",
     backgroundColor: "rgba(255,255,255,0.1)",
@@ -208,7 +233,9 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
           sx={{ ...itemSx, pr: 0.5, justifyContent: collapsed ? "center" : "flex-start" }}
         >
           <ListItemIcon sx={{ minWidth: collapsed ? 0 : 40, mr: collapsed ? 0 : 1 }}>
-            <Box sx={menuIconSx}>{renderCategoryIcon(depth)}</Box>
+            <Box sx={{ ...menuIconSx, ...(cat.iconColor ? { backgroundColor: cat.iconColor, color: "#fff" } : {}) }}>
+              {cat.icon ? <LibraryIcon name={cat.icon} fontSize="small" /> : renderCategoryIcon(depth)}
+            </Box>
           </ListItemIcon>
           {!collapsed && (
             <ListItemText
@@ -254,55 +281,43 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
 
   return (
     <Box>
-      <Box>
-        {!collapsed && (
-          <Typography variant="overline" sx={{ letterSpacing: "0.16em", fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>
-            {t("sections")}
-          </Typography>
-        )}
-        {sections.length === 0 ? (
-          <Typography variant="body2" sx={{ mt: 1, color: "rgba(255,255,255,0.6)" }}>
-            {t("noSections")}
-          </Typography>
-        ) : (
-          <List sx={{ mt: collapsed ? 0 : 1 }} disablePadding>
-            {sections.map((section: any) => {
-              const button = (
-                <ListItemButton
-                  key={section.id}
-                  selected={selectedSectionId === section.id}
-                  onClick={() => updateFilters(selectedSectionId === section.id ? null : section.id, selectedCategoryId)}
-                  sx={{ ...itemSx, justifyContent: collapsed ? "center" : "flex-start" }}
-                >
-                  <ListItemIcon sx={{ minWidth: collapsed ? 0 : 40, mr: collapsed ? 0 : 1 }}>
-                    <Box sx={menuIconSx}>
-                      <FolderOutlinedIcon fontSize="small" />
-                    </Box>
-                  </ListItemIcon>
-                  {!collapsed && (
-                    <ListItemText
-                      primary={
-                        <Typography variant="body2" sx={{ fontWeight: selectedSectionId === section.id ? 700 : 600 }}>
-                          {section.title || `#${section.id}`}
-                        </Typography>
-                      }
-                    />
-                  )}
-                </ListItemButton>
-              );
-              return collapsed ? (
-                <Tooltip key={section.id} title={section.title || `#${section.id}`} placement="right">
-                  {button}
-                </Tooltip>
-              ) : (
-                button
-              );
-            })}
-          </List>
-        )}
-      </Box>
+      <List disablePadding>
+        {navItems.map((item) => {
+          const active = item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path);
+          const button = (
+            <ListItemButton
+              key={item.path}
+              selected={active}
+              onClick={() => navigate(item.path)}
+              sx={{ ...itemSx, justifyContent: collapsed ? "center" : "flex-start" }}
+            >
+              <ListItemIcon sx={{ minWidth: collapsed ? 0 : 40, mr: collapsed ? 0 : 1 }}>
+                <Box sx={{ ...menuIconSx, ...(active ? { backgroundColor: "rgba(255,255,255,0.18)" } : {}) }}>{item.icon}</Box>
+              </ListItemIcon>
+              {!collapsed && (
+                <ListItemText
+                  primary={
+                    <Typography variant="body2" sx={{ fontWeight: active ? 700 : 600 }}>
+                      {item.label}
+                    </Typography>
+                  }
+                />
+              )}
+            </ListItemButton>
+          );
+          return collapsed ? (
+            <Tooltip key={item.path} title={item.label} placement="right">
+              {button}
+            </Tooltip>
+          ) : (
+            button
+          );
+        })}
+      </List>
 
-      <Box sx={{ mt: collapsed ? 1 : 1.5 }}>
+      <Divider sx={{ my: 1.5, borderColor: "rgba(255,255,255,0.14)" }} />
+
+      <Box sx={{ mt: collapsed ? 1 : 0.5 }}>
         {!collapsed && (
           <Typography variant="overline" sx={{ letterSpacing: "0.16em", fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>
             {t("categories")}

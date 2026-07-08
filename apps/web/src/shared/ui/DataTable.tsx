@@ -113,7 +113,7 @@ export function DataTable<T extends { id: number | string }>({
     <TableContainer
       component={Paper}
       sx={{
-        borderRadius: 3,
+        borderRadius: "10px",
         boxShadow: "var(--shadow)",
         border: "1px solid var(--border)",
         ...containerSx

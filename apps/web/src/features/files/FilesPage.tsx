@@ -1028,7 +1028,7 @@ export default function FilesPage() {
                   )}
                 </Stack>
               </Box>
-              <Accordion sx={{ borderRadius: 2, border: "1px solid var(--border)", boxShadow: "none" }}>
+              <Accordion sx={{ borderRadius: "8px", border: "1px solid var(--border)", boxShadow: "none" }}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}>
                   <Typography variant="subtitle2">{t("archiveVersions")}</Typography>
                 </AccordionSummary>
@@ -1040,7 +1040,7 @@ export default function FilesPage() {
                   ) : (
                     <Stack spacing={1.5}>
                       {(infoVersions?.data || []).map((version: any) => (
-                        <Paper key={version.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                        <Paper key={version.id} variant="outlined" sx={{ p: 1.5, borderRadius: "8px" }}>
                           <Stack spacing={1}>
                             <Stack direction="row" spacing={1} alignItems="center">
                               <Chip size="small" label={`v${version.version_number}`} />
