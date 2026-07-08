@@ -26,6 +26,7 @@ import UserFilesPage from "../features/files/UserFilesPage";
 import UserLibraryPage from "../features/files/UserLibraryPage";
 import UserFileDetailsPage from "../features/files/UserFileDetailsPage";
 import SettingsPage from "../features/settings/SettingsPage";
+import SeedPage from "../features/seed/SeedPage";
 import { getDefaultRoute, hasAccess } from "../shared/utils/access";
 import i18n from "./i18n";
 
@@ -252,6 +253,19 @@ export default function App() {
                     <RequireAccess permissions={["dashboard.access", "stats.read"]}>
                       <DashboardLayout>
                         <StatsPage />
+                      </DashboardLayout>
+                    </RequireAccess>
+                  </RequireAuth>
+                }
+              />
+
+              <Route
+                path="/dashboard/seed"
+                element={
+                  <RequireAuth>
+                    <RequireAccess permissions={["dashboard.access", "section.add"]}>
+                      <DashboardLayout>
+                        <SeedPage />
                       </DashboardLayout>
                     </RequireAccess>
                   </RequireAuth>
