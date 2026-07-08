@@ -118,7 +118,7 @@ export default function StatsPage() {
               <XAxis dataKey="bucket" hide />
               <YAxis />
               <Tooltip />
-              <Line type="monotone" dataKey="count" stroke="#1d4d4f" strokeWidth={2} />
+              <Line type="monotone" dataKey="count" stroke="#2563eb" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         )}

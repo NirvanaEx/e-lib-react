@@ -29,7 +29,7 @@ export function EmptyState({
           width: 64,
           height: 64,
           borderRadius: "20px",
-          background: "linear-gradient(140deg, rgba(198,138,63,0.25), rgba(41,76,96,0.15))"
+          background: "linear-gradient(140deg, rgba(37,99,235,0.22), rgba(14,165,233,0.14))"
         }}
       />
       <Typography variant="h6" sx={{ mb: 1 }}>

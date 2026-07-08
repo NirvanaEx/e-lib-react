@@ -29,6 +29,14 @@ import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
+import BalanceOutlinedIcon from "@mui/icons-material/BalanceOutlined";
+import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
+import FlightOutlinedIcon from "@mui/icons-material/FlightOutlined";
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addUserFavorite,
@@ -58,6 +66,23 @@ import { useToast } from "../../shared/ui/ToastProvider";
 import { formatUserLabel } from "../../shared/utils/userLabel";
 import { sharedLibraryTableLayout } from "./fileTableLayout";
 import { formatPath } from "../../shared/utils/tree";
+
+const sectionIcons = [
+  BalanceOutlinedIcon,
+  AccountBalanceOutlinedIcon,
+  FlightOutlinedIcon,
+  ArticleOutlinedIcon,
+  MenuBookOutlinedIcon,
+  DescriptionOutlinedIcon
+];
+const sectionTones = ["#2563eb", "#7c3aed", "#0ea5e9", "#0d9488", "#d97706", "#db2777"];
+
+const accessChipSx = (accessType: string) =>
+  accessType === "public"
+    ? { backgroundColor: "rgba(22, 163, 74, 0.12)", color: "#15803d" }
+    : accessType === "department_closed"
+    ? { backgroundColor: "rgba(2, 132, 199, 0.12)", color: "#0369a1" }
+    : { backgroundColor: "rgba(217, 119, 6, 0.14)", color: "#b45309" };
 
 export default function UserFilesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -99,6 +124,16 @@ export default function UserFilesPage() {
     setSort({ key: null, direction: null });
     setPage(1);
     setSearchParams(new URLSearchParams(), { replace: true });
+  };
+
+  const setSectionFilter = (nextSectionId: number | null) => {
+    const params = new URLSearchParams(searchParams);
+    if (nextSectionId) {
+      params.set("sectionId", String(nextSectionId));
+    } else {
+      params.delete("sectionId");
+    }
+    setSearchParams(params, { replace: true });
   };
 
   const { data, isLoading } = useQuery({
@@ -441,47 +476,74 @@ export default function UserFilesPage() {
     );
   };
 
-  const renderDownloadAction = (row: any) => {
-    const langs = row.availableAssetLangs || row.availableLangs || [];
-    const sizes = (row.availableAssetSizes || []).reduce<Record<string, number>>((acc: Record<string, number>, item: any) => {
-      acc[item.lang] = item.size;
-      return acc;
-    }, {});
-    if (!isDownloadable(row)) {
-      return (
-        <Tooltip title={row.canDownload ? t("noAssets") : t("noAccess")}>
-          <Box sx={{ display: "inline-flex", alignItems: "center" }}>
-            <LockOutlinedIcon sx={{ fontSize: 18 }} color="action" />
-          </Box>
-        </Tooltip>
-      );
-    }
-    return (
-      <Tooltip title={t("download")}>
-        <span>
-          <IconButton
-            size="small"
-            color="primary"
-            sx={{ backgroundColor: "rgba(29, 77, 79, 0.12)", width: 28, height: 28 }}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (langs.length > 1) {
-                setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
-                return;
-              }
-              const lang = langs[0];
-              downloadMutation.mutate({ id: row.id, lang, title: row.title });
-            }}
-          >
-            <DownloadIcon fontSize="small" />
-          </IconButton>
-        </span>
-      </Tooltip>
-    );
-  };
-
   return (
     <Page title={t("sharedLibrary")} subtitle={t("userFilesSubtitle")}>
+      {sections.length > 0 && (
+        <Box
+          sx={{
+            display: "grid",
+            gap: 1.5,
+            mb: 2,
+            gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(auto-fill, minmax(160px, 1fr))" }
+          }}
+        >
+          {[{ id: null, title: t("allSections") }, ...sections].map((section: any, index: number) => {
+            const Icon = section.id === null ? GridViewOutlinedIcon : sectionIcons[(index - 1) % sectionIcons.length];
+            const tone = section.id === null ? "#475569" : sectionTones[(index - 1) % sectionTones.length];
+            const active = section.id === null ? !sectionId : section.id === sectionId;
+            return (
+              <Paper
+                key={section.id ?? "all"}
+                onClick={() => setSectionFilter(section.id)}
+                sx={{
+                  p: 1.5,
+                  borderRadius: 3,
+                  cursor: "pointer",
+                  border: "1px solid",
+                  borderColor: active ? "primary.main" : "var(--border)",
+                  backgroundColor: active ? "rgba(37, 99, 235, 0.06)" : "var(--surface)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1.25,
+                  transition: "border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease",
+                  "&:hover": {
+                    borderColor: "primary.main",
+                    transform: "translateY(-2px)",
+                    boxShadow: "0 10px 20px rgba(15, 42, 90, 0.08)"
+                  }
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 2,
+                    display: "grid",
+                    placeItems: "center",
+                    backgroundColor: `${tone}1a`,
+                    color: tone
+                  }}
+                >
+                  <Icon fontSize="small" />
+                </Box>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 700,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden"
+                  }}
+                >
+                  {section.title || `#${section.id}`}
+                </Typography>
+              </Paper>
+            );
+          })}
+        </Box>
+      )}
+
       <FiltersBar
         actions={
           <ToggleButtonGroup
@@ -629,7 +691,7 @@ export default function UserFilesPage() {
                       <IconButton
                         size="small"
                         color="primary"
-                        sx={{ backgroundColor: "rgba(29, 77, 79, 0.12)" }}
+                        sx={{ backgroundColor: "rgba(37, 99, 235, 0.12)" }}
                         onClick={(event) => {
                           event.stopPropagation();
                           if (langs.length > 1) {
@@ -650,118 +712,129 @@ export default function UserFilesPage() {
           ]}
         />
       ) : (
-        <Box
-          sx={{
-            display: "grid",
-            gap: 1.5,
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(auto-fill, 240px)",
-              md: "repeat(auto-fill, 260px)",
-              lg: "repeat(auto-fill, 280px)"
-            },
-            justifyContent: { xs: "stretch", sm: "start" }
-          }}
-        >
+        <Stack spacing={1.25}>
           {displayRows.map((row: any) => {
             const langs = row.availableAssetLangs || row.availableLangs || [];
+            const sizes = (row.availableAssetSizes || []).reduce<Record<string, number>>(
+              (acc: Record<string, number>, item: any) => {
+                acc[item.lang] = item.size;
+                return acc;
+              },
+              {}
+            );
             const size = resolveRowSize(row);
-            const langsLabel = langs.length ? langs.map((lang: string) => lang.toUpperCase()).join(", ") : "-";
+            const canOpen = isDownloadable(row);
+            const metaParts = [
+              row.sectionId ? formatSectionLabel(row.sectionId) : null,
+              size === null || size === undefined ? null : formatBytes(size),
+              formatDateTime(row.updatedAt)
+            ].filter(Boolean);
             return (
               <Paper
                 key={row.id}
                 onClick={() => {
-                  if (!isDownloadable(row)) return;
+                  if (!canOpen) return;
                   setDetailsId(row.id);
                 }}
                 sx={{
-                  p: 1.75,
-                  borderRadius: 2.5,
+                  p: { xs: 1.5, md: 2 },
+                  borderRadius: 3,
                   border: "1px solid var(--border)",
                   backgroundColor: "var(--surface)",
-                  boxShadow: "none",
-                  cursor: isDownloadable(row) ? "pointer" : "default",
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                  "&:hover": isDownloadable(row)
-                    ? { transform: "translateY(-1px)" }
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  flexWrap: "wrap",
+                  cursor: canOpen ? "pointer" : "default",
+                  transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+                  "&:hover": canOpen
+                    ? { borderColor: "primary.main", boxShadow: "0 10px 20px rgba(15, 42, 90, 0.08)" }
                     : undefined
                 }}
               >
-                <Stack spacing={1}>
-                  <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography
-                        variant="subtitle1"
-                        sx={{
-                          fontWeight: 700,
-                          lineHeight: 1.15,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis"
-                        }}
-                      >
-                        {row.title || t("file")}
-                      </Typography>
-                    </Box>
-                    {renderStatusIcons(row, "card")}
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 2.5,
+                    display: "grid",
+                    placeItems: "center",
+                    backgroundColor: "rgba(37, 99, 235, 0.1)",
+                    color: "primary.main",
+                    flexShrink: 0
+                  }}
+                >
+                  <DescriptionOutlinedIcon />
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 220 }}>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                    >
+                      {row.title || t("file")}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      label={getAccessLabel(row.accessType)}
+                      sx={{ fontWeight: 700, flexShrink: 0, ...accessChipSx(row.accessType) }}
+                    />
                   </Stack>
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: "86px 1fr",
-                      columnGap: 1,
-                      rowGap: 0.5,
-                      alignItems: "start"
-                    }}
+                  <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.25 }}>
+                    {metaParts.join(" • ")}
+                  </Typography>
+                  <Stack direction="row" spacing={0.75} sx={{ mt: 0.75, flexWrap: "wrap", rowGap: 0.5 }}>
+                    {row.categoryId ? (
+                      <Chip
+                        size="small"
+                        label={formatPath(getCategoryPath(row.categoryId))}
+                        sx={{ backgroundColor: "var(--surface-2)", fontWeight: 600 }}
+                      />
+                    ) : null}
+                    {langs.map((lang: string) => (
+                      <Chip key={lang} size="small" variant="outlined" label={lang.toUpperCase()} />
+                    ))}
+                  </Stack>
+                </Box>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  onClick={(event) => event.stopPropagation()}
+                  sx={{ ml: "auto" }}
+                >
+                  {renderStatusIcons(row, "card")}
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<VisibilityOutlinedIcon />}
+                    disabled={!canOpen}
+                    onClick={() => setDetailsId(row.id)}
+                    sx={{ borderRadius: 99 }}
                   >
-                    <Typography variant="caption" color="text.secondary">
-                      {t("section")}
-                    </Typography>
-                    <Typography variant="body2" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {row.sectionId ? formatSectionLabel(row.sectionId) : "-"}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {t("category")}
-                    </Typography>
-                    <Typography variant="body2" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {row.categoryId ? formatPath(getCategoryPath(row.categoryId)) : "-"}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {t("access")}
-                    </Typography>
-                    <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-start", height: 20 }}>
-                      {accessIcon(row.accessType, "start")}
-                    </Box>
-                    <Typography variant="caption" color="text.secondary">
-                      {t("languages")}
-                    </Typography>
-                    <Typography variant="body2" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {langsLabel}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {t("fileSize")}
-                    </Typography>
-                    <Typography variant="body2" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {size === null || size === undefined ? "-" : formatBytes(size)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {t("updatedAt")}
-                    </Typography>
-                    <Typography variant="body2" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {formatDateTime(row.updatedAt)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {t("download")}
-                    </Typography>
-                    <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-start", height: 24 }}>
-                      {renderDownloadAction(row)}
-                    </Box>
-                  </Box>
+                    {t("view")}
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<DownloadIcon />}
+                    disabled={!canOpen}
+                    onClick={() => {
+                      if (langs.length > 1) {
+                        setDownloadTarget({ id: row.id, title: row.title, langs, sizes });
+                        return;
+                      }
+                      downloadMutation.mutate({ id: row.id, lang: langs[0], title: row.title });
+                    }}
+                    sx={{ borderRadius: 99, boxShadow: "none" }}
+                  >
+                    {t("download")}
+                  </Button>
                 </Stack>
               </Paper>
             );
           })}
-        </Box>
+        </Stack>
       )}
 
       <PaginationBar
