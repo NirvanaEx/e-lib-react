@@ -42,7 +42,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         onClick={() => window.location.reload()}
         sx={{
           width: "100%",
-          borderRadius: 2,
+          borderRadius: "8px",
           px: 0.5,
           py: 0.5,
           justifyContent: collapsed ? "center" : "flex-start"

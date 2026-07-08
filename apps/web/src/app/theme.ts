@@ -15,7 +15,7 @@ export const theme = createTheme({
     h6: { fontWeight: 700 }
   },
   shape: {
-    borderRadius: 14
+    borderRadius: 8
   },
   components: {
     MuiPaper: {
@@ -31,7 +31,7 @@ export const theme = createTheme({
         root: {
           textTransform: "none",
           fontWeight: 600,
-          borderRadius: 10
+          borderRadius: 8
         }
       }
     },

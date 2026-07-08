@@ -13,7 +13,7 @@ export function FiltersBar({
       sx={{
         p: 2,
         mb: 2,
-        borderRadius: 3,
+        borderRadius: "10px",
         border: "1px solid var(--border)",
         boxShadow: "var(--shadow)",
         background: "var(--surface)"

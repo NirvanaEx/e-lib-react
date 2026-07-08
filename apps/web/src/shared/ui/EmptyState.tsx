@@ -17,7 +17,7 @@ export function EmptyState({
         px: 3,
         textAlign: "center",
         color: "text.secondary",
-        borderRadius: 4,
+        borderRadius: "12px",
         border: "1px dashed var(--border)",
         background: "var(--surface-2)"
       }}

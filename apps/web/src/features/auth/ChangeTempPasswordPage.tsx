@@ -73,7 +73,7 @@ export default function ChangeTempPasswordPage() {
           p: 4,
           width: "100%",
           maxWidth: 460,
-          borderRadius: 4,
+          borderRadius: "12px",
           border: "1px solid var(--border)",
           boxShadow: "var(--shadow)"
         }}

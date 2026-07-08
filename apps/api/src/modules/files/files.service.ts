@@ -103,13 +103,25 @@ export class FilesService {
     const lang = normalizeLang(preferredLang) || null;
 
     type MenuTranslation = { lang: Lang; title: string };
-    type MenuSection = { id: number; translations: MenuTranslation[] };
-    type MenuCategory = { id: number; parentId: number | null; depth: number; translations: MenuTranslation[] };
+    type MenuSection = { id: number; icon: string | null; iconColor: string | null; translations: MenuTranslation[] };
+    type MenuCategory = {
+      id: number;
+      parentId: number | null;
+      depth: number;
+      icon: string | null;
+      iconColor: string | null;
+      translations: MenuTranslation[];
+    };
 
     const groupSections = new Map<number, MenuSection>();
     sectionsRows.forEach((row: any) => {
       if (!groupSections.has(row.id)) {
-        groupSections.set(row.id, { id: row.id, translations: [] });
+        groupSections.set(row.id, {
+          id: row.id,
+          icon: row.icon || null,
+          iconColor: row.icon_color || null,
+          translations: []
+        });
       }
       const current = groupSections.get(row.id);
       if (row.lang && current) {
@@ -118,7 +130,13 @@ export class FilesService {
     });
     const sections = Array.from(groupSections.values()).map((s) => {
       const picked = selectTranslation<MenuTranslation>(s.translations, lang, defaultLang);
-      return { id: s.id, title: picked?.title || null, availableLangs: getAvailableLangs(s.translations) };
+      return {
+        id: s.id,
+        title: picked?.title || null,
+        icon: s.icon,
+        iconColor: s.iconColor,
+        availableLangs: getAvailableLangs(s.translations)
+      };
     });
 
     const groupCategories = new Map<number, MenuCategory>();
@@ -128,6 +146,8 @@ export class FilesService {
           id: row.id,
           parentId: row.parent_id,
           depth: row.depth,
+          icon: row.icon || null,
+          iconColor: row.icon_color || null,
           translations: []
         });
       }
@@ -143,6 +163,8 @@ export class FilesService {
         parentId: c.parentId,
         depth: c.depth,
         title: picked?.title || null,
+        icon: c.icon,
+        iconColor: c.iconColor,
         availableLangs: getAvailableLangs(c.translations)
       };
     });
@@ -375,9 +397,10 @@ export class FilesService {
     const assetLangsByVersion = new Map<number, Set<string>>();
     const assetSizesByVersion = new Map<number, number>();
     const assetSizesByLang = new Map<number, Map<string, number>>();
+    const assetExtsByVersion = new Map<number, Set<string>>();
     if (versionIds.length > 0) {
       const assetRows = await this.dbService.db("file_version_assets")
-        .select("file_version_id", "lang", "size")
+        .select("file_version_id", "lang", "size", "original_name")
         .whereIn("file_version_id", versionIds)
         .whereNull("deleted_at");
       assetRows.forEach((row: any) => {
@@ -389,6 +412,13 @@ export class FilesService {
           assetSizesByLang.set(row.file_version_id, new Map<string, number>());
         }
         assetSizesByLang.get(row.file_version_id)?.set(row.lang, Number(row.size || 0));
+        const ext = String(row.original_name || "").split(".").pop()?.toLowerCase();
+        if (ext && ext !== String(row.original_name || "").toLowerCase()) {
+          if (!assetExtsByVersion.has(row.file_version_id)) {
+            assetExtsByVersion.set(row.file_version_id, new Set<string>());
+          }
+          assetExtsByVersion.get(row.file_version_id)?.add(ext);
+        }
       });
 
       const sizeRows = (await this.dbService.db("file_version_assets")
@@ -1028,9 +1058,10 @@ export class FilesService {
     const assetLangsByVersion = new Map<number, Set<string>>();
     const assetSizesByVersion = new Map<number, number>();
     const assetSizesByLang = new Map<number, Map<string, number>>();
+    const assetExtsByVersion = new Map<number, Set<string>>();
     if (ownVersionIds.length > 0) {
       const assetRows = await this.dbService.db("file_version_assets")
-        .select("file_version_id", "lang", "size")
+        .select("file_version_id", "lang", "size", "original_name")
         .whereIn("file_version_id", ownVersionIds)
         .whereNull("deleted_at");
       assetRows.forEach((row: any) => {
@@ -1042,6 +1073,13 @@ export class FilesService {
           assetSizesByLang.set(row.file_version_id, new Map<string, number>());
         }
         assetSizesByLang.get(row.file_version_id)?.set(row.lang, Number(row.size || 0));
+        const ext = String(row.original_name || "").split(".").pop()?.toLowerCase();
+        if (ext && ext !== String(row.original_name || "").toLowerCase()) {
+          if (!assetExtsByVersion.has(row.file_version_id)) {
+            assetExtsByVersion.set(row.file_version_id, new Set<string>());
+          }
+          assetExtsByVersion.get(row.file_version_id)?.add(ext);
+        }
       });
 
       const sizeRows = (await this.dbService.db("file_version_assets")
@@ -1129,6 +1167,7 @@ export class FilesService {
         canDownload,
         availableAssetLangs: langs.sort(),
         availableAssetSizes: sizes.sort((a, b) => a.lang.localeCompare(b.lang)),
+        availableAssetExts: item.ownVersionId ? Array.from(assetExtsByVersion.get(item.ownVersionId) || []).sort() : [],
         currentAssetSize: item.ownVersionId ? assetSizesByVersion.get(item.ownVersionId) || 0 : 0,
         isFavorite: favoriteSet.has(String(item.id)),
         updatedBy: versionByFileId.get(item.id) || null,
@@ -1306,9 +1345,10 @@ export class FilesService {
     const assetLangsByVersion = new Map<number, Set<string>>();
     const assetSizesByVersion = new Map<number, number>();
     const assetSizesByLang = new Map<number, Map<string, number>>();
+    const assetExtsByVersion = new Map<number, Set<string>>();
     if (versionIds.length > 0) {
       const assetRows = await this.dbService.db("file_version_assets")
-        .select("file_version_id", "lang", "size")
+        .select("file_version_id", "lang", "size", "original_name")
         .whereIn("file_version_id", versionIds)
         .whereNull("deleted_at");
       assetRows.forEach((row: any) => {
@@ -1320,6 +1360,13 @@ export class FilesService {
           assetSizesByLang.set(row.file_version_id, new Map<string, number>());
         }
         assetSizesByLang.get(row.file_version_id)?.set(row.lang, Number(row.size || 0));
+        const ext = String(row.original_name || "").split(".").pop()?.toLowerCase();
+        if (ext && ext !== String(row.original_name || "").toLowerCase()) {
+          if (!assetExtsByVersion.has(row.file_version_id)) {
+            assetExtsByVersion.set(row.file_version_id, new Set<string>());
+          }
+          assetExtsByVersion.get(row.file_version_id)?.add(ext);
+        }
       });
 
       const sizeRows = (await this.dbService.db("file_version_assets")
@@ -1372,6 +1419,9 @@ export class FilesService {
         isFavorite: favoriteSet.has(String(item.id)),
         availableAssetLangs: langs.sort(),
         availableAssetSizes: sizes.sort((a, b) => a.lang.localeCompare(b.lang)),
+        availableAssetExts: item.currentVersionId
+          ? Array.from(assetExtsByVersion.get(item.currentVersionId) || []).sort()
+          : [],
         currentAssetSize: item.currentVersionId ? assetSizesByVersion.get(item.currentVersionId) || 0 : 0
       };
     });
@@ -2068,9 +2118,10 @@ export class FilesService {
     const assetLangsByVersion = new Map<number, Set<string>>();
     const assetSizesByVersion = new Map<number, number>();
     const assetSizesByLang = new Map<number, Map<string, number>>();
+    const assetExtsByVersion = new Map<number, Set<string>>();
     if (versionIds.length > 0) {
       const assetRows = await this.dbService.db("file_version_assets")
-        .select("file_version_id", "lang", "size")
+        .select("file_version_id", "lang", "size", "original_name")
         .whereIn("file_version_id", versionIds)
         .whereNull("deleted_at");
       assetRows.forEach((row: any) => {
@@ -2082,6 +2133,13 @@ export class FilesService {
           assetSizesByLang.set(row.file_version_id, new Map<string, number>());
         }
         assetSizesByLang.get(row.file_version_id)?.set(row.lang, Number(row.size || 0));
+        const ext = String(row.original_name || "").split(".").pop()?.toLowerCase();
+        if (ext && ext !== String(row.original_name || "").toLowerCase()) {
+          if (!assetExtsByVersion.has(row.file_version_id)) {
+            assetExtsByVersion.set(row.file_version_id, new Set<string>());
+          }
+          assetExtsByVersion.get(row.file_version_id)?.add(ext);
+        }
       });
 
       const sizeRows = (await this.dbService.db("file_version_assets")
@@ -2132,6 +2190,9 @@ export class FilesService {
         canDownload,
         availableAssetLangs: langs.sort(),
         availableAssetSizes: sizes.sort((a, b) => a.lang.localeCompare(b.lang)),
+        availableAssetExts: item.currentVersionId
+          ? Array.from(assetExtsByVersion.get(item.currentVersionId) || []).sort()
+          : [],
         currentAssetSize: item.currentVersionId ? assetSizesByVersion.get(item.currentVersionId) || 0 : 0
       };
     });
@@ -2476,7 +2537,7 @@ export class FilesService {
       ? await this.dbService.db("sections")
           .leftJoin("sections_translations", "sections.id", "sections_translations.section_id")
           .whereIn("sections.id", sectionIds)
-          .select("sections.id", "sections_translations.lang", "sections_translations.title")
+          .select("sections.id", "sections.icon", "sections.icon_color", "sections_translations.lang", "sections_translations.title")
       : [];
 
     const categoriesRows = categoryIds.length
@@ -2487,6 +2548,8 @@ export class FilesService {
             "categories.id",
             "categories.parent_id",
             "categories.depth",
+            "categories.icon",
+            "categories.icon_color",
             "categories_translations.lang",
             "categories_translations.title"
           )
@@ -2498,7 +2561,7 @@ export class FilesService {
   async getUserMenuAll(preferredLang: string | null) {
     const sectionsRows = await this.dbService.db("sections")
       .leftJoin("sections_translations", "sections.id", "sections_translations.section_id")
-      .select("sections.id", "sections_translations.lang", "sections_translations.title")
+      .select("sections.id", "sections.icon", "sections.icon_color", "sections_translations.lang", "sections_translations.title")
       .orderBy("sections.id", "asc");
 
     const categoriesRows = await this.dbService.db("categories")
@@ -2507,6 +2570,8 @@ export class FilesService {
         "categories.id",
         "categories.parent_id",
         "categories.depth",
+        "categories.icon",
+        "categories.icon_color",
         "categories_translations.lang",
         "categories_translations.title"
       )

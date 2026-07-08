@@ -697,7 +697,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
       variant="outlined"
       sx={{
         p: 1.5,
-        borderRadius: 2,
+        borderRadius: "8px",
         borderLeft: "4px solid",
         borderLeftColor: tone === "user" ? "info.main" : "error.main",
         backgroundColor: tone === "user" ? "rgba(37, 99, 235, 0.06)" : "rgba(210, 47, 40, 0.08)"
@@ -1534,7 +1534,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                 </Stack>
               </Box>
               {allowVersionAccess ? (
-                <Accordion sx={{ borderRadius: 2, border: "1px solid var(--border)", boxShadow: "none" }}>
+                <Accordion sx={{ borderRadius: "8px", border: "1px solid var(--border)", boxShadow: "none" }}>
                   <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}>
                     <Typography variant="subtitle2">{t("archiveVersions")}</Typography>
                   </AccordionSummary>
@@ -1550,7 +1550,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                     ) : (
                       <Stack spacing={1.5}>
                         {versions.map((version: any) => (
-                          <Paper key={version.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                          <Paper key={version.id} variant="outlined" sx={{ p: 1.5, borderRadius: "8px" }}>
                             <Stack spacing={1}>
                               <Stack direction="row" spacing={1} alignItems="center">
                                 <Chip size="small" label={`v${version.versionNumber}`} />
@@ -1624,7 +1624,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
             {submitMode === "update" && (
               <Paper
                 variant="outlined"
-                sx={{ p: 2, borderRadius: 2, backgroundColor: "rgba(37, 99, 235, 0.06)" }}
+                sx={{ p: 2, borderRadius: "8px", backgroundColor: "rgba(37, 99, 235, 0.06)" }}
               >
                 <Typography variant="subtitle2">{t("file")}</Typography>
                 <Typography variant="body2" sx={{ mt: 0.5 }}>
@@ -1731,7 +1731,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                     <IconButton
                       size="small"
                       onClick={addExtraAsset}
-                      sx={{ border: "1px dashed", borderColor: "divider", borderRadius: 2 }}
+                      sx={{ border: "1px dashed", borderColor: "divider", borderRadius: "8px" }}
                     >
                       <AddCircleOutlineIcon fontSize="small" />
                     </IconButton>
@@ -1792,7 +1792,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
               variant="outlined"
               sx={{
                 p: 2,
-                borderRadius: 2,
+                borderRadius: "8px",
                 borderStyle: "dashed",
                 backgroundColor: "rgba(37, 99, 235, 0.06)"
               }}

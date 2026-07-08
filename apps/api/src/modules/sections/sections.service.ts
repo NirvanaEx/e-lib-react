@@ -25,6 +25,8 @@ export class SectionsService {
       )
       .select(
         "sections.id",
+        "sections.icon",
+        "sections.icon_color",
         "sections.created_at",
         "sections.updated_at",
         "sections_translations.lang",
@@ -47,6 +49,8 @@ export class SectionsService {
 
     type SectionRow = {
       id: number;
+      icon: string | null;
+      icon_color: string | null;
       created_at: string;
       updated_at: string;
       translations: SectionTranslation[];
@@ -57,6 +61,8 @@ export class SectionsService {
       if (!grouped.has(row.id)) {
         grouped.set(row.id, {
           id: row.id,
+          icon: row.icon || null,
+          icon_color: row.icon_color || null,
           created_at: row.created_at,
           updated_at: row.updated_at,
           translations: []
@@ -76,6 +82,8 @@ export class SectionsService {
       return {
         id: item.id,
         title: picked?.title || null,
+        icon: item.icon,
+        iconColor: item.icon_color,
         availableLangs: getAvailableLangs(item.translations),
         createdAt: item.created_at,
         updatedAt: item.updated_at
@@ -116,6 +124,8 @@ export class SectionsService {
       )
       .select(
         "sections.id",
+        "sections.icon",
+        "sections.icon_color",
         "sections_translations.lang",
         "sections_translations.title"
       )
@@ -134,18 +144,28 @@ export class SectionsService {
     return {
       id,
       title: picked?.title || null,
+      icon: rows[0].icon || null,
+      iconColor: rows[0].icon_color || null,
       availableLangs: getAvailableLangs(translations),
       translations
     };
   }
 
-  async create(dto: { translations: { lang: string; title: string }[] }, actorId: number) {
+  async create(
+    dto: { translations: { lang: string; title: string }[]; icon?: string | null; iconColor?: string | null },
+    actorId: number
+  ) {
     const langs = new Set(dto.translations.map((t) => t.lang));
     if (langs.size === 0) throw new BadRequestException("Translations required");
 
     const [id] = await this.dbService.db.transaction(async (trx) => {
       const [sectionId] = await trx("sections")
-        .insert({ created_at: trx.fn.now(), updated_at: trx.fn.now() })
+        .insert({
+          icon: dto.icon || null,
+          icon_color: dto.iconColor || null,
+          created_at: trx.fn.now(),
+          updated_at: trx.fn.now()
+        })
         .returning("id");
 
       const rows = dto.translations.map((t) => ({
@@ -168,13 +188,17 @@ export class SectionsService {
     return { id };
   }
 
-  async update(id: number, dto: { translations?: { lang: string; title: string }[] }, actorId: number) {
+  async update(
+    id: number,
+    dto: { translations?: { lang: string; title: string }[]; icon?: string | null; iconColor?: string | null },
+    actorId: number
+  ) {
     const exists = await this.dbService.db("sections").where({ id }).first();
     if (!exists) throw new NotFoundException();
 
     const translations = dto.translations || [];
-    if (translations.length > 0) {
-      await this.dbService.db.transaction(async (trx) => {
+    await this.dbService.db.transaction(async (trx) => {
+      if (translations.length > 0) {
         await trx("sections_translations").where({ section_id: id }).delete();
         const rows = translations.map((t) => ({
           section_id: id,
@@ -182,9 +206,12 @@ export class SectionsService {
           title: t.title
         }));
         await trx("sections_translations").insert(rows);
-        await trx("sections").update({ updated_at: trx.fn.now() }).where({ id });
-      });
-    }
+      }
+      const patch: Record<string, any> = { updated_at: trx.fn.now() };
+      if (dto.icon !== undefined) patch.icon = dto.icon || null;
+      if (dto.iconColor !== undefined) patch.icon_color = dto.iconColor || null;
+      await trx("sections").update(patch).where({ id });
+    });
 
     await this.auditService.log({
       actorUserId: actorId,

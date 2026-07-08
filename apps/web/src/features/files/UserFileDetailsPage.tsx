@@ -111,7 +111,7 @@ export default function UserFileDetailsPage() {
 
   return (
     <Page title={data?.title || t("file")} subtitle={t("userFileSubtitle")}>
-      <Paper sx={{ p: 2, mb: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+      <Paper sx={{ p: 2, mb: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
         <Stack spacing={1.5}>
           <DetailRow label={t("createdBy")} value={data?.createdBy ? formatUserLabel(data.createdBy) : "-"} />
           <Stack direction="row" spacing={1} alignItems="center">
@@ -120,7 +120,7 @@ export default function UserFileDetailsPage() {
           </Stack>
         </Stack>
       </Paper>
-      <Paper sx={{ p: 2, mb: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+      <Paper sx={{ p: 2, mb: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
         <Typography variant="subtitle1" sx={{ mb: 1 }}>
           {t("availableLanguages")}
         </Typography>
@@ -134,7 +134,7 @@ export default function UserFileDetailsPage() {
           )}
         </Stack>
       </Paper>
-      <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid var(--border)" }}>
+      <Paper sx={{ p: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
           <Button variant="contained" onClick={handleDownload} disabled={!availableLangs || availableLangs.length === 0}>
             {t("download")}

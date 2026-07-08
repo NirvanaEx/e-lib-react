@@ -24,7 +24,6 @@ import TrashPage from "../features/files/TrashPage";
 import StatsPage from "../features/stats/StatsPage";
 import UserFilesPage from "../features/files/UserFilesPage";
 import UserLibraryPage from "../features/files/UserLibraryPage";
-import MyLibraryLayout from "./layouts/MyLibraryLayout";
 import UserFileDetailsPage from "../features/files/UserFileDetailsPage";
 import SettingsPage from "../features/settings/SettingsPage";
 import { getDefaultRoute, hasAccess } from "../shared/utils/access";
@@ -287,9 +286,9 @@ export default function App() {
                   <RequireAuth>
                     <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
                       <RequireFileSubmit>
-                        <MyLibraryLayout>
+                        <UserLayout>
                           <UserLibraryPage view="requests" />
-                        </MyLibraryLayout>
+                        </UserLayout>
                       </RequireFileSubmit>
                     </RequireRole>
                   </RequireAuth>
@@ -301,9 +300,9 @@ export default function App() {
                   <RequireAuth>
                     <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
                       <RequireFileSubmit>
-                        <MyLibraryLayout>
+                        <UserLayout>
                           <UserLibraryPage view="files" />
-                        </MyLibraryLayout>
+                        </UserLayout>
                       </RequireFileSubmit>
                     </RequireRole>
                   </RequireAuth>
@@ -314,9 +313,9 @@ export default function App() {
                 element={
                   <RequireAuth>
                     <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
-                      <MyLibraryLayout>
+                      <UserLayout>
                         <UserLibraryPage view="favorites" />
-                      </MyLibraryLayout>
+                      </UserLayout>
                     </RequireRole>
                   </RequireAuth>
                 }
@@ -326,9 +325,9 @@ export default function App() {
                 element={
                   <RequireAuth>
                     <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
-                      <MyLibraryLayout>
+                      <UserLayout>
                         <UserLibraryPage view="department" />
-                      </MyLibraryLayout>
+                      </UserLayout>
                     </RequireRole>
                   </RequireAuth>
                 }
