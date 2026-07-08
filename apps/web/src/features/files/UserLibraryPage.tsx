@@ -1,8 +1,5 @@
 import React from "react";
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Autocomplete,
   Box,
   Button,
@@ -11,31 +8,33 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Drawer,
   IconButton,
   MenuItem,
   Paper,
+  Select,
   Stack,
   Tab,
   Tabs,
   TextField,
   Tooltip,
-  Typography
+  Typography,
+  useMediaQuery,
+  useTheme
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import StarIcon from "@mui/icons-material/Star";
-import PublicIcon from "@mui/icons-material/Public";
-import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import SystemUpdateAltOutlinedIcon from "@mui/icons-material/SystemUpdateAltOutlined";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import CloseIcon from "@mui/icons-material/Close";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -43,7 +42,6 @@ import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Page } from "../../shared/ui/Page";
-import { DataTable } from "../../shared/ui/DataTable";
 import { PaginationBar } from "../../shared/ui/PaginationBar";
 import { FiltersBar } from "../../shared/ui/FiltersBar";
 import { SearchField } from "../../shared/ui/SearchField";
@@ -59,7 +57,7 @@ import { getFilenameFromDisposition } from "../../shared/utils/download";
 import { buildPathMap, formatPath } from "../../shared/utils/tree";
 import { getErrorMessage } from "../../shared/utils/errors";
 import { formatUserLabel } from "../../shared/utils/userLabel";
-import { userLibraryTableLayouts } from "./fileTableLayout";
+import { FileTypeBadge, accessChipSx, extOf } from "./fileVisuals";
 import {
   addUserFavorite,
   cancelUserRequest,
@@ -138,6 +136,13 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
   const [requestDetails, setRequestDetails] = React.useState<any | null>(null);
   const [updateInfoTarget, setUpdateInfoTarget] = React.useState<any | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+  const [detailsTab, setDetailsTab] = React.useState<"about" | "versions">("about");
+  const muiTheme = useTheme();
+  const lgUp = useMediaQuery(muiTheme.breakpoints.up("lg"));
+
+  React.useEffect(() => {
+    setDetailsTab("about");
+  }, [detailsId]);
 
   const requestDefaults: RequestForm = React.useMemo(
     () => ({
@@ -202,19 +207,6 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     }
     return segments.length ? segments : [`#${id}`];
   };
-
-  const renderPath = (segments: string[]) => (
-    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexWrap: "wrap" }}>
-      {segments.map((segment, index) => (
-        <React.Fragment key={`${segment}-${index}`}>
-          {index > 0 && <ChevronRightIcon fontSize="small" sx={{ color: "text.disabled" }} />}
-          <Box component="span" sx={{ minWidth: 0 }}>
-            {segment}
-          </Box>
-        </React.Fragment>
-      ))}
-    </Stack>
-  );
 
   const requestsScope = requestsTab === 0 ? "pending" : "history";
   const { data: requestsData, isLoading: requestsLoading } = useQuery({
@@ -663,22 +655,6 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     return <Chip size="small" color="warning" label={t("requestPending")} />;
   };
 
-  const requestTypeIcon = (requestType?: string | null) => {
-    const isUpdate = requestType === "update";
-    const label = isUpdate ? t("requestTypeUpdate") : t("requestTypeNew");
-    return (
-      <Tooltip title={label}>
-        <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
-          {isUpdate ? (
-            <SystemUpdateAltOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
-          ) : (
-            <AddCircleOutlineIcon fontSize="small" sx={{ color: "success.main" }} />
-          )}
-        </Box>
-      </Tooltip>
-    );
-  };
-
   const requestTypeLabel = (requestType?: string | null) =>
     requestType === "update" ? t("requestTypeUpdate") : t("requestTypeNew");
 
@@ -725,19 +701,12 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
       : accessType === "department_closed"
       ? t("accessDepartmentClosed")
       : t("accessPublic");
-  const accessIcon = (accessType: string) => (
-    <Tooltip title={getAccessLabel(accessType)}>
-      <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
-        {accessType === "public" ? (
-          <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
-        ) : (
-          <GroupOutlinedIcon
-            fontSize="small"
-            sx={{ color: accessType === "department_closed" ? "info.main" : "warning.main" }}
-          />
-        )}
-      </Box>
-    </Tooltip>
+  const accessChip = (accessType: string) => (
+    <Chip
+      size="small"
+      label={getAccessLabel(accessType)}
+      sx={{ fontWeight: 700, flexShrink: 0, ...accessChipSx(accessType) }}
+    />
   );
 
   const resolveRowSize = (row: any) => {
@@ -761,6 +730,29 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     setMyFilesPage(1);
     setDepartmentPage(1);
     setFavoritesPage(1);
+  };
+
+  const startDownload = (row: any) => {
+    const langs = row.availableAssetLangs || row.availableLangs || [];
+    if (!langs.length) return;
+    const versionId = isFilesView ? row.ownVersionId : undefined;
+    if (langs.length > 1) {
+      const sizes = (row.availableAssetSizes || []).reduce<Record<string, number>>(
+        (acc: Record<string, number>, item: any) => {
+          acc[item.lang] = item.size;
+          return acc;
+        },
+        {}
+      );
+      setDownloadTarget({ id: row.id, versionId, title: row.title, langs, sizes });
+      return;
+    }
+    const lang = langs[0];
+    if (versionId) {
+      downloadVersionMutation.mutate({ id: row.id, versionId, lang, title: row.title });
+    } else {
+      downloadMutation.mutate({ id: row.id, lang, title: row.title });
+    }
   };
 
   const currentLang = (i18n.language || "ru").split("-")[0];
@@ -834,279 +826,548 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     );
   };
 
-  const fileColumns = React.useMemo(() => {
-    const columns: any[] = [];
-    const layout = isDepartmentView ? userLibraryTableLayouts.department : isFavoritesView ? userLibraryTableLayouts.favorites : userLibraryTableLayouts.files;
+  const renderRowStatusIcons = (row: any) => {
+    const items: Array<{ key: string; node: React.ReactNode }> = [];
 
-    const renderStatusIcons = (row: any) => {
-      const items: Array<{ key: string; node: React.ReactNode }> = [];
-
-      if (isFilesView && row.ownVersionId == null) {
-        items.push({
-          key: "missing",
-          node: (
-            <Tooltip title={t("versionMissing")}>
-              <Box sx={{ display: "inline-flex", alignItems: "center" }}>
-                <HelpOutlineIcon fontSize="small" sx={{ color: "text.secondary" }} />
-              </Box>
-            </Tooltip>
-          )
-        });
-      }
-
-      if (isFilesView && row.ownVersionDeletedAt) {
-        items.push({
-          key: "deleted",
-          node: (
-            <Tooltip title={t("deleted")}>
-              <Box sx={{ display: "inline-flex", alignItems: "center" }}>
-                <DeleteOutlineIcon fontSize="small" sx={{ color: "text.secondary" }} />
-              </Box>
-            </Tooltip>
-          )
-        });
-      }
-
-      if (isFilesView && row.updatedByOther) {
-        const updatedBy = row.updatedBy?.fullName || row.updatedBy?.login || "-";
-        items.push({
-          key: "warning",
-          node: (
-            <Tooltip title={t("fileUpdatedByOther", { user: updatedBy })}>
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setUpdateInfoTarget(row);
-                  }}
-                >
-                  <WarningAmberOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
-                </IconButton>
-              </span>
-            </Tooltip>
-          )
-        });
-      }
-
-      if (isDepartmentView && canSubmitFiles) {
-        items.push({
-          key: "update",
-          node: (
-            <Tooltip title={t("updateFile")}>
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleOpenUpdateRequest(row);
-                  }}
-                >
-                  <SystemUpdateAltOutlinedIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
-          )
-        });
-      }
-
+    if (isFilesView && row.ownVersionId == null) {
       items.push({
-        key: "favorite",
+        key: "missing",
         node: (
-          <Tooltip title={t("favorites")}>
-            <IconButton
-              size="small"
-              onClick={(event) => {
-                event.stopPropagation();
-                favoriteMutation.mutate({ id: row.id, isFavorite: Boolean(row.isFavorite) });
-              }}
-            >
-              {row.isFavorite ? (
-                <StarIcon fontSize="small" sx={{ color: "warning.main" }} />
-              ) : (
-                <StarBorderIcon fontSize="small" sx={{ color: "text.disabled" }} />
-              )}
-            </IconButton>
+          <Tooltip title={t("versionMissing")}>
+            <Box sx={{ display: "inline-flex", alignItems: "center" }}>
+              <HelpOutlineIcon fontSize="small" sx={{ color: "text.secondary" }} />
+            </Box>
           </Tooltip>
         )
       });
+    }
 
-      if (!isDownloadable(row) && !(isFilesView && (row.ownVersionDeletedAt || row.ownVersionId == null))) {
-        const tooltip = row.canDownload ? t("noAssets") : t("noAccess");
-        items.push({
-          key: "lock",
-          node: (
-            <Tooltip title={tooltip}>
-              <Box sx={{ display: "inline-flex", alignItems: "center" }}>
-                <LockOutlinedIcon sx={{ fontSize: 16, display: "block" }} color="action" />
-              </Box>
-            </Tooltip>
-          )
-        });
-      }
-
-      if (!items.length) return null;
-
-      return (
-        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center" sx={{ width: "100%" }}>
-          {items.map((item) => (
-            <Box key={item.key} sx={{ display: "inline-flex", alignItems: "center" }}>
-              {item.node}
+    if (isFilesView && row.ownVersionDeletedAt) {
+      items.push({
+        key: "deleted",
+        node: (
+          <Tooltip title={t("deleted")}>
+            <Box sx={{ display: "inline-flex", alignItems: "center" }}>
+              <DeleteOutlineIcon fontSize="small" sx={{ color: "text.secondary" }} />
             </Box>
-          ))}
-        </Stack>
-      );
-    };
+          </Tooltip>
+        )
+      });
+    }
 
-    columns.push(
-      {
-        key: "status",
-        label: "",
-        align: "center",
-        sortable: false,
-        ...layout.status,
-        render: renderStatusIcons
-      },
-      {
-        key: "title",
-        label: t("title"),
-        sortable: true,
-        sortKey: "title",
-        ...layout.title,
-        render: (row: any) => {
-          const title = isFilesView && row.ownVersionId == null ? t("versionMissing") : row.title || t("file");
-          return (
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap" }}>
-              <Box component="span" sx={{ color: "text.primary" }}>
-                {title}
-              </Box>
-              {isFilesView && row.ownVersionDeletedAt ? <Chip size="small" label={t("deleted")} /> : null}
-            </Stack>
-          );
-        }
-      },
-      {
-        key: "section",
-        label: t("section"),
-        ...layout.section,
-        render: (row: any) => {
-          const item = row.sectionId ? sectionsById.get(row.sectionId) : null;
-          return item?.title || (row.sectionId ? `#${row.sectionId}` : "-");
-        }
-      },
-      {
-        key: "category",
-        label: t("category"),
-        ...layout.category,
-        render: (row: any) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-"),
-        sortable: true,
-        sortKey: "category"
-      },
-      {
-        key: "accessType",
-        label: t("access"),
-        align: "center",
-        ...layout.accessType,
-        render: (row: any) => accessIcon(row.accessType)
-      },
-      {
-        key: "langs",
-        label: t("languages"),
-        ...layout.langs,
-        render: (row: any) => {
-          const langs = row.availableAssetLangs || row.availableLangs || [];
-          if (langs.length === 0) return "-";
-          return (
-            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 0.5 }}>
-              {langs.map((lang: string) => (
-                <Chip key={lang} size="small" label={lang.toUpperCase()} />
-              ))}
-            </Stack>
-          );
-        }
-      },
-      {
-        key: "size",
-        label: t("fileSize"),
-        ...layout.size,
-        render: (row: any) => {
-          const size = resolveRowSize(row);
-          return size === null || size === undefined ? "-" : formatBytes(size);
-        },
-        sortable: true,
-        sortKey: "size"
-      },
-      {
-        key: "updatedAt",
-        label: t("updatedAt"),
-        ...layout.updatedAt,
-        render: (row: any) => formatDateTime(row.updatedAt),
-        sortable: true,
-        sortKey: "updated_at"
-      },
-      {
-        key: "download",
-        label: t("download"),
-        align: "center",
-        ...layout.download,
-        render: (row: any) => {
-          const langs = row.availableAssetLangs || row.availableLangs || [];
-          if (!isDownloadable(row)) return "-";
-          const sizes = (row.availableAssetSizes || []).reduce<Record<string, number>>((acc: Record<string, number>, item: any) => {
-            acc[item.lang] = item.size;
-            return acc;
-          }, {});
-          return (
-            <Tooltip title={t("download")}>
-              <span>
-                <IconButton
-                  size="small"
-                  color="primary"
-                  sx={{ backgroundColor: "rgba(37, 99, 235, 0.12)" }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    const versionId = isFilesView ? row.ownVersionId : undefined;
-                    if (langs.length > 1) {
-                      setDownloadTarget({ id: row.id, versionId, title: row.title, langs, sizes });
-                      return;
-                    }
-                    const lang = langs[0];
-                    if (versionId) {
-                      downloadVersionMutation.mutate({ id: row.id, versionId, lang, title: row.title });
-                    } else {
-                      downloadMutation.mutate({ id: row.id, lang, title: row.title });
-                    }
-                  }}
-                >
-                  <DownloadIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
-          );
-        }
-      }
+    if (isFilesView && row.updatedByOther) {
+      const updatedBy = row.updatedBy?.fullName || row.updatedBy?.login || "-";
+      items.push({
+        key: "warning",
+        node: (
+          <Tooltip title={t("fileUpdatedByOther", { user: updatedBy })}>
+            <span>
+              <IconButton
+                size="small"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setUpdateInfoTarget(row);
+                }}
+              >
+                <WarningAmberOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+        )
+      });
+    }
+
+    if (isDepartmentView && canSubmitFiles) {
+      items.push({
+        key: "update",
+        node: (
+          <Tooltip title={t("updateFile")}>
+            <span>
+              <IconButton
+                size="small"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleOpenUpdateRequest(row);
+                }}
+              >
+                <SystemUpdateAltOutlinedIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+        )
+      });
+    }
+
+    items.push({
+      key: "favorite",
+      node: (
+        <Tooltip title={t("favorites")}>
+          <IconButton
+            size="small"
+            onClick={(event) => {
+              event.stopPropagation();
+              favoriteMutation.mutate({ id: row.id, isFavorite: Boolean(row.isFavorite) });
+            }}
+          >
+            {row.isFavorite ? (
+              <StarIcon fontSize="small" sx={{ color: "warning.main" }} />
+            ) : (
+              <StarBorderIcon fontSize="small" sx={{ color: "text.disabled" }} />
+            )}
+          </IconButton>
+        </Tooltip>
+      )
+    });
+
+    if (!isDownloadable(row) && !(isFilesView && (row.ownVersionDeletedAt || row.ownVersionId == null))) {
+      items.push({
+        key: "lock",
+        node: (
+          <Tooltip title={row.canDownload ? t("noAssets") : t("noAccess")}>
+            <Box sx={{ display: "inline-flex", alignItems: "center" }}>
+              <LockOutlinedIcon sx={{ fontSize: 16, display: "block" }} color="action" />
+            </Box>
+          </Tooltip>
+        )
+      });
+    }
+
+    return (
+      <Stack direction="row" spacing={0.5} alignItems="center">
+        {items.map((item) => (
+          <Box key={item.key} sx={{ display: "inline-flex", alignItems: "center" }}>
+            {item.node}
+          </Box>
+        ))}
+      </Stack>
     );
+  };
 
-    return columns;
-  }, [
-    isFilesView,
-    isDepartmentView,
-    isFavoritesView,
-    canSubmitFiles,
-    sectionsById,
-    getCategoryPath,
-    renderPath,
-    favoriteMutation,
-    downloadMutation,
-    downloadVersionMutation,
-    handleOpenUpdateRequest,
-    setDownloadTarget,
-    resolveRowSize,
-    isDownloadable,
-    setUpdateInfoTarget,
-    currentLang,
-    t
-  ]);
+  const rowPaperSx = (active: boolean, clickable: boolean) => ({
+    p: { xs: 1.5, md: 2 },
+    borderRadius: "10px",
+    border: "1px solid",
+    borderColor: active ? "primary.main" : "var(--border)",
+    backgroundColor: active ? "rgba(37, 99, 235, 0.04)" : "var(--surface)",
+    display: "flex",
+    alignItems: "center",
+    gap: 2,
+    flexWrap: "wrap" as const,
+    cursor: clickable ? "pointer" : "default",
+    transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+    "&:hover": clickable
+      ? { borderColor: "primary.main", boxShadow: "0 10px 20px rgba(15, 42, 90, 0.08)" }
+      : undefined
+  });
+
+  const renderFileRow = (row: any) => {
+    const langs = row.availableAssetLangs || row.availableLangs || [];
+    const size = resolveRowSize(row);
+    const canOpen = isDownloadable(row);
+    const missing = isFilesView && row.ownVersionId == null;
+    const metaParts = [
+      row.sectionId ? (sectionsById.get(row.sectionId) as any)?.title || `#${row.sectionId}` : null,
+      size === null || size === undefined ? null : formatBytes(size),
+      formatDateTime(row.updatedAt)
+    ].filter(Boolean);
+    return (
+      <Paper
+        key={row.id}
+        onClick={() => {
+          if (!canOpen) return;
+          handleOpenDetails(row);
+        }}
+        sx={rowPaperSx(detailsId === row.id, canOpen)}
+      >
+        <FileTypeBadge ext={(row.availableAssetExts || [])[0]} />
+        <Box sx={{ flex: 1, minWidth: 220 }}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+            <Typography
+              variant="subtitle1"
+              sx={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+            >
+              {missing ? t("versionMissing") : row.title || t("file")}
+            </Typography>
+            {accessChip(row.accessType)}
+            {isFilesView && row.ownVersionDeletedAt ? <Chip size="small" label={t("deleted")} /> : null}
+          </Stack>
+          <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.25 }}>
+            {metaParts.join(" • ")}
+          </Typography>
+          <Stack direction="row" spacing={0.75} sx={{ mt: 0.75, flexWrap: "wrap", rowGap: 0.5 }}>
+            {row.categoryId ? (
+              <Chip
+                size="small"
+                label={formatPath(getCategoryPath(row.categoryId))}
+                sx={{ backgroundColor: "var(--surface-2)", fontWeight: 600 }}
+              />
+            ) : null}
+            {langs.map((lang: string) => (
+              <Chip key={lang} size="small" variant="outlined" label={lang.toUpperCase()} />
+            ))}
+          </Stack>
+        </Box>
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          onClick={(event) => event.stopPropagation()}
+          sx={{ ml: "auto" }}
+        >
+          {renderRowStatusIcons(row)}
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<VisibilityOutlinedIcon />}
+            disabled={!canOpen}
+            onClick={() => handleOpenDetails(row)}
+            sx={{ borderRadius: "8px" }}
+          >
+            {t("view")}
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<DownloadIcon />}
+            disabled={!canOpen}
+            onClick={() => startDownload(row)}
+            sx={{ borderRadius: "8px", boxShadow: "none" }}
+          >
+            {t("download")}
+          </Button>
+        </Stack>
+      </Paper>
+    );
+  };
+
+  const renderRequestRow = (row: any) => {
+    const isUpdate = row.requestType === "update";
+    const tone = isUpdate ? "#d97706" : "#16a34a";
+    const metaParts = [
+      row.sectionId ? (sectionsById.get(row.sectionId) as any)?.title || `#${row.sectionId}` : null,
+      row.categoryId ? formatPath(getCategoryPath(row.categoryId)) : null,
+      formatDateTime(row.createdAt)
+    ].filter(Boolean);
+    return (
+      <Paper key={row.id} onClick={() => setRequestDetails(row)} sx={rowPaperSx(false, true)}>
+        <Box
+          sx={{
+            width: 46,
+            height: 54,
+            borderRadius: "10px",
+            display: "grid",
+            placeItems: "center",
+            backgroundColor: `${tone}1a`,
+            color: tone,
+            flexShrink: 0
+          }}
+        >
+          {isUpdate ? <SystemUpdateAltOutlinedIcon /> : <AddCircleOutlineIcon />}
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 220 }}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+            <Typography
+              variant="subtitle1"
+              sx={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+            >
+              {row.title || t("file")}
+            </Typography>
+            {statusChip(row.status)}
+          </Stack>
+          <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.25 }}>
+            {metaParts.join(" • ")}
+          </Typography>
+          <Stack direction="row" spacing={0.75} sx={{ mt: 0.75, flexWrap: "wrap", rowGap: 0.5 }}>
+            <Chip
+              size="small"
+              label={requestTypeLabel(row.requestType)}
+              sx={{ backgroundColor: "var(--surface-2)", fontWeight: 600 }}
+            />
+            {accessChip(row.accessType)}
+          </Stack>
+        </Box>
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          onClick={(event) => event.stopPropagation()}
+          sx={{ ml: "auto" }}
+        >
+          {row.status === "pending" && (
+            <Button
+              size="small"
+              color="error"
+              variant="outlined"
+              onClick={() => setCancelTarget({ id: row.id, title: row.title })}
+              sx={{ borderRadius: "8px" }}
+            >
+              {t("cancelRequest")}
+            </Button>
+          )}
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<VisibilityOutlinedIcon />}
+            onClick={() => setRequestDetails(row)}
+            sx={{ borderRadius: "8px" }}
+          >
+            {t("view")}
+          </Button>
+        </Stack>
+      </Paper>
+    );
+  };
+
+  const infoRow = (label: string, value: React.ReactNode) => (
+    <Box sx={{ display: "grid", gridTemplateColumns: "128px 1fr", columnGap: 1.5, alignItems: "start" }}>
+      <Typography variant="body2" color="text.secondary">
+        {label}:
+      </Typography>
+      <Box sx={{ minWidth: 0 }}>
+        {typeof value === "string" ? <Typography variant="body2">{value}</Typography> : value}
+      </Box>
+    </Box>
+  );
+
+  const renderDetailsPanel = () => (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ p: 2, pb: 1.5 }}>
+        <Typography
+          variant="subtitle1"
+          sx={{ fontWeight: 700, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        >
+          {detailsData?.title || detailsRow?.title || t("file")}
+        </Typography>
+        {detailsRow && (
+          <Tooltip title={t("favorites")}>
+            <IconButton
+              size="small"
+              onClick={() => favoriteMutation.mutate({ id: detailsRow.id, isFavorite: Boolean(detailsRow.isFavorite) })}
+            >
+              {detailsRow.isFavorite ? (
+                <StarIcon fontSize="small" sx={{ color: "warning.main" }} />
+              ) : (
+                <StarBorderIcon fontSize="small" />
+              )}
+            </IconButton>
+          </Tooltip>
+        )}
+        {detailsRow && isDownloadable(detailsRow) && (
+          <Tooltip title={t("download")}>
+            <IconButton size="small" onClick={() => startDownload(detailsRow)}>
+              <DownloadIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+        <IconButton size="small" onClick={handleCloseDetails}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </Stack>
+      <Tabs
+        value={detailsTab}
+        onChange={(_event, value) => setDetailsTab(value)}
+        sx={{
+          px: 1,
+          borderBottom: "1px solid var(--border)",
+          minHeight: 40,
+          "& .MuiTab-root": { minHeight: 40, textTransform: "none", fontWeight: 600 }
+        }}
+      >
+        <Tab value="about" label={t("aboutDocument")} />
+        {allowVersionAccess ? <Tab value="versions" label={t("archiveVersions")} /> : null}
+      </Tabs>
+      <Box sx={{ p: 2, overflow: "auto", flex: 1, minHeight: 0 }}>
+        {detailsLoading ? (
+          <Typography variant="body2" color="text.secondary">
+            {t("loading")}
+          </Typography>
+        ) : detailsTab === "about" ? (
+          <Stack spacing={1.75}>
+            {infoRow(t("title"), detailsData?.title || "-")}
+            {infoRow(t("section"), detailsRow?.sectionId ? (sectionsById.get(detailsRow.sectionId) as any)?.title || `#${detailsRow.sectionId}` : "-")}
+            {infoRow(t("category"), detailsRow?.categoryId ? formatPath(getCategoryPath(detailsRow.categoryId)) : "-")}
+            {infoRow(t("currentVersion"), detailsData?.currentVersionNumber ? `#${detailsData.currentVersionNumber}` : "-")}
+            {detailsRow?.updatedByOther
+              ? infoRow(
+                  t("updatedBy"),
+                  `${detailsRow.updatedBy?.fullName || detailsRow.updatedBy?.login || "-"}`
+                )
+              : null}
+            {infoRow(
+              t("languages"),
+              detailsAssetsSorted.length === 0 ? (
+                "-"
+              ) : (
+                <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", rowGap: 0.5 }}>
+                  {detailsAssetsSorted.map((asset: any) => (
+                    <Chip
+                      key={asset.id}
+                      size="small"
+                      label={asset.lang.toUpperCase()}
+                      color={asset.lang === currentLang ? "primary" : "default"}
+                      variant={asset.lang === currentLang ? "filled" : "outlined"}
+                    />
+                  ))}
+                </Stack>
+              )
+            )}
+            {infoRow(
+              t("fileLabel"),
+              detailsAssetsSorted.length === 0 ? (
+                "-"
+              ) : (
+                <Stack spacing={1}>
+                  {detailsAssetsSorted.map((asset: any) => (
+                    <Stack
+                      key={asset.id}
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                      onClick={() =>
+                        downloadMutation.mutate({
+                          id: detailsId as number,
+                          lang: asset.lang,
+                          title: titleForLang(asset.lang)
+                        })
+                      }
+                      sx={{ cursor: "pointer", "&:hover .file-name": { textDecoration: "underline" } }}
+                    >
+                      <FileTypeBadge ext={extOf(asset.original_name)} small />
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography
+                          className="file-name"
+                          variant="body2"
+                          sx={{
+                            color: "primary.main",
+                            fontWeight: 600,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          {asset.original_name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatBytes(asset.size)}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  ))}
+                </Stack>
+              )
+            )}
+            {infoRow(t("owner"), detailsData?.createdBy ? formatUserLabel(detailsData.createdBy) : "-")}
+            {infoRow(t("access"), accessChip(detailsData?.accessType || "public"))}
+            {showAccessLists && (
+              <Stack spacing={1}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    {t("departments")}
+                  </Typography>
+                  <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 0.5, rowGap: 0.5 }}>
+                    {detailsAccessDepartments.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">
+                        -
+                      </Typography>
+                    ) : (
+                      detailsAccessDepartments.map((dept: any) => (
+                        <Chip key={dept.id} size="small" label={dept.path || dept.name} />
+                      ))
+                    )}
+                  </Stack>
+                </Box>
+                {showAccessUsers && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      {t("users")}
+                    </Typography>
+                    <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 0.5, rowGap: 0.5 }}>
+                      {detailsAccessUsers.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary">
+                          -
+                        </Typography>
+                      ) : (
+                        detailsAccessUsers.map((item: any) => (
+                          <Chip key={item.id} size="small" label={formatUserLabel(item)} />
+                        ))
+                      )}
+                    </Stack>
+                  </Box>
+                )}
+              </Stack>
+            )}
+            {infoRow(t("description"), detailsData?.description || "-")}
+          </Stack>
+        ) : versionsLoading ? (
+          <Typography variant="body2" color="text.secondary">
+            {t("loading")}
+          </Typography>
+        ) : versions.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            {t("noHistory")}
+          </Typography>
+        ) : (
+          <Stack spacing={1.5}>
+            {versions.map((version: any) => (
+              <Paper key={version.id} variant="outlined" sx={{ p: 1.5, borderRadius: "8px" }}>
+                <Stack spacing={1}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip size="small" label={`v${version.versionNumber}`} />
+                    {detailsData?.currentVersionId === version.id && (
+                      <Chip size="small" color="success" label={t("current")} />
+                    )}
+                    <Typography variant="caption" color="text.secondary">
+                      {formatDateTime(version.createdAt)}
+                    </Typography>
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary">
+                    {t("createdBy")}: {version.createdBy ? formatUserLabel(version.createdBy) : "-"}
+                  </Typography>
+                  <Typography variant="body2">{titleForVersionLang(version)}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {descriptionForVersion(version) || "-"}
+                  </Typography>
+                  {(version.assets || []).length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      {t("noAssets")}
+                    </Typography>
+                  ) : (
+                    (version.assets || []).map((asset: any) => (
+                      <Stack key={asset.id} direction="row" spacing={1} alignItems="center">
+                        <Chip size="small" label={asset.lang.toUpperCase()} />
+                        <Typography
+                          variant="body2"
+                          sx={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                        >
+                          {asset.originalName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatBytes(asset.size)}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() =>
+                            downloadVersionMutation.mutate({
+                              id: detailsId as number,
+                              versionId: version.id,
+                              lang: asset.lang,
+                              title: titleForVersionLang(version, asset.lang)
+                            })
+                          }
+                        >
+                          <DownloadIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    ))
+                  )}
+                </Stack>
+              </Paper>
+            ))}
+          </Stack>
+        )}
+      </Box>
+    </Box>
+  );
 
   return (
     <Page
@@ -1160,91 +1421,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
           ) : requestRows.length === 0 ? (
             <EmptyState title={t("requestsEmpty")} subtitle={t("requestsEmptySubtitle")} />
           ) : (
-            <DataTable
-              rows={requestRows}
-              sortIconVariant="chevron"
-              onRowClick={(row) => setRequestDetails(row)}columns={[
-                {
-                  key: "type",
-                  label: "",
-                  align: "center",
-                  width: 40,
-                  render: (row) => requestTypeIcon(row.requestType),
-                  sortValue: (row) => row.requestType || "new"
-                },
-                {
-                  key: "title",
-                  label: t("title"),
-                  render: (row) => row.title || t("file"),
-                  sortValue: (row) => row.title || "",
-                },
-                {
-                  key: "section",
-                  label: t("section"),
-                  render: (row) => {
-                    const item = row.sectionId ? sectionsById.get(row.sectionId) : null;
-                    return item?.title || (row.sectionId ? `#${row.sectionId}` : "-");
-                  },
-                  sortValue: (row) => {
-                    const item = row.sectionId ? sectionsById.get(row.sectionId) : null;
-                    return item?.title || (row.sectionId ? `#${row.sectionId}` : "");
-                  }
-                },
-                {
-                  key: "category",
-                  label: t("category"),
-                  render: (row) => (row.categoryId ? renderPath(getCategoryPath(row.categoryId)) : "-"),
-                  sortValue: (row) => (row.categoryId ? getCategoryPath(row.categoryId).join(" / ") : ""),
-                },
-                {
-                  key: "accessType",
-                  label: t("access"),
-                  align: "center",
-                  width: 48,
-                  render: (row) => accessIcon(row.accessType),
-                  sortValue: (row) => row.accessType
-                },
-                {
-                  key: "status",
-                  label: t("status"),
-                  render: (row) => statusChip(row.status),
-                  sortValue: (row) => row.status
-                },
-                {
-                  key: "createdAt",
-                  label: t("createdAt"),
-                  render: (row) => formatDateTime(row.createdAt),
-                  sortValue: (row) => new Date(row.createdAt).getTime()
-                },
-                {
-                  key: "updatedAt",
-                  label: t("updatedAt"),
-                  render: (row) => formatDateTime(row.updatedAt || row.resolvedAt),
-                  sortValue: (row) => new Date(row.updatedAt || row.resolvedAt || row.createdAt).getTime()
-                },
-                {
-                  key: "actions",
-                  label: t("actions"),
-                  align: "right",
-                  sortable: false,
-                  render: (row) =>
-                    row.status === "pending" ? (
-                      <Button
-                        size="small"
-                        color="error"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setCancelTarget({ id: row.id, title: row.title });
-                        }}
-                      >
-                        {t("cancelRequest")}
-                      </Button>
-                    ) : (
-                      "-"
-                    )
-                }
-              ]}
-            />
+            <Stack spacing={1.25}>{requestRows.map((row: any) => renderRequestRow(row))}</Stack>
           )}
 
           <PaginationBar
@@ -1256,9 +1433,24 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
           />
         </Box>
       ) : (
-        <Box>
+        <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           <FiltersBar>
             <SearchField value={searchFiles} onChange={setSearchFiles} placeholder={t("searchFiles")} />
+            <Select
+              size="small"
+              value={sortFiles.direction && sortFiles.key ? `${sortFiles.key}:${sortFiles.direction}` : "updated_at:desc"}
+              onChange={(event) => {
+                const [key, direction] = String(event.target.value).split(":");
+                setSortFiles({ key, direction: direction as "asc" | "desc" });
+              }}
+              sx={{ minWidth: 190, backgroundColor: "#fff", borderRadius: "8px" }}
+            >
+              <MenuItem value="updated_at:desc">{t("sortDateNew")}</MenuItem>
+              <MenuItem value="updated_at:asc">{t("sortDateOld")}</MenuItem>
+              <MenuItem value="title:asc">{t("sortTitleAsc")}</MenuItem>
+              <MenuItem value="title:desc">{t("sortTitleDesc")}</MenuItem>
+            </Select>
             <Tooltip title={t("resetFilters")}>
               <span>
                 <IconButton size="small" onClick={resetFilesFilters}>
@@ -1273,18 +1465,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
           ) : fileRows.length === 0 ? (
             <EmptyState title={fileEmptyTitle} subtitle={fileEmptySubtitle} />
           ) : (
-            <DataTable
-              rows={fileRows}
-              sort={sortFiles}
-              onSortChange={(key, direction) =>
-                setSortFiles(direction ? { key, direction } : { key: null, direction: null })
-              }
-              sortIconVariant="chevron"
-              tableLayout="fixed"
-              containerSx={{ overflow: "hidden" }}
-              columns={fileColumns}
-              onRowClick={handleOpenDetails}
-            />
+            <Stack spacing={1.25}>{fileRows.map((row: any) => renderFileRow(row))}</Stack>
           )}
 
           <PaginationBar
@@ -1295,7 +1476,37 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
             onPageSizeChange={isFavoritesView ? setFavoritesPageSize : isDepartmentView ? setDepartmentPageSize : setMyFilesPageSize}
           />
         </Box>
+
+        {lgUp && detailsId ? (
+          <Paper
+            sx={{
+              width: 400,
+              flexShrink: 0,
+              position: "sticky",
+              top: 88,
+              maxHeight: "calc(100vh - 112px)",
+              borderRadius: "10px",
+              border: "1px solid var(--border)",
+              backgroundColor: "var(--surface)",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden"
+            }}
+          >
+            {renderDetailsPanel()}
+          </Paper>
+        ) : null}
+        </Box>
       )}
+
+      <Drawer
+        anchor="right"
+        open={Boolean(detailsId) && !lgUp}
+        onClose={handleCloseDetails}
+        PaperProps={{ sx: { width: { xs: "100%", sm: 420 } } }}
+      >
+        {renderDetailsPanel()}
+      </Drawer>
 
       <Dialog open={!!requestDetails} onClose={() => setRequestDetails(null)} fullWidth maxWidth="sm">
         <DialogTitle>{t("requestDetails")}</DialogTitle>
@@ -1308,7 +1519,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                 <DetailRow label={t("targetFile")} value={requestDetails.targetTitle || t("file")} />
               ) : null}
               <DetailRow label={t("status")} value={statusChip(requestDetails.status)} />
-              <DetailRow label={t("access")} value={accessIcon(requestDetails.accessType)} />
+              <DetailRow label={t("access")} value={accessChip(requestDetails.accessType)} />
               <CommentBlock label={t("commentFromUser")} value={requestDetails.comment} tone="user" />
               <CommentBlock label={t("commentFromAdmin")} value={getAdminComment(requestDetails)} tone="admin" />
             </Stack>
@@ -1377,243 +1588,6 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
         </DialogActions>
       </Dialog>
 
-      <Dialog open={!!detailsId} onClose={handleCloseDetails} fullWidth maxWidth="md">
-        <DialogTitle>{detailsData?.title || detailsRow?.title || t("file")}</DialogTitle>
-        <DialogContent dividers>
-          {detailsLoading ? (
-            <Typography color="text.secondary">{t("loading")}</Typography>
-          ) : (
-            <Stack spacing={2}>
-              {detailsRow?.updatedByOther ? (
-                <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    {t("fileUpdatedByOtherTitle")}
-                  </Typography>
-                  <Stack spacing={1}>
-                    <DetailRow
-                      label={t("updatedBy")}
-                      value={detailsRow.updatedBy?.fullName || detailsRow.updatedBy?.login || "-"}
-                    />
-                    <DetailRow
-                      label={t("updatedAt")}
-                      value={detailsRow.updatedAt ? formatDateTime(detailsRow.updatedAt) : "-"}
-                    />
-                  </Stack>
-                </Box>
-              ) : null}
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  {t("description")}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {detailsData?.description || "-"}
-                </Typography>
-              </Box>
-              <Box>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                  <Typography variant="subtitle2">{t("access")}</Typography>
-                  {accessIcon(detailsData?.accessType || "public")}
-                </Stack>
-                {showAccessLists && (
-                  <Stack spacing={1}>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("departments")}
-                      </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
-                        {detailsAccessDepartments.length === 0 ? (
-                          <Typography variant="body2" color="text.secondary">
-                            -
-                          </Typography>
-                        ) : (
-                          detailsAccessDepartments.map((dept: any) => (
-                            <Chip key={dept.id} size="small" label={dept.path || dept.name} />
-                          ))
-                        )}
-                      </Stack>
-                    </Box>
-                    {showAccessUsers && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          {t("users")}
-                        </Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
-                          {detailsAccessUsers.length === 0 ? (
-                            <Typography variant="body2" color="text.secondary">
-                              -
-                            </Typography>
-                          ) : (
-                            detailsAccessUsers.map((item: any) => (
-                              <Chip key={item.id} size="small" label={formatUserLabel(item)} />
-                            ))
-                          )}
-                        </Stack>
-                      </Box>
-                    )}
-                  </Stack>
-                )}
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  {t("details")}
-                </Typography>
-                <Stack spacing={1}>
-                  <DetailRow
-                    label={t("createdBy")}
-                    value={detailsData?.createdBy ? formatUserLabel(detailsData.createdBy) : "-"}
-                  />
-                </Stack>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  {t("currentVersion")}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {detailsData?.currentVersionNumber ? `#${detailsData.currentVersionNumber}` : "-"}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  {t("titlesByLanguage")}
-                </Typography>
-                <Stack spacing={1}>
-                  {detailsTranslations.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">
-                      -
-                    </Typography>
-                  ) : (
-                    detailsTranslationsSorted.map((item: any) => (
-                      <Stack key={item.lang} direction="row" spacing={1.5} alignItems="flex-start">
-                        <Chip
-                          size="small"
-                          label={item.lang.toUpperCase()}
-                          color={item.lang === currentLang ? "primary" : "default"}
-                          variant={item.lang === currentLang ? "filled" : "outlined"}
-                        />
-                        <Box>
-                          <Typography variant="body2">{item.title}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {item.description || "-"}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    ))
-                  )}
-                </Stack>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  {t("availableLanguages")}
-                </Typography>
-                <Stack spacing={1}>
-                  {detailsAssetsSorted.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">
-                      -
-                    </Typography>
-                  ) : (
-                    detailsAssetsSorted.map((asset: any) => (
-                      <Stack key={asset.id} direction="row" spacing={1} alignItems="center">
-                        <Chip size="small" label={asset.lang.toUpperCase()} />
-                        <Typography variant="body2" sx={{ flex: 1 }}>
-                          {asset.original_name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {formatBytes(asset.size)}
-                        </Typography>
-                        <IconButton
-                          size="small"
-                          onClick={() =>
-                            downloadMutation.mutate({ id: detailsId as number, lang: asset.lang, title: titleForLang(asset.lang) })
-                          }
-                        >
-                          <DownloadIcon fontSize="small" />
-                        </IconButton>
-                      </Stack>
-                    ))
-                  )}
-                </Stack>
-              </Box>
-              {allowVersionAccess ? (
-                <Accordion sx={{ borderRadius: "8px", border: "1px solid var(--border)", boxShadow: "none" }}>
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}>
-                    <Typography variant="subtitle2">{t("archiveVersions")}</Typography>
-                  </AccordionSummary>
-                  <AccordionDetails sx={{ pt: 0, px: 2, pb: 2 }}>
-                    {versionsLoading ? (
-                      <Typography variant="body2" color="text.secondary">
-                        {t("loading")}
-                      </Typography>
-                    ) : versions.length === 0 ? (
-                      <Typography variant="body2" color="text.secondary">
-                        {t("noHistory")}
-                      </Typography>
-                    ) : (
-                      <Stack spacing={1.5}>
-                        {versions.map((version: any) => (
-                          <Paper key={version.id} variant="outlined" sx={{ p: 1.5, borderRadius: "8px" }}>
-                            <Stack spacing={1}>
-                              <Stack direction="row" spacing={1} alignItems="center">
-                                <Chip size="small" label={`v${version.versionNumber}`} />
-                                {detailsData?.currentVersionId === version.id && (
-                                  <Chip size="small" color="success" label={t("current")} />
-                                )}
-                                <Typography variant="caption" color="text.secondary">
-                                  {formatDateTime(version.createdAt)}
-                                </Typography>
-                              </Stack>
-                              <Typography variant="caption" color="text.secondary">
-                                {t("createdBy")}: {version.createdBy ? formatUserLabel(version.createdBy) : "-"}
-                              </Typography>
-                              <Typography variant="body2">{titleForVersionLang(version)}</Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {descriptionForVersion(version) || "-"}
-                              </Typography>
-                              {(version.assets || []).length === 0 ? (
-                                <Typography variant="body2" color="text.secondary">
-                                  {t("noAssets")}
-                                </Typography>
-                              ) : (
-                                (version.assets || []).map((asset: any) => (
-                                  <Stack key={asset.id} direction="row" spacing={1} alignItems="center">
-                                    <Chip size="small" label={asset.lang.toUpperCase()} />
-                                    <Typography variant="body2" sx={{ flex: 1 }}>
-                                      {asset.originalName}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {formatBytes(asset.size)}
-                                    </Typography>
-                                    <IconButton
-                                      size="small"
-                                      onClick={() =>
-                                        downloadVersionMutation.mutate({
-                                          id: detailsId as number,
-                                          versionId: version.id,
-                                          lang: asset.lang,
-                                          title: titleForVersionLang(version, asset.lang)
-                                        })
-                                      }
-                                    >
-                                      <DownloadIcon fontSize="small" />
-                                    </IconButton>
-                                  </Stack>
-                                ))
-                              )}
-                            </Stack>
-                          </Paper>
-                        ))}
-                      </Stack>
-                    )}
-                  </AccordionDetails>
-                </Accordion>
-              ) : null}
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDetails}>{t("cancel")}</Button>
-        </DialogActions>
-      </Dialog>
-
       <Dialog open={submitOpen} onClose={handleCloseSubmit} fullWidth maxWidth="md">
         <DialogTitle>{submitMode === "update" ? t("updateFileRequest") : t("submitForPublication")}</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
@@ -1667,7 +1641,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                         const { key, ...optionProps } = props;
                         return (
                           <li key={option.id} {...optionProps}>
-                            {renderPath(getCategoryOptionPath(option.id))}
+                            {formatPath(getCategoryOptionPath(option.id))}
                           </li>
                         );
                       }}
