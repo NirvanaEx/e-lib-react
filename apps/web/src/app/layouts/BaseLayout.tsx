@@ -1,11 +1,9 @@
 import React from "react";
 import {
   AppBar,
-  Avatar,
   Box,
   Badge,
   Button,
-  ButtonBase,
   Chip,
   Divider,
   Dialog,
@@ -18,21 +16,18 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Menu,
   MenuItem,
+  Select,
+  Stack,
   Toolbar,
-  ToggleButton,
-  ToggleButtonGroup,
   Tooltip,
   Typography
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SettingsIcon from "@mui/icons-material/Settings";
+import BusinessIcon from "@mui/icons-material/Business";
 import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
-import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
-import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../shared/hooks/useAuth";
@@ -102,7 +97,6 @@ export function BaseLayout({
   const effectiveDrawerWidth = collapsed ? collapsedDrawerWidth : drawerWidth;
   const [agreementOpen, setAgreementOpen] = React.useState(false);
   const [agreementDismissed, setAgreementDismissed] = React.useState(false);
-  const [userMenuAnchor, setUserMenuAnchor] = React.useState<null | HTMLElement>(null);
   const queryClient = useQueryClient();
 
   const agreementKey = "user_agreement";
@@ -193,36 +187,10 @@ export function BaseLayout({
 
     return user.login || null;
   }, [user]);
-  const userInitials = React.useMemo(() => {
-    const source =
-      [user?.surname, user?.name].filter(Boolean).join(" ") ||
-      user?.fullName ||
-      userDisplayName ||
-      user?.login ||
-      "";
-    const parts = source.trim().split(/\s+/).filter(Boolean);
-    const letters = parts
-      .slice(0, 2)
-      .map((part) => part.charAt(0).toUpperCase())
-      .join("");
-    return letters || "U";
-  }, [user, userDisplayName]);
-
-  const userSubtitle = React.useMemo(() => {
-    if (!user) return null;
-    return [user.role, user.department].filter(Boolean).join(" • ") || null;
-  }, [user]);
-
-  const handleLanguageChange = async (lang: string) => {
-    try {
-      await changeLanguage(lang);
-      updateUser({ lang });
-      i18n.changeLanguage(lang);
-      showToast({ message: t("languageUpdated"), severity: "success" });
-    } catch (_err) {
-      showToast({ message: t("languageUpdateFailed"), severity: "error" });
-    }
-  };
+  const showRoleChip = Boolean(
+    user?.role &&
+      (!userDisplayName || user.role.toLowerCase() !== userDisplayName.toLowerCase())
+  );
 
   const defaultSidebarHeader = collapsed ? (
     <Box sx={{ mb: 2, display: "flex", justifyContent: "center" }}>
@@ -444,145 +412,88 @@ export function BaseLayout({
             )}
             {headerTitle === undefined ? <Typography variant="h6">{title}</Typography> : headerTitle}
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            {user && (
-              <>
-                <ButtonBase
-                  onClick={(event) => setUserMenuAnchor(event.currentTarget)}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.25,
-                    px: 1.25,
-                    py: 0.6,
-                    borderRadius: "10px",
-                    border: "1px solid var(--border)",
-                    backgroundColor: "#fff",
-                    textAlign: "left"
-                  }}
-                >
-                  <Avatar
-                    sx={{
-                      width: 34,
-                      height: 34,
-                      fontSize: 13,
-                      fontWeight: 700,
-                      bgcolor: "rgba(37, 99, 235, 0.12)",
-                      color: "primary.main"
-                    }}
-                  >
-                    {userInitials}
-                  </Avatar>
-                  <Box sx={{ display: { xs: "none", sm: "block" }, minWidth: 0, maxWidth: 220 }}>
-                    <Typography variant="body2" noWrap sx={{ fontWeight: 700, lineHeight: 1.25 }}>
-                      {userDisplayName || user.login}
-                    </Typography>
-                    {userSubtitle && (
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        noWrap
-                        sx={{ display: "block", lineHeight: 1.25, textTransform: "capitalize" }}
-                      >
-                        {userSubtitle}
-                      </Typography>
-                    )}
-                  </Box>
-                  <ExpandMoreIcon fontSize="small" sx={{ color: "text.secondary" }} />
-                </ButtonBase>
-                <Menu
-                  anchorEl={userMenuAnchor}
-                  open={Boolean(userMenuAnchor)}
-                  onClose={() => setUserMenuAnchor(null)}
-                  anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                  transformOrigin={{ vertical: "top", horizontal: "right" }}
-                  slotProps={{
-                    paper: {
-                      sx: { mt: 1, minWidth: 240, borderRadius: "10px", border: "1px solid var(--border)", boxShadow: "0 12px 32px rgba(15, 42, 90, 0.12)" }
-                    }
-                  }}
-                >
-                  {switchLink && (
-                    <MenuItem
-                      onClick={() => {
-                        setUserMenuAnchor(null);
-                        navigate(switchLink.path);
-                      }}
-                    >
-                      <ListItemIcon>
-                        <SwapHorizIcon fontSize="small" />
-                      </ListItemIcon>
-                      {switchLink.label}
-                    </MenuItem>
-                  )}
-                  {(settingsPath || settingsAction) && (
-                    <MenuItem
-                      onClick={() => {
-                        setUserMenuAnchor(null);
-                        if (settingsAction) {
-                          settingsAction();
-                        } else if (settingsPath) {
-                          navigate(settingsPath);
-                        }
-                      }}
-                    >
-                      <ListItemIcon>
-                        <SettingsIcon fontSize="small" />
-                      </ListItemIcon>
-                      {t("settings")}
-                    </MenuItem>
-                  )}
-                  {agreementData?.isActive && (
-                    <MenuItem
-                      onClick={() => {
-                        setUserMenuAnchor(null);
-                        setAgreementOpen(true);
-                      }}
-                    >
-                      <ListItemIcon>
-                        <PolicyOutlinedIcon fontSize="small" />
-                      </ListItemIcon>
-                      {t("userAgreement")}
-                    </MenuItem>
-                  )}
-                  <Divider sx={{ my: 0.5 }} />
-                  <Box sx={{ px: 2, py: 1, display: "flex", alignItems: "center", gap: 1.25 }}>
-                    <LanguageOutlinedIcon fontSize="small" sx={{ color: "text.secondary" }} />
-                    <ToggleButtonGroup
-                      size="small"
-                      exclusive
-                      value={(i18n.language || "ru").split("-")[0]}
-                      onChange={(_event, value) => {
-                        if (value) handleLanguageChange(value);
-                      }}
-                    >
-                      <ToggleButton value="ru" sx={{ px: 1.5, py: 0.4, fontWeight: 700 }}>
-                        RU
-                      </ToggleButton>
-                      <ToggleButton value="en" sx={{ px: 1.5, py: 0.4, fontWeight: 700 }}>
-                        EN
-                      </ToggleButton>
-                      <ToggleButton value="uz" sx={{ px: 1.5, py: 0.4, fontWeight: 700 }}>
-                        UZ
-                      </ToggleButton>
-                    </ToggleButtonGroup>
-                  </Box>
-                  <Divider sx={{ my: 0.5 }} />
-                  <MenuItem
-                    onClick={() => {
-                      setUserMenuAnchor(null);
-                      clearAuth();
-                    }}
-                    sx={{ color: "error.main" }}
-                  >
-                    <ListItemIcon sx={{ color: "error.main" }}>
-                      <LogoutIcon fontSize="small" />
-                    </ListItemIcon>
-                    {t("logout")}
-                  </MenuItem>
-                </Menu>
-              </>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            {switchLink && (
+              <Stack direction="row" spacing={1}>
+                <Button size="small" variant="outlined" onClick={() => navigate(switchLink.path)}>
+                  {switchLink.label}
+                </Button>
+              </Stack>
             )}
+            <Select
+              size="small"
+              value={i18n.language}
+              onChange={async (e) => {
+                const lang = e.target.value as string;
+                try {
+                  await changeLanguage(lang);
+                  updateUser({ lang });
+                  i18n.changeLanguage(lang);
+                  showToast({ message: t("languageUpdated"), severity: "success" });
+                } catch (_err) {
+                  showToast({ message: t("languageUpdateFailed"), severity: "error" });
+                }
+              }}
+              sx={{ background: "white", borderRadius: "8px", minWidth: 90 }}
+            >
+              <MenuItem value="ru">RU</MenuItem>
+              <MenuItem value="en">EN</MenuItem>
+              <MenuItem value="uz">UZ</MenuItem>
+            </Select>
+            {(settingsPath || settingsAction) && (
+              <Tooltip title={t("settings")}>
+                <IconButton color="inherit" onClick={() => (settingsAction ? settingsAction() : settingsPath && navigate(settingsPath))}>
+                  <SettingsIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+            {user && agreementData?.isActive && (
+              <Tooltip title={t("userAgreement")}>
+                <IconButton color="inherit" onClick={() => setAgreementOpen(true)}>
+                  <PolicyOutlinedIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+            {user && (
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{
+                  px: 1.5,
+                  py: 0.6,
+                  borderRadius: "8px",
+                  border: "1px solid var(--border)",
+                  backgroundColor: "rgba(255,255,255,0.7)"
+                }}
+              >
+                {user.department && (
+                  <Chip
+                    icon={<BusinessIcon fontSize="small" />}
+                    label={user.department}
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                )}
+                {showRoleChip && user?.role && (
+                  <Chip
+                    label={user.role}
+                    size="small"
+                    sx={{ textTransform: "capitalize", fontWeight: 600, backgroundColor: "rgba(37, 99, 235, 0.12)" }}
+                  />
+                )}
+                {userDisplayName && (
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {userDisplayName}
+                  </Typography>
+                )}
+              </Stack>
+            )}
+            <Tooltip title={t("logout")}>
+              <IconButton onClick={clearAuth} color="inherit">
+                <LogoutIcon />
+              </IconButton>
+            </Tooltip>
           </Box>
         </Toolbar>
       </AppBar>
