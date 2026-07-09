@@ -37,13 +37,13 @@ function UzFlag() {
   );
 }
 
-const LANGUAGES: Array<{ code: string; label: string; flag: React.ReactNode }> = [
+export const LANGUAGES: Array<{ code: string; label: string; flag: React.ReactNode }> = [
   { code: "ru", label: "Русский", flag: <RuFlag /> },
   { code: "en", label: "English", flag: <GbFlag /> },
   { code: "uz", label: "O'zbekcha", flag: <UzFlag /> }
 ];
 
-const flagFrameSx = {
+export const flagFrameSx = {
   width: 24,
   height: 18,
   borderRadius: "3px",

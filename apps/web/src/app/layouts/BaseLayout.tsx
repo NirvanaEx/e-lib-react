@@ -16,6 +16,8 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Menu,
+  MenuItem,
   Stack,
   Toolbar,
   Tooltip,
@@ -26,10 +28,12 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import SettingsIcon from "@mui/icons-material/Settings";
 import BusinessIcon from "@mui/icons-material/Business";
 import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../shared/hooks/useAuth";
-import { LanguageMenu } from "../../shared/ui/LanguageMenu";
+import { LanguageMenu, LANGUAGES, flagFrameSx } from "../../shared/ui/LanguageMenu";
 import i18n from "../i18n";
 import { changeLanguage } from "../../features/settings/settings.api";
 import { useToast } from "../../shared/ui/ToastProvider";
@@ -100,6 +104,7 @@ export function BaseLayout({
   const effectiveDrawerWidth = collapsed ? collapsedDrawerWidth : drawerWidth;
   const [agreementOpen, setAgreementOpen] = React.useState(false);
   const [agreementDismissed, setAgreementDismissed] = React.useState(false);
+  const [mobileMenuAnchor, setMobileMenuAnchor] = React.useState<HTMLElement | null>(null);
   const queryClient = useQueryClient();
 
   const agreementKey = "user_agreement";
@@ -144,6 +149,17 @@ export function BaseLayout({
     setAgreementOpen(false);
     if (user?.id) {
       acceptAgreementMutation.mutate();
+    }
+  };
+
+  const handleLanguageChange = async (lang: string) => {
+    try {
+      await changeLanguage(lang);
+      updateUser({ lang });
+      i18n.changeLanguage(lang);
+      showToast({ message: t("languageUpdated"), severity: "success" });
+    } catch (_err) {
+      showToast({ message: t("languageUpdateFailed"), severity: "error" });
     }
   };
 
@@ -425,36 +441,33 @@ export function BaseLayout({
           )}
           <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, md: 2 }, flexShrink: 0 }}>
             {switchLink && (
-              <Stack direction="row" spacing={1} sx={{ display: { xs: "none", sm: "flex" } }}>
+              <Stack direction="row" spacing={1} sx={{ display: { xs: "none", md: "flex" } }}>
                 <Button size="small" variant="outlined" onClick={() => navigate(switchLink.path)}>
                   {switchLink.label}
                 </Button>
               </Stack>
             )}
-            <LanguageMenu
-              value={i18n.language}
-              tooltip={t("language")}
-              onChange={async (lang) => {
-                try {
-                  await changeLanguage(lang);
-                  updateUser({ lang });
-                  i18n.changeLanguage(lang);
-                  showToast({ message: t("languageUpdated"), severity: "success" });
-                } catch (_err) {
-                  showToast({ message: t("languageUpdateFailed"), severity: "error" });
-                }
-              }}
-            />
+            <Box sx={{ display: { xs: "none", md: "inline-flex" } }}>
+              <LanguageMenu value={i18n.language} tooltip={t("language")} onChange={handleLanguageChange} />
+            </Box>
             {(settingsPath || settingsAction) && (
               <Tooltip title={t("settings")}>
-                <IconButton color="inherit" onClick={() => (settingsAction ? settingsAction() : settingsPath && navigate(settingsPath))}>
+                <IconButton
+                  color="inherit"
+                  onClick={() => (settingsAction ? settingsAction() : settingsPath && navigate(settingsPath))}
+                  sx={{ display: { xs: "none", md: "inline-flex" } }}
+                >
                   <SettingsIcon />
                 </IconButton>
               </Tooltip>
             )}
             {user && agreementData?.isActive && (
               <Tooltip title={t("userAgreement")}>
-                <IconButton color="inherit" onClick={() => setAgreementOpen(true)}>
+                <IconButton
+                  color="inherit"
+                  onClick={() => setAgreementOpen(true)}
+                  sx={{ display: { xs: "none", md: "inline-flex" } }}
+                >
                   <PolicyOutlinedIcon />
                 </IconButton>
               </Tooltip>
@@ -496,10 +509,122 @@ export function BaseLayout({
               </Stack>
             )}
             <Tooltip title={t("logout")}>
-              <IconButton onClick={clearAuth} color="inherit">
+              <IconButton onClick={clearAuth} color="inherit" sx={{ display: { xs: "none", md: "inline-flex" } }}>
                 <LogoutIcon />
               </IconButton>
             </Tooltip>
+            <IconButton
+              color="inherit"
+              onClick={(event) => setMobileMenuAnchor(event.currentTarget)}
+              sx={{ display: { xs: "inline-flex", md: "none" } }}
+            >
+              <MoreVertIcon />
+            </IconButton>
+            <Menu
+              open={Boolean(mobileMenuAnchor)}
+              anchorEl={mobileMenuAnchor}
+              onClose={() => setMobileMenuAnchor(null)}
+              slotProps={{ paper: { sx: { mt: 1, borderRadius: "8px", border: "1px solid var(--border)", minWidth: 210 } } }}
+            >
+              {userDisplayName && (
+                <Box sx={{ px: 2, pt: 0.75, pb: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {userDisplayName}
+                  </Typography>
+                  {user?.department && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                      {user.department}
+                    </Typography>
+                  )}
+                </Box>
+              )}
+              {userDisplayName && <Divider sx={{ mb: 0.5 }} />}
+              {switchLink && (
+                <MenuItem
+                  onClick={() => {
+                    setMobileMenuAnchor(null);
+                    navigate(switchLink.path);
+                  }}
+                >
+                  <ListItemIcon>
+                    <GridViewOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primaryTypographyProps={{ variant: "body2", fontWeight: 600 }}>
+                    {switchLink.label}
+                  </ListItemText>
+                </MenuItem>
+              )}
+              {(settingsPath || settingsAction) && (
+                <MenuItem
+                  onClick={() => {
+                    setMobileMenuAnchor(null);
+                    if (settingsAction) settingsAction();
+                    else if (settingsPath) navigate(settingsPath);
+                  }}
+                >
+                  <ListItemIcon>
+                    <SettingsIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primaryTypographyProps={{ variant: "body2", fontWeight: 600 }}>
+                    {t("settings")}
+                  </ListItemText>
+                </MenuItem>
+              )}
+              {user && agreementData?.isActive && (
+                <MenuItem
+                  onClick={() => {
+                    setMobileMenuAnchor(null);
+                    setAgreementOpen(true);
+                  }}
+                >
+                  <ListItemIcon>
+                    <PolicyOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primaryTypographyProps={{ variant: "body2", fontWeight: 600 }}>
+                    {t("userAgreement")}
+                  </ListItemText>
+                </MenuItem>
+              )}
+              <Divider sx={{ my: 0.5 }} />
+              {LANGUAGES.map((item) => {
+                const currentLang = (i18n.language || "ru").split("-")[0];
+                return (
+                  <MenuItem
+                    key={item.code}
+                    selected={item.code === currentLang}
+                    onClick={() => {
+                      setMobileMenuAnchor(null);
+                      if (item.code !== currentLang) {
+                        handleLanguageChange(item.code);
+                      }
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 34 }}>
+                      <Box sx={flagFrameSx}>{item.flag}</Box>
+                    </ListItemIcon>
+                    <ListItemText
+                      primaryTypographyProps={{ variant: "body2", fontWeight: item.code === currentLang ? 700 : 500 }}
+                    >
+                      {item.label}
+                    </ListItemText>
+                  </MenuItem>
+                );
+              })}
+              <Divider sx={{ my: 0.5 }} />
+              <MenuItem
+                onClick={() => {
+                  setMobileMenuAnchor(null);
+                  clearAuth();
+                }}
+              >
+                <ListItemIcon>
+                  <LogoutIcon fontSize="small" sx={{ color: "error.main" }} />
+                </ListItemIcon>
+                <ListItemText primaryTypographyProps={{ variant: "body2", fontWeight: 600, color: "error.main" }}>
+                  {t("logout")}
+                </ListItemText>
+              </MenuItem>
+            </Menu>
           </Box>
         </Toolbar>
       </AppBar>
