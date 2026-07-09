@@ -1,92 +1,109 @@
 import React from "react";
-import { Box, ButtonBase, Collapse, Divider, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Stack, Tooltip, Typography } from "@mui/material";
-import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
-import LibraryBooksOutlinedIcon from "@mui/icons-material/LibraryBooksOutlined";
+import { Box, ButtonBase, List, ListItemButton, ListItemIcon, ListItemText, Stack, Switch, Tooltip, Typography } from "@mui/material";
+import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
+import FolderCopyOutlinedIcon from "@mui/icons-material/FolderCopyOutlined";
 import StarBorderOutlinedIcon from "@mui/icons-material/StarBorderOutlined";
 import ApartmentOutlinedIcon from "@mui/icons-material/ApartmentOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
-import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
-import SellOutlinedIcon from "@mui/icons-material/SellOutlined";
-import BookmarkBorderOutlinedIcon from "@mui/icons-material/BookmarkBorderOutlined";
-import LocalMallOutlinedIcon from "@mui/icons-material/LocalMallOutlined";
-import LoyaltyOutlinedIcon from "@mui/icons-material/LoyaltyOutlined";
-import LocalActivityOutlinedIcon from "@mui/icons-material/LocalActivityOutlined";
-import StyleOutlinedIcon from "@mui/icons-material/StyleOutlined";
-import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
-import LocalPlayOutlinedIcon from "@mui/icons-material/LocalPlayOutlined";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import { useQuery } from "@tanstack/react-query";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import { BaseLayout } from "./BaseLayout";
 import { useTranslation } from "react-i18next";
-import { fetchMenu } from "../../features/files/files.api";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { SettingsDialog } from "../../features/settings/SettingsDialog";
 import { useAuth } from "../../shared/hooks/useAuth";
-import { LibraryIcon } from "../../shared/ui/iconLibrary";
+import { useThemeMode } from "../../shared/hooks/useThemeMode";
+import { NavbarSearch } from "../../features/files/NavbarSearch";
+import logoFullColor from "../../assets/logo-full-color.png";
+import logoFullWhite from "../../assets/logo-full-white.png";
+
+const APP_VERSION = "1.0.0";
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
+  const { mode } = useThemeMode();
+  const navigate = useNavigate();
   const [settingsOpen, setSettingsOpen] = React.useState(false);
-  const items: { label: string; path: string; icon?: React.ReactNode }[] = [];
+  const logoSrc = mode === "dark" ? logoFullWhite : logoFullColor;
+
   const sidebarTop = ({ collapsed }: { collapsed: boolean }) => (
-    <Box sx={{ width: "100%" }}>
-      <ButtonBase
-        onClick={() => window.location.reload()}
-        sx={{
-          width: "100%",
-          borderRadius: "8px",
-          px: 0.5,
-          py: 0.5,
-          justifyContent: collapsed ? "center" : "flex-start"
-        }}
-      >
-        <Stack direction="row" alignItems="center" spacing={1.25}>
-          <Box
-            sx={{
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              display: "grid",
-              placeItems: "center",
-              border: "1px solid rgba(255,255,255,0.3)",
-              backgroundColor: "rgba(255,255,255,0.08)",
-              flexShrink: 0
-            }}
-          >
-            <MenuBookOutlinedIcon fontSize="small" />
-          </Box>
-          {!collapsed && (
-            <Box sx={{ textAlign: "left" }}>
-              <Typography variant="subtitle2" sx={{ letterSpacing: "0.1em", fontWeight: 800, lineHeight: 1.2, textTransform: "uppercase" }}>
-                {t("appName")}
-              </Typography>
-              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.65)" }}>
-                {t("heroTagline")}
-              </Typography>
-            </Box>
-          )}
-        </Stack>
-      </ButtonBase>
-    </Box>
+    <ButtonBase
+      onClick={() => navigate("/users")}
+      sx={{
+        width: "100%",
+        borderRadius: "8px",
+        px: 0.5,
+        py: 0.5,
+        justifyContent: collapsed ? "center" : "flex-start"
+      }}
+    >
+      {collapsed ? (
+        <Box
+          sx={{
+            width: 38,
+            height: 38,
+            borderRadius: "10px",
+            display: "grid",
+            placeItems: "center",
+            backgroundColor: "rgba(37, 99, 235, 0.12)",
+            color: "primary.main"
+          }}
+        >
+          <MenuBookOutlinedIcon fontSize="small" />
+        </Box>
+      ) : (
+        <Box
+          component="img"
+          src={logoSrc}
+          alt={t("appName")}
+          sx={{ height: 40, maxWidth: "100%", objectFit: "contain", objectPosition: "left center" }}
+        />
+      )}
+    </ButtonBase>
   );
 
   const sidebarContent = ({ collapsed }: { collapsed: boolean }) => <UserSidebarMenu collapsed={collapsed} />;
+  const sidebarFooter = ({ collapsed }: { collapsed: boolean }) => <UserSidebarFooter collapsed={collapsed} />;
+
+  const footer = (
+    <Box
+      sx={{
+        px: { xs: 2, md: 4 },
+        py: 1.25,
+        background: "linear-gradient(120deg, #0c2a52 0%, #123a6b 100%)",
+        color: "rgba(255,255,255,0.75)",
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 1,
+        alignItems: "center",
+        justifyContent: "space-between"
+      }}
+    >
+      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.75)" }}>
+        © {new Date().getFullYear()} {t("appName")} · {t("allRightsReserved")}
+      </Typography>
+      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)" }}>
+        {t("versionLabel")} {APP_VERSION}
+      </Typography>
+    </Box>
+  );
+
   return (
     <>
       <BaseLayout
         title={t("user")}
-        items={items}
+        items={[]}
         sidebarContent={sidebarContent}
+        sidebarFooter={sidebarFooter}
         settingsAction={() => setSettingsOpen(true)}
         headerTitle={null}
+        headerContent={<NavbarSearch />}
+        footer={footer}
         sidebarHeader={null}
         sidebarTop={sidebarTop}
         sidebarCollapsible
-        sidebarPaddingTop={0.5}
-        sidebarVariant="dark"
+        sidebarPaddingTop={1}
+        sidebarVariant="light"
       >
         {children}
       </BaseLayout>
@@ -100,241 +117,108 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { data } = useQuery({ queryKey: ["user-menu-all"], queryFn: () => fetchMenu() });
-  const [expandedCategories, setExpandedCategories] = React.useState<Set<number>>(new Set());
 
   const canSubmitFiles = Boolean(user?.canSubmitFiles);
   const hasDepartment = Boolean(user?.departmentId);
   const navItems = [
-    { label: t("sharedLibrary"), path: "/users", icon: <LibraryBooksOutlinedIcon fontSize="small" />, exact: true },
-    { label: t("favorites"), path: "/users/my-library/favorites", icon: <StarBorderOutlinedIcon fontSize="small" /> },
+    { label: t("homePage"), path: "/users", icon: <HomeOutlinedIcon fontSize="small" />, exact: true },
+    { label: t("allFiles"), path: "/users/files", icon: <FolderCopyOutlinedIcon fontSize="small" /> },
     ...(hasDepartment
       ? [{ label: t("departmentFiles"), path: "/users/my-library/department", icon: <ApartmentOutlinedIcon fontSize="small" /> }]
       : []),
+    { label: t("favorites"), path: "/users/my-library/favorites", icon: <StarBorderOutlinedIcon fontSize="small" /> },
     ...(canSubmitFiles
-      ? [
-          { label: t("requests"), path: "/users/my-library/requests", icon: <PendingActionsOutlinedIcon fontSize="small" /> },
-          { label: t("myUploadedFiles"), path: "/users/my-library/files", icon: <DescriptionOutlinedIcon fontSize="small" /> }
-        ]
+      ? [{ label: t("publicationRequests"), path: "/users/my-library/requests", icon: <PendingActionsOutlinedIcon fontSize="small" /> }]
       : [])
   ];
-
-  const categories = data?.categories || [];
-  const categoryById = React.useMemo(() => new Map(categories.map((cat: any) => [cat.id, cat])), [categories]);
-  const selectedSectionId = Number(searchParams.get("sectionId") || 0) || null;
-  const selectedCategoryId = Number(searchParams.get("categoryId") || 0) || null;
-
-  const categoriesByParent = categories.reduce((acc: Record<string, any[]>, cat: any) => {
-    const key = cat.parentId ? String(cat.parentId) : "root";
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(cat);
-    return acc;
-  }, {});
-
-  React.useEffect(() => {
-    if (!selectedCategoryId) return;
-    const parentIds = new Set<number>();
-    let current = categoryById.get(selectedCategoryId);
-    while (current?.parentId) {
-      parentIds.add(current.parentId);
-      current = categoryById.get(current.parentId);
-    }
-    if (parentIds.size === 0) return;
-    setExpandedCategories((prev) => new Set([...prev, ...parentIds]));
-  }, [categoryById, selectedCategoryId]);
-
-  const updateFilters = (nextSectionId: number | null, nextCategoryId: number | null) => {
-    const params = new URLSearchParams(searchParams);
-    if (nextSectionId) {
-      params.set("sectionId", String(nextSectionId));
-    } else {
-      params.delete("sectionId");
-    }
-    if (nextCategoryId) {
-      params.set("categoryId", String(nextCategoryId));
-    } else {
-      params.delete("categoryId");
-    }
-    if (location.pathname !== "/users") {
-      navigate({ pathname: "/users", search: params.toString() });
-    } else {
-      setSearchParams(params, { replace: true });
-    }
-  };
-
-  const toggleCategory = (id: number) => {
-    setExpandedCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
 
   const itemSx = {
     borderRadius: "8px",
     mb: 0.6,
-    py: 0.9,
-    px: 1,
-    color: "rgba(255,255,255,0.85)",
+    py: 1,
+    px: 1.2,
+    color: "text.secondary",
     "&:hover": {
-      backgroundColor: "rgba(255,255,255,0.08)"
+      backgroundColor: "rgba(37, 99, 235, 0.08)"
     },
     "&.Mui-selected": {
-      backgroundColor: "rgba(37, 99, 235, 0.9)",
+      backgroundColor: "primary.main",
       color: "#fff"
     },
     "&.Mui-selected:hover": {
-      backgroundColor: "#2563eb"
+      backgroundColor: "primary.dark"
+    },
+    "&.Mui-selected .MuiListItemIcon-root": {
+      color: "#fff"
     }
-  };
-  const menuIconSx = {
-    width: 28,
-    height: 28,
-    borderRadius: "8px",
-    display: "grid",
-    placeItems: "center",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    color: "#fff"
-  };
-  const categoryLevelIcons = [
-    LocalOfferOutlinedIcon,
-    LabelOutlinedIcon,
-    SellOutlinedIcon,
-    BookmarkBorderOutlinedIcon,
-    LocalMallOutlinedIcon,
-    LoyaltyOutlinedIcon,
-    LocalActivityOutlinedIcon,
-    StyleOutlinedIcon,
-    ConfirmationNumberOutlinedIcon,
-    LocalPlayOutlinedIcon
-  ];
-  const renderCategoryIcon = (depth: number) => {
-    const Icon = categoryLevelIcons[Math.min(depth, categoryLevelIcons.length - 1)];
-    return <Icon fontSize="small" />;
-  };
-
-  const renderCategoryTree = (parentKey: string, depth: number) => {
-    const items = categoriesByParent[parentKey] || [];
-    return items.map((cat: any) => {
-      const button = (
-        <ListItemButton
-          selected={selectedCategoryId === cat.id}
-          onClick={() => {
-            updateFilters(selectedSectionId, selectedCategoryId === cat.id ? null : cat.id);
-            if (!collapsed && categoriesByParent[String(cat.id)]?.length && !expandedCategories.has(cat.id)) {
-              toggleCategory(cat.id);
-            }
-          }}
-          sx={{ ...itemSx, pr: 0.5, justifyContent: collapsed ? "center" : "flex-start" }}
-        >
-          <ListItemIcon sx={{ minWidth: collapsed ? 0 : 40, mr: collapsed ? 0 : 1 }}>
-            <Box sx={{ ...menuIconSx, ...(cat.iconColor ? { backgroundColor: cat.iconColor, color: "#fff" } : {}) }}>
-              {cat.icon ? <LibraryIcon name={cat.icon} fontSize="small" /> : renderCategoryIcon(depth)}
-            </Box>
-          </ListItemIcon>
-          {!collapsed && (
-            <ListItemText
-              primary={
-                <Typography variant="body2" sx={{ fontWeight: selectedCategoryId === cat.id ? 700 : 600 }}>
-                  {cat.title || `#${cat.id}`}
-                </Typography>
-              }
-            />
-          )}
-          {!collapsed && categoriesByParent[String(cat.id)]?.length ? (
-            <IconButton
-              size="small"
-              sx={{ color: "rgba(255,255,255,0.7)" }}
-              onClick={(event) => {
-                event.stopPropagation();
-                toggleCategory(cat.id);
-              }}
-            >
-              {expandedCategories.has(cat.id) ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-            </IconButton>
-          ) : null}
-        </ListItemButton>
-      );
-      return (
-        <Box key={cat.id} sx={{ pl: depth ? 1.5 : 0 }}>
-          {collapsed ? (
-            <Tooltip title={cat.title || `#${cat.id}`} placement="right">
-              {button}
-            </Tooltip>
-          ) : (
-            button
-          )}
-          {!collapsed && (
-            <Collapse in={expandedCategories.has(cat.id)} timeout="auto" unmountOnExit>
-              <Box sx={{ pt: 0.5 }}>{renderCategoryTree(String(cat.id), depth + 1)}</Box>
-            </Collapse>
-          )}
-        </Box>
-      );
-    });
   };
 
   return (
-    <Box>
-      <List disablePadding>
-        {navItems.map((item) => {
-          const active = item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path);
-          const button = (
-            <ListItemButton
-              key={item.path}
-              selected={active}
-              onClick={() => navigate(item.path)}
-              sx={{ ...itemSx, justifyContent: collapsed ? "center" : "flex-start" }}
-            >
-              <ListItemIcon sx={{ minWidth: collapsed ? 0 : 40, mr: collapsed ? 0 : 1 }}>
-                <Box sx={{ ...menuIconSx, ...(active ? { backgroundColor: "rgba(255,255,255,0.18)" } : {}) }}>{item.icon}</Box>
-              </ListItemIcon>
-              {!collapsed && (
-                <ListItemText
-                  primary={
-                    <Typography variant="body2" sx={{ fontWeight: active ? 700 : 600 }}>
-                      {item.label}
-                    </Typography>
-                  }
-                />
-              )}
-            </ListItemButton>
-          );
-          return collapsed ? (
-            <Tooltip key={item.path} title={item.label} placement="right">
-              {button}
-            </Tooltip>
-          ) : (
-            button
-          );
-        })}
-      </List>
-
-      <Divider sx={{ my: 1.5, borderColor: "rgba(255,255,255,0.14)" }} />
-
-      <Box sx={{ mt: collapsed ? 1 : 0.5 }}>
-        {!collapsed && (
-          <Typography variant="overline" sx={{ letterSpacing: "0.16em", fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>
-            {t("categories")}
-          </Typography>
-        )}
-        {categories.length === 0 ? (
-          <Typography variant="body2" sx={{ mt: 1, color: "rgba(255,255,255,0.6)" }}>
-            {t("categoriesEmpty")}
-          </Typography>
+    <List disablePadding>
+      {navItems.map((item) => {
+        const active = item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path);
+        const button = (
+          <ListItemButton
+            key={item.path}
+            selected={active}
+            onClick={() => navigate(item.path)}
+            sx={{ ...itemSx, justifyContent: collapsed ? "center" : "flex-start" }}
+          >
+            <ListItemIcon sx={{ minWidth: collapsed ? 0 : 34, color: active ? "#fff" : "text.secondary" }}>
+              {item.icon}
+            </ListItemIcon>
+            {!collapsed && (
+              <ListItemText
+                primary={
+                  <Typography variant="body2" sx={{ fontWeight: active ? 700 : 600 }}>
+                    {item.label}
+                  </Typography>
+                }
+              />
+            )}
+          </ListItemButton>
+        );
+        return collapsed ? (
+          <Tooltip key={item.path} title={item.label} placement="right">
+            {button}
+          </Tooltip>
         ) : (
-          <Box sx={{ mt: collapsed ? 0 : 1 }}>
-            <List sx={{ m: 0, p: 0 }} disablePadding>
-              {renderCategoryTree("root", 0)}
-            </List>
-          </Box>
-        )}
-      </Box>
-    </Box>
+          button
+        );
+      })}
+    </List>
+  );
+}
+
+function UserSidebarFooter({ collapsed }: { collapsed: boolean }) {
+  const { t } = useTranslation();
+  const { mode, toggleMode } = useThemeMode();
+
+  if (collapsed) {
+    return (
+      <Stack spacing={1} alignItems="center">
+        <Tooltip title={t("darkMode")} placement="right">
+          <Switch size="small" checked={mode === "dark"} onChange={toggleMode} />
+        </Tooltip>
+      </Stack>
+    );
+  }
+
+  return (
+    <Stack spacing={1.25}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 0.5 }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <DarkModeOutlinedIcon fontSize="small" sx={{ color: "text.secondary" }} />
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+            {t("darkMode")}
+          </Typography>
+        </Stack>
+        <Switch size="small" checked={mode === "dark"} onChange={toggleMode} />
+      </Stack>
+
+      <Typography variant="caption" color="text.secondary" sx={{ px: 0.5 }}>
+        © {new Date().getFullYear()} {t("appName")}
+      </Typography>
+    </Stack>
   );
 }

@@ -92,8 +92,24 @@ export async function forceDelete(id: number) {
   return data;
 }
 
-export async function fetchUserFiles(params: { page: number; pageSize: number; q?: string; sortBy?: string; sortDir?: string; sectionId?: number; categoryId?: number }) {
+export async function fetchUserFiles(params: {
+  page: number;
+  pageSize: number;
+  q?: string;
+  sortBy?: string;
+  sortDir?: string;
+  sectionId?: number;
+  categoryId?: number;
+  sectionIds?: string;
+  categoryIds?: string;
+  departmentIds?: string;
+}) {
   const { data } = await api.get("/user/files", { params });
+  return data;
+}
+
+export async function fetchUserStats() {
+  const { data } = await api.get("/user/stats");
   return data;
 }
 

@@ -2,8 +2,9 @@ import React from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { theme } from "./theme";
+import { createAppTheme } from "./theme";
 import { AuthProvider, useAuth } from "../shared/hooks/useAuth";
+import { ThemeModeProvider, useThemeMode } from "../shared/hooks/useThemeMode";
 import { ToastProvider } from "../shared/ui/ToastProvider";
 import LoginPage from "../features/auth/LoginPage";
 import ChangeTempPasswordPage from "../features/auth/ChangeTempPasswordPage";
@@ -23,6 +24,7 @@ import FileDetailsPage from "../features/files/FileDetailsPage";
 import TrashPage from "../features/files/TrashPage";
 import StatsPage from "../features/stats/StatsPage";
 import UserFilesPage from "../features/files/UserFilesPage";
+import UserHomePage from "../features/home/UserHomePage";
 import UserLibraryPage from "../features/files/UserLibraryPage";
 import UserFileDetailsPage from "../features/files/UserFileDetailsPage";
 import SettingsPage from "../features/settings/SettingsPage";
@@ -79,6 +81,17 @@ function MyLibraryRedirect() {
   return <Navigate to={target} replace />;
 }
 
+function ThemedApp({ children }: { children: React.ReactNode }) {
+  const { mode } = useThemeMode();
+  const muiTheme = React.useMemo(() => createAppTheme(mode), [mode]);
+  return (
+    <ThemeProvider theme={muiTheme}>
+      <CssBaseline />
+      {children}
+    </ThemeProvider>
+  );
+}
+
 export default function App() {
   React.useEffect(() => {
     const handleLanguageChange = () => {
@@ -91,8 +104,8 @@ export default function App() {
   }, []);
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <ThemeModeProvider>
+      <ThemedApp>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ToastProvider>
@@ -278,6 +291,18 @@ export default function App() {
                   <RequireAuth>
                     <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
                       <UserLayout>
+                        <UserHomePage />
+                      </UserLayout>
+                    </RequireRole>
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/users/files"
+                element={
+                  <RequireAuth>
+                    <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
+                      <UserLayout>
                         <UserFilesPage />
                       </UserLayout>
                     </RequireRole>
@@ -384,6 +409,7 @@ export default function App() {
           </ToastProvider>
         </AuthProvider>
       </QueryClientProvider>
-    </ThemeProvider>
+      </ThemedApp>
+    </ThemeModeProvider>
   );
 }

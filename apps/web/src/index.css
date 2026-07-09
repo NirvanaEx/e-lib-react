@@ -11,6 +11,27 @@
   --sidebar: #0c2a52;
   --sidebar-2: #123a6b;
   --shadow: 0 8px 24px rgba(15, 42, 90, 0.06);
+  --appbar: rgba(255, 255, 255, 0.88);
+  --bg-glow-1: #e7efff;
+  --bg-glow-2: #e3f0fb;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0b1424;
+  --surface: #111f36;
+  --surface-2: #16233d;
+  --ink: #e2e8f0;
+  --muted: #94a3b8;
+  --border: #24344f;
+  --primary: #3b82f6;
+  --primary-2: #38bdf8;
+  --accent: #38bdf8;
+  --sidebar: #0a1220;
+  --sidebar-2: #0f1b30;
+  --shadow: 0 8px 24px rgba(2, 8, 23, 0.45);
+  --appbar: rgba(11, 20, 36, 0.88);
+  --bg-glow-1: #12233f;
+  --bg-glow-2: #0f2036;
 }
 
 * {
@@ -23,8 +44,8 @@ body {
   margin: 0;
   font-family: "Manrope", "Segoe UI", sans-serif;
   background:
-    radial-gradient(900px 500px at 5% -10%, #e7efff 0%, transparent 60%),
-    radial-gradient(700px 420px at 100% 10%, #e3f0fb 0%, transparent 60%),
+    radial-gradient(900px 500px at 5% -10%, var(--bg-glow-1) 0%, transparent 60%),
+    radial-gradient(700px 420px at 100% 10%, var(--bg-glow-2) 0%, transparent 60%),
     var(--bg);
   color: var(--ink);
   min-height: 100vh;
