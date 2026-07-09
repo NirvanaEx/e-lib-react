@@ -8,4 +8,8 @@ apps/api/coverage
 apps/web/dist
 uploads/*
 !uploads/.gitkeep
+apps/uploads/*
+!apps/uploads/.gitkeep
+apps/api/uploads/*
+!apps/api/uploads/.gitkeep
 tasks/
