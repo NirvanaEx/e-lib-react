@@ -49,7 +49,8 @@ export class FilesUserController {
         categoryId: query.categoryId,
         sectionIds: this.parseIdList(query.sectionIds),
         categoryIds: this.parseIdList(query.categoryIds),
-        departmentIds: this.parseIdList(query.departmentIds)
+        departmentIds: this.parseIdList(query.departmentIds),
+        createdWithinDays: query.newDays
       },
       user,
       lang

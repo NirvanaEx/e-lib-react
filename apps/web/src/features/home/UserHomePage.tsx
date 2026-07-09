@@ -32,7 +32,7 @@ import { FileTypeBadge } from "../files/fileVisuals";
 import { formatDate } from "../../shared/utils/date";
 import heroImage from "../../assets/main-back2.jpg";
 
-const FILTER_PARAMS = ["q", "sectionId", "categoryId", "sectionIds", "categoryIds", "departmentIds"];
+const FILTER_PARAMS = ["q", "sectionId", "categoryId", "sectionIds", "categoryIds", "departmentIds", "newDays"];
 
 const sectionIcons = [
   BalanceOutlinedIcon,
@@ -146,7 +146,7 @@ function HomeContent() {
       icon: <AccessTimeOutlinedIcon fontSize="small" />,
       tone: "#0d9488",
       linkLabel: t("viewAll"),
-      onClick: () => navigate("/users/files")
+      onClick: () => navigate(`/users/files?newDays=${NEW_DOCUMENTS_DAYS}`)
     },
     {
       key: "downloads",
@@ -167,7 +167,7 @@ function HomeContent() {
             borderRadius: "12px",
             overflow: "hidden",
             position: "relative",
-            minHeight: { xs: 190, md: 260 },
+            minHeight: { xs: 220, md: 350 },
             display: "flex",
             alignItems: "center",
             backgroundImage: `linear-gradient(95deg, rgba(8, 28, 57, 0.93) 0%, rgba(10, 34, 66, 0.8) 35%, rgba(12, 42, 82, 0.22) 68%, rgba(12, 42, 82, 0.05) 100%), url(${heroImage})`,
@@ -284,7 +284,7 @@ function HomeContent() {
                 return (
                   <Paper
                     key={section.id}
-                    onClick={() => navigate(`/users?sectionId=${section.id}`)}
+                    onClick={() => navigate(`/users/files?sectionId=${section.id}`)}
                     sx={{
                       p: 1.5,
                       borderRadius: "10px",
@@ -358,7 +358,7 @@ function HomeContent() {
                 <HelpOutlineIcon sx={{ fontSize: 15, color: "text.disabled", cursor: "help" }} />
               </Tooltip>
             </Stack>
-            <SectionLink label={t("viewAll")} onClick={() => navigate("/users/files")} />
+            <SectionLink label={t("viewAll")} onClick={() => navigate(`/users/files?newDays=${NEW_DOCUMENTS_DAYS}`)} />
           </Stack>
           {latestLoading ? (
             <Stack spacing={1.5} sx={{ px: 2.5, pb: 2.5 }}>

@@ -1,6 +1,7 @@
 import React from "react";
-import { Badge, Box, Button, InputAdornment, Stack, TextField, Tooltip, useMediaQuery, useTheme } from "@mui/material";
+import { Badge, Box, Button, IconButton, InputAdornment, Stack, TextField, Tooltip, useMediaQuery, useTheme } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import CloseIcon from "@mui/icons-material/Close";
 import TuneIcon from "@mui/icons-material/Tune";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -59,6 +60,14 @@ export function NavbarSearch() {
     applySearch(value);
   };
 
+  const handleClear = () => {
+    if (debounceRef.current) {
+      window.clearTimeout(debounceRef.current);
+    }
+    setValue("");
+    applySearch("");
+  };
+
   React.useEffect(() => {
     return () => {
       if (debounceRef.current) {
@@ -82,6 +91,13 @@ export function NavbarSearch() {
                 <SearchIcon fontSize="small" />
               </InputAdornment>
             ),
+            endAdornment: value ? (
+              <InputAdornment position="end">
+                <IconButton size="small" edge="end" aria-label={t("clear")} onClick={handleClear}>
+                  <CloseIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </InputAdornment>
+            ) : undefined,
             sx: { borderRadius: "8px", backgroundColor: "var(--surface-2)", fontSize: "0.875rem" }
           }}
         />

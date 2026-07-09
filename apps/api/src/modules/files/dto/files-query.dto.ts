@@ -36,4 +36,9 @@ export class FilesQueryDto extends PaginationDto {
   @IsOptional()
   @IsString()
   departmentIds?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  newDays?: number;
 }
