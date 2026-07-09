@@ -16,8 +16,6 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  MenuItem,
-  Select,
   Stack,
   Toolbar,
   Tooltip,
@@ -31,6 +29,7 @@ import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../shared/hooks/useAuth";
+import { LanguageMenu } from "../../shared/ui/LanguageMenu";
 import i18n from "../i18n";
 import { changeLanguage } from "../../features/settings/settings.api";
 import { useToast } from "../../shared/ui/ToastProvider";
@@ -64,6 +63,8 @@ export function BaseLayout({
   settingsPath,
   settingsAction,
   headerTitle,
+  headerContent,
+  footer,
   sidebarHeader,
   sidebarPaddingTop,
   sidebarTop,
@@ -79,6 +80,8 @@ export function BaseLayout({
   settingsPath?: string;
   settingsAction?: () => void;
   headerTitle?: React.ReactNode;
+  headerContent?: React.ReactNode;
+  footer?: React.ReactNode;
   sidebarHeader?: React.ReactNode | ((options: { collapsed: boolean }) => React.ReactNode) | null;
   sidebarPaddingTop?: number;
   sidebarTop?: React.ReactNode | ((options: { collapsed: boolean; toggle: () => void }) => React.ReactNode) | null;
@@ -239,9 +242,7 @@ export function BaseLayout({
         display: "flex",
         flexDirection: "column",
         color: darkSidebar ? "#fff" : "inherit",
-        background: darkSidebar
-          ? "transparent"
-          : "linear-gradient(170deg, rgba(37,99,235,0.06) 0%, rgba(14,165,233,0.06) 45%, rgba(255,255,255,0.9) 100%)"
+        background: darkSidebar ? "transparent" : "var(--surface)"
       }}
     >
       {resolvedSidebarHeader}
@@ -389,14 +390,14 @@ export function BaseLayout({
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
           backdropFilter: "blur(12px)",
-          backgroundColor: "rgba(255, 255, 255, 0.88)",
+          backgroundColor: "var(--appbar)",
           borderBottom: "1px solid var(--border)",
           width: { md: `calc(100% - ${effectiveDrawerWidth}px)` },
           ml: { md: `${effectiveDrawerWidth}px` }
         }}
       >
-        <Toolbar sx={{ display: "flex", justifyContent: "space-between", px: { xs: 2, md: 3 } }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Toolbar sx={{ display: "flex", justifyContent: "space-between", gap: 2, px: { xs: 2, md: 3 } }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
             <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 1, display: { md: "none" } }}>
               <MenuIcon />
             </IconButton>
@@ -412,7 +413,12 @@ export function BaseLayout({
             )}
             {headerTitle === undefined ? <Typography variant="h6">{title}</Typography> : headerTitle}
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          {headerContent && (
+            <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
+              {headerContent}
+            </Box>
+          )}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
             {switchLink && (
               <Stack direction="row" spacing={1}>
                 <Button size="small" variant="outlined" onClick={() => navigate(switchLink.path)}>
@@ -420,11 +426,10 @@ export function BaseLayout({
                 </Button>
               </Stack>
             )}
-            <Select
-              size="small"
+            <LanguageMenu
               value={i18n.language}
-              onChange={async (e) => {
-                const lang = e.target.value as string;
+              tooltip={t("language")}
+              onChange={async (lang) => {
                 try {
                   await changeLanguage(lang);
                   updateUser({ lang });
@@ -434,12 +439,7 @@ export function BaseLayout({
                   showToast({ message: t("languageUpdateFailed"), severity: "error" });
                 }
               }}
-              sx={{ background: "white", borderRadius: "8px", minWidth: 90 }}
-            >
-              <MenuItem value="ru">RU</MenuItem>
-              <MenuItem value="en">EN</MenuItem>
-              <MenuItem value="uz">UZ</MenuItem>
-            </Select>
+            />
             {(settingsPath || settingsAction) && (
               <Tooltip title={t("settings")}>
                 <IconButton color="inherit" onClick={() => (settingsAction ? settingsAction() : settingsPath && navigate(settingsPath))}>
@@ -464,7 +464,7 @@ export function BaseLayout({
                   py: 0.6,
                   borderRadius: "8px",
                   border: "1px solid var(--border)",
-                  backgroundColor: "rgba(255,255,255,0.7)"
+                  backgroundColor: "var(--surface)"
                 }}
               >
                 {user.department && (
@@ -538,9 +538,13 @@ export function BaseLayout({
           </Box>
         </Drawer>
       </Box>
-      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 4 } }}>
+      <Box
+        component="main"
+        sx={{ flexGrow: 1, display: "flex", flexDirection: "column", minHeight: "100vh", minWidth: 0 }}
+      >
         <Toolbar />
-        {children}
+        <Box sx={{ flex: "1 0 auto", display: "flex", flexDirection: "column", p: { xs: 2, md: 4 } }}>{children}</Box>
+        {footer}
       </Box>
       <Dialog open={agreementOpen} onClose={handleAgreementClose} fullWidth maxWidth="sm">
         <DialogTitle>{agreementData?.title || t("userAgreement")}</DialogTitle>

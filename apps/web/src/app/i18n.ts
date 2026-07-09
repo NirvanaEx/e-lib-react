@@ -405,7 +405,27 @@ const resources = {
       titlesByLanguage: "Translations",
       settingsSubtitle: "Update your password and language preferences.",
       changePassword: "Change password",
-      passwordUpdated: "Password updated"
+      passwordUpdated: "Password updated",
+      homePage: "Home",
+      advancedSearch: "Advanced search",
+      navbarSearchPlaceholder: "Search documents by keyword or number...",
+      selectAll: "All",
+      apply: "Apply",
+      homeHeroTitle: "Electronic library",
+      homeHeroSubtitle:
+        "Fast and convenient access to local, regulatory, legal and other important aeronavigation documents.",
+      totalDocuments: "Total documents",
+      newDocuments: "New documents",
+      mainSections: "Main sections",
+      viewAll: "View all",
+      documentCount_one: "{{count}} document",
+      documentCount_other: "{{count}} documents",
+      allRightsReserved: "All rights reserved",
+      versionLabel: "Version",
+      helpService: "Support service",
+      helpPhone: "+998 (71) 230-92-00",
+      helpEmail: "support@uzan.uz",
+      darkMode: "Dark mode"
     }
   },
   ru: {
@@ -786,7 +806,7 @@ const resources = {
       requestsEmptySubtitle: "Отправленные заявки появятся здесь.",
       myFiles: "Мои файлы",
       myUploadedFiles: "Мои загруженные файлы",
-      departmentFiles: "\u0424\u0430\u0439\u043b\u044b \u043e\u0442\u0434\u0435\u043b\u0430",
+      departmentFiles: "\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u044b \u043e\u0442\u0434\u0435\u043b\u043e\u0432",
       updateFileRequest: "\u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u0444\u0430\u0439\u043b\u0430",
       updateFile: "\u0417\u0430\u043f\u0440\u043e\u0441\u0438\u0442\u044c \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435",
       requestType: "\u0412\u0438\u0434 \u0437\u0430\u044f\u0432\u043a\u0438",
@@ -811,7 +831,29 @@ const resources = {
       titlesByLanguage: "Переводы",
       settingsSubtitle: "Обновите пароль и язык интерфейса.",
       changePassword: "Смена пароля",
-      passwordUpdated: "Пароль обновлен"
+      passwordUpdated: "Пароль обновлен",
+      homePage: "Основная страница",
+      advancedSearch: "Расширенный поиск",
+      navbarSearchPlaceholder: "Поиск документов по ключевым словам или номеру...",
+      selectAll: "Все",
+      apply: "Применить",
+      homeHeroTitle: "Электронная библиотека",
+      homeHeroSubtitle:
+        "Быстрый и удобный доступ к локальным, нормативно-правовым и другим важным документам аэронавигации.",
+      totalDocuments: "Всего документов",
+      newDocuments: "Новые документы",
+      mainSections: "Основные разделы",
+      viewAll: "Смотреть все",
+      documentCount_one: "{{count}} документ",
+      documentCount_few: "{{count}} документа",
+      documentCount_many: "{{count}} документов",
+      documentCount_other: "{{count}} документа",
+      allRightsReserved: "Все права защищены",
+      versionLabel: "Версия",
+      helpService: "Служба поддержки",
+      helpPhone: "+998 (71) 230-92-00",
+      helpEmail: "support@uzan.uz",
+      darkMode: "Тёмный режим"
     }
   },
   uz: {
@@ -1217,7 +1259,27 @@ const resources = {
       titlesByLanguage: "Tarjimalar",
       settingsSubtitle: "Parol va til sozlamalarini yangilang.",
       changePassword: "Parolni o'zgartirish",
-      passwordUpdated: "Parol yangilandi"
+      passwordUpdated: "Parol yangilandi",
+      homePage: "Bosh sahifa",
+      advancedSearch: "Kengaytirilgan qidiruv",
+      navbarSearchPlaceholder: "Hujjatlar, kalit so'z yoki raqam bo'yicha qidirish...",
+      selectAll: "Barchasi",
+      apply: "Qo'llash",
+      homeHeroTitle: "Elektron kutubxona",
+      homeHeroSubtitle:
+        "Aeronavigatsiya sohasidagi lokal, me'yoriy, qonunchilik va boshqa muhim hujjatlarga tez va qulay kirish.",
+      totalDocuments: "Jami hujjatlar",
+      newDocuments: "Yangi hujjatlar",
+      mainSections: "Asosiy bo'limlar",
+      viewAll: "Barchasini ko'rish",
+      documentCount_one: "{{count}} ta hujjat",
+      documentCount_other: "{{count}} ta hujjat",
+      allRightsReserved: "Barcha huquqlar himoyalangan",
+      versionLabel: "Versiya",
+      helpService: "Yordam xizmati",
+      helpPhone: "+998 (71) 230-92-00",
+      helpEmail: "support@uzan.uz",
+      darkMode: "Tungi rejim"
     }
   }
 };

@@ -59,7 +59,6 @@ import { EmptyState } from "../../shared/ui/EmptyState";
 import { LoadingState } from "../../shared/ui/LoadingState";
 import { FiltersBar } from "../../shared/ui/FiltersBar";
 import { PaginationBar } from "../../shared/ui/PaginationBar";
-import { SearchField } from "../../shared/ui/SearchField";
 import { useTranslation } from "react-i18next";
 import { formatBytes } from "../../shared/utils/format";
 import { formatDateTime } from "../../shared/utils/date";
@@ -88,7 +87,7 @@ export default function UserFilesPage() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const [search, setSearch] = React.useState("");
+  const search = searchParams.get("q") || "";
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
   const [sort, setSort] = React.useState<{ key: string | null; direction: "asc" | "desc" | null }>({
@@ -112,10 +111,13 @@ export default function UserFilesPage() {
   const [favoriteOverrides, setFavoriteOverrides] = React.useState<Record<string, boolean>>({});
   const sectionId = Number(searchParams.get("sectionId") || 0) || undefined;
   const categoryId = Number(searchParams.get("categoryId") || 0) || undefined;
+  const sectionIds = searchParams.get("sectionIds") || undefined;
+  const categoryIds = searchParams.get("categoryIds") || undefined;
+  const departmentIds = searchParams.get("departmentIds") || undefined;
 
   React.useEffect(() => {
     setPage(1);
-  }, [search, pageSize, sort.key, sort.direction, sectionId, categoryId]);
+  }, [search, pageSize, sort.key, sort.direction, sectionId, categoryId, sectionIds, categoryIds, departmentIds]);
 
   React.useEffect(() => {
     localStorage.setItem("shared-library-view", viewMode);
@@ -126,7 +128,6 @@ export default function UserFilesPage() {
   }, [detailsId]);
 
   const resetFilters = () => {
-    setSearch("");
     setSort({ key: null, direction: null });
     setPage(1);
     setSearchParams(new URLSearchParams(), { replace: true });
@@ -143,7 +144,19 @@ export default function UserFilesPage() {
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ["user-files", page, pageSize, search, sort.key, sort.direction, sectionId, categoryId],
+    queryKey: [
+      "user-files",
+      page,
+      pageSize,
+      search,
+      sort.key,
+      sort.direction,
+      sectionId,
+      categoryId,
+      sectionIds,
+      categoryIds,
+      departmentIds
+    ],
     queryFn: () =>
       fetchUserFiles({
         page,
@@ -152,7 +165,10 @@ export default function UserFilesPage() {
         sortBy: sort.direction ? sort.key || undefined : undefined,
         sortDir: sort.direction || undefined,
         sectionId,
-        categoryId
+        categoryId,
+        sectionIds,
+        categoryIds,
+        departmentIds
       })
   });
   const { data: favoritesData } = useQuery({
@@ -848,7 +864,6 @@ export default function UserFilesPage() {
           </ToggleButtonGroup>
         }
       >
-        <SearchField value={search} onChange={setSearch} placeholder={t("searchFiles")} />
         <Select
           size="small"
           value={sort.direction && sort.key ? `${sort.key}:${sort.direction}` : "updated_at:desc"}
@@ -856,7 +871,7 @@ export default function UserFilesPage() {
             const [key, direction] = String(event.target.value).split(":");
             setSort({ key, direction: direction as "asc" | "desc" });
           }}
-          sx={{ minWidth: 190, backgroundColor: "#fff", borderRadius: "8px" }}
+          sx={{ minWidth: 190, backgroundColor: "var(--surface)", borderRadius: "8px" }}
         >
           <MenuItem value="updated_at:desc">{t("sortDateNew")}</MenuItem>
           <MenuItem value="updated_at:asc">{t("sortDateOld")}</MenuItem>

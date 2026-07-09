@@ -652,7 +652,13 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     if (status === "canceled") {
       return <Chip size="small" label={t("requestCancelled")} />;
     }
-    return <Chip size="small" color="warning" label={t("requestPending")} />;
+    return (
+      <Chip
+        size="small"
+        label={t("requestPending")}
+        sx={{ backgroundColor: "rgba(37, 99, 235, 0.12)", color: "primary.main", fontWeight: 700 }}
+      />
+    );
   };
 
   const requestTypeLabel = (requestType?: string | null) =>
@@ -1042,7 +1048,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
 
   const renderRequestRow = (row: any) => {
     const isUpdate = row.requestType === "update";
-    const tone = isUpdate ? "#d97706" : "#16a34a";
+    const tone = isUpdate ? "#0ea5e9" : "#2563eb";
     const metaParts = [
       row.sectionId ? (sectionsById.get(row.sectionId) as any)?.title || `#${row.sectionId}` : null,
       row.categoryId ? formatPath(getCategoryPath(row.categoryId)) : null,
@@ -1397,7 +1403,11 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                 label={
                   <Stack direction="row" spacing={1} alignItems="center">
                     <span>{t("pending")}</span>
-                    <Chip size="small" label={formatBadge(pendingRequestsCount)} color="warning" />
+                    <Chip
+                      size="small"
+                      label={formatBadge(pendingRequestsCount)}
+                      sx={{ backgroundColor: "rgba(37, 99, 235, 0.12)", color: "primary.main", fontWeight: 700 }}
+                    />
                   </Stack>
                 }
               />

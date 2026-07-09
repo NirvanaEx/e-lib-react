@@ -1952,13 +1952,29 @@ export class FilesService {
       sortDir?: string;
       sectionId?: number;
       categoryId?: number;
+      sectionIds?: number[];
+      categoryIds?: number[];
+      departmentIds?: number[];
       fileIds?: number[];
       includeDepartmentClosed?: boolean;
     },
     user: any,
     preferredLang: string | null
   ) {
-    const { page, pageSize, q, sortBy, sortDir, sectionId, categoryId, fileIds: filterFileIds, includeDepartmentClosed } = params;
+    const {
+      page,
+      pageSize,
+      q,
+      sortBy,
+      sortDir,
+      sectionId,
+      categoryId,
+      sectionIds,
+      categoryIds: filterCategoryIds,
+      departmentIds: filterDepartmentIds,
+      fileIds: filterFileIds,
+      includeDepartmentClosed
+    } = params;
     if (filterFileIds && filterFileIds.length === 0) {
       return { data: [], meta: buildPaginationMeta(page, pageSize, 0) };
     }
@@ -1994,6 +2010,10 @@ export class FilesService {
       query.where("file_items.section_id", sectionId);
     }
 
+    if (sectionIds && sectionIds.length) {
+      query.whereIn("file_items.section_id", sectionIds);
+    }
+
     if (categoryId) {
       const categoryIds = await this.getCategoryScopeIds(categoryId);
       if (categoryIds.length) {
@@ -2001,6 +2021,25 @@ export class FilesService {
       } else {
         query.where("file_items.category_id", categoryId);
       }
+    }
+
+    if (filterCategoryIds && filterCategoryIds.length) {
+      const expanded = new Set<number>();
+      for (const id of filterCategoryIds) {
+        const scope = await this.getCategoryScopeIds(id);
+        if (scope.length) {
+          scope.forEach((scopeId: number) => expanded.add(scopeId));
+        } else {
+          expanded.add(id);
+        }
+      }
+      query.whereIn("file_items.category_id", Array.from(expanded));
+    }
+
+    if (filterDepartmentIds && filterDepartmentIds.length) {
+      query.whereIn("file_items.created_by", function () {
+        this.select("id").from("users").whereIn("department_id", filterDepartmentIds);
+      });
     }
 
     if (q) {
@@ -2578,6 +2617,65 @@ export class FilesService {
       .orderBy("categories.depth", "asc")
       .orderBy("categories.id", "asc");
 
-    return this.buildMenu(sectionsRows, categoriesRows, preferredLang);
+    const menu = this.buildMenu(sectionsRows, categoriesRows, preferredLang);
+
+    const visibleFiles = () =>
+      this.dbService.db("file_items").whereNull("deleted_at").whereNot("access_type", "department_closed");
+
+    const sectionCounts = (await visibleFiles()
+      .select("section_id")
+      .count<{ section_id: number; count: string }[]>("id as count")
+      .groupBy("section_id")) as any[];
+    const sectionCountMap = new Map<number, number>(
+      sectionCounts.map((row: any) => [Number(row.section_id), Number(row.count || 0)])
+    );
+
+    const categoryCounts = (await visibleFiles()
+      .select("category_id")
+      .count<{ category_id: number; count: string }[]>("id as count")
+      .groupBy("category_id")) as any[];
+    const categoryCountMap = new Map<number, number>(
+      categoryCounts.map((row: any) => [Number(row.category_id), Number(row.count || 0)])
+    );
+
+    const departments = await this.dbService.db("departments")
+      .select("id", "parent_id", "depth", "name")
+      .orderBy("depth", "asc")
+      .orderBy("name", "asc");
+
+    return {
+      sections: menu.sections.map((section) => ({ ...section, fileCount: sectionCountMap.get(section.id) || 0 })),
+      categories: menu.categories.map((category) => ({ ...category, fileCount: categoryCountMap.get(category.id) || 0 })),
+      departments: departments.map((row: any) => ({
+        id: row.id,
+        parentId: row.parent_id,
+        depth: row.depth,
+        name: row.name
+      }))
+    };
+  }
+
+  async getUserStats() {
+    const db = this.dbService.db;
+    const visibleFiles = () => db("file_items").whereNull("deleted_at").whereNot("access_type", "department_closed");
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const [totalFilesRow, newFilesRow, sectionsRow, categoriesRow, downloadsRow] = await Promise.all([
+      visibleFiles().count<{ count: string }>("id as count").first(),
+      visibleFiles().where("created_at", ">=", thirtyDaysAgo.toISOString()).count<{ count: string }>("id as count").first(),
+      db("sections").count<{ count: string }>("id as count").first(),
+      db("categories").count<{ count: string }>("id as count").first(),
+      db("downloads").count<{ count: string }>("id as count").first()
+    ]);
+
+    return {
+      totalFiles: Number(totalFilesRow?.count || 0),
+      newFiles: Number(newFilesRow?.count || 0),
+      sectionsCount: Number(sectionsRow?.count || 0),
+      categoriesCount: Number(categoriesRow?.count || 0),
+      totalDownloads: Number(downloadsRow?.count || 0)
+    };
   }
 }

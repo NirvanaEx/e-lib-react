@@ -24,4 +24,16 @@ export class FilesQueryDto extends PaginationDto {
   @Type(() => Number)
   @IsInt()
   categoryId?: number;
+
+  @IsOptional()
+  @IsString()
+  sectionIds?: string;
+
+  @IsOptional()
+  @IsString()
+  categoryIds?: string;
+
+  @IsOptional()
+  @IsString()
+  departmentIds?: string;
 }

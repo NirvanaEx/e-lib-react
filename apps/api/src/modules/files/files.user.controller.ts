@@ -29,6 +29,12 @@ export class FilesUserController {
     return this.filesService.getUserMenuAll(lang);
   }
 
+  @Get("stats")
+  @Access("file.read")
+  async stats() {
+    return this.filesService.getUserStats();
+  }
+
   @Get("files")
   @Access("file.read")
   async list(@Query() query: FilesQueryDto, @User() user: any, @Lang() lang: string | null) {
@@ -40,11 +46,23 @@ export class FilesUserController {
         sortBy: query.sortBy,
         sortDir: query.sortDir,
         sectionId: query.sectionId,
-        categoryId: query.categoryId
+        categoryId: query.categoryId,
+        sectionIds: this.parseIdList(query.sectionIds),
+        categoryIds: this.parseIdList(query.categoryIds),
+        departmentIds: this.parseIdList(query.departmentIds)
       },
       user,
       lang
     );
+  }
+
+  private parseIdList(value?: string): number[] | undefined {
+    if (!value) return undefined;
+    const ids = value
+      .split(",")
+      .map((item) => Number(item.trim()))
+      .filter((id) => Number.isInteger(id) && id > 0);
+    return ids.length ? ids : undefined;
   }
 
   @Get("my-files")
