@@ -1513,6 +1513,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
         anchor="right"
         open={Boolean(detailsId) && !lgUp}
         onClose={handleCloseDetails}
+        sx={{ zIndex: (theme) => theme.zIndex.drawer + 2 }}
         PaperProps={{ sx: { width: { xs: "100%", sm: 420 } } }}
       >
         {renderDetailsPanel()}

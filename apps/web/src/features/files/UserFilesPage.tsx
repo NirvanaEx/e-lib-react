@@ -1179,6 +1179,7 @@ export default function UserFilesPage() {
         anchor="right"
         open={Boolean(detailsId) && !lgUp}
         onClose={() => setDetailsId(null)}
+        sx={{ zIndex: (theme) => theme.zIndex.drawer + 2 }}
         PaperProps={{ sx: { width: { xs: "100%", sm: 420 } } }}
       >
         {renderDetailsPanel()}
