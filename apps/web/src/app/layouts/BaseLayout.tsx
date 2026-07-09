@@ -121,6 +121,10 @@ export function BaseLayout({
   const handleDrawerToggle = () => {
     setMobileOpen((prev) => !prev);
   };
+
+  React.useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
   const toggleCollapsed = () => {
     setIsCollapsed((prev) => !prev);
   };
@@ -239,6 +243,7 @@ export function BaseLayout({
         pt: sidebarPaddingTop ?? 2.5,
         flex: 1,
         minHeight: 0,
+        minWidth: 0,
         display: "flex",
         flexDirection: "column",
         color: darkSidebar ? "#fff" : "inherit",
@@ -396,9 +401,9 @@ export function BaseLayout({
           ml: { md: `${effectiveDrawerWidth}px` }
         }}
       >
-        <Toolbar sx={{ display: "flex", justifyContent: "space-between", gap: 2, px: { xs: 2, md: 3 } }}>
+        <Toolbar sx={{ display: "flex", justifyContent: "space-between", gap: { xs: 1, md: 2 }, px: { xs: 1.5, md: 3 } }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
-            <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 1, display: { md: "none" } }}>
+            <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: { xs: 0, sm: 1 }, display: { md: "none" } }}>
               <MenuIcon />
             </IconButton>
             {sidebarCollapsible && (
@@ -418,9 +423,9 @@ export function BaseLayout({
               {headerContent}
             </Box>
           )}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, md: 2 }, flexShrink: 0 }}>
             {switchLink && (
-              <Stack direction="row" spacing={1}>
+              <Stack direction="row" spacing={1} sx={{ display: { xs: "none", sm: "flex" } }}>
                 <Button size="small" variant="outlined" onClick={() => navigate(switchLink.path)}>
                   {switchLink.label}
                 </Button>
@@ -464,7 +469,8 @@ export function BaseLayout({
                   py: 0.6,
                   borderRadius: "8px",
                   border: "1px solid var(--border)",
-                  backgroundColor: "var(--surface)"
+                  backgroundColor: "var(--surface)",
+                  display: { xs: "none", lg: "flex" }
                 }}
               >
                 {user.department && (
@@ -515,7 +521,7 @@ export function BaseLayout({
         >
           <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
             {sidebarTopNode === null ? null : sidebarTopNode ?? <Toolbar />}
-            <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>{drawerContent}</Box>
+            <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, display: "flex" }}>{drawerContent}</Box>
           </Box>
         </Drawer>
         <Drawer
@@ -534,7 +540,7 @@ export function BaseLayout({
         >
           <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
             {sidebarTopNode === null ? null : sidebarTopNode ?? <Toolbar />}
-            <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>{drawerContent}</Box>
+            <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, display: "flex" }}>{drawerContent}</Box>
           </Box>
         </Drawer>
       </Box>

@@ -64,7 +64,7 @@ import { formatBytes } from "../../shared/utils/format";
 import { formatDateTime } from "../../shared/utils/date";
 import { getFilenameFromDisposition } from "../../shared/utils/download";
 import { getErrorMessage } from "../../shared/utils/errors";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { formatUserLabel } from "../../shared/utils/userLabel";
 import { sharedLibraryTableLayout } from "./fileTableLayout";
@@ -84,6 +84,7 @@ const sectionTones = ["#2563eb", "#7c3aed", "#0ea5e9", "#0d9488", "#d97706", "#d
 
 export default function UserFilesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
@@ -778,9 +779,9 @@ export default function UserFilesPage() {
         <Box
           sx={{
             display: "grid",
-            gap: 1.5,
+            gap: 1,
             mb: 2,
-            gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(auto-fill, minmax(160px, 1fr))" }
+            gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(auto-fill, minmax(132px, 1fr))" }
           }}
         >
           {[{ id: null, title: t("allSections") }, ...sections].map((section: any, index: number) => {
@@ -793,7 +794,7 @@ export default function UserFilesPage() {
                 key={section.id ?? "all"}
                 onClick={() => setSectionFilter(section.id)}
                 sx={{
-                  p: 1.5,
+                  p: 1.25,
                   borderRadius: "10px",
                   cursor: "pointer",
                   border: "1px solid",
@@ -801,7 +802,7 @@ export default function UserFilesPage() {
                   backgroundColor: active ? "rgba(37, 99, 235, 0.06)" : "var(--surface)",
                   display: "flex",
                   flexDirection: "column",
-                  gap: 1.25,
+                  gap: 0.75,
                   transition: "border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease",
                   "&:hover": {
                     borderColor: "primary.main",
@@ -812,8 +813,8 @@ export default function UserFilesPage() {
               >
                 <Box
                   sx={{
-                    width: 38,
-                    height: 38,
+                    width: 30,
+                    height: 30,
                     borderRadius: "8px",
                     display: "grid",
                     placeItems: "center",
@@ -821,12 +822,13 @@ export default function UserFilesPage() {
                     color: tone
                   }}
                 >
-                  <LibraryIcon name={section.icon} fallback={FallbackIcon} fontSize="small" />
+                  <LibraryIcon name={section.icon} fallback={FallbackIcon} sx={{ fontSize: 17 }} />
                 </Box>
                 <Typography
-                  variant="body2"
                   sx={{
-                    fontWeight: 700,
+                    fontWeight: 600,
+                    fontSize: 12.5,
+                    lineHeight: 1.3,
                     display: "-webkit-box",
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: "vertical",
@@ -1102,7 +1104,7 @@ export default function UserFilesPage() {
                     variant="outlined"
                     startIcon={<VisibilityOutlinedIcon />}
                     disabled={!canOpen}
-                    onClick={() => setDetailsId(row.id)}
+                    onClick={() => navigate(`/users/view/${row.id}`)}
                     sx={{ borderRadius: "8px" }}
                   >
                     {t("view")}

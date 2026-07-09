@@ -24,6 +24,7 @@ import FileDetailsPage from "../features/files/FileDetailsPage";
 import TrashPage from "../features/files/TrashPage";
 import StatsPage from "../features/stats/StatsPage";
 import UserFilesPage from "../features/files/UserFilesPage";
+import UserFileViewPage from "../features/files/UserFileViewPage";
 import UserHomePage from "../features/home/UserHomePage";
 import UserLibraryPage from "../features/files/UserLibraryPage";
 import UserFileDetailsPage from "../features/files/UserFileDetailsPage";
@@ -366,6 +367,18 @@ export default function App() {
                     <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
                       <UserLayout>
                         <UserLibraryPage view="department" />
+                      </UserLayout>
+                    </RequireRole>
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/users/view/:id"
+                element={
+                  <RequireAuth>
+                    <RequireRole roles={["superadmin", "admin", "manager", "user"]}>
+                      <UserLayout>
+                        <UserFileViewPage />
                       </UserLayout>
                     </RequireRole>
                   </RequireAuth>

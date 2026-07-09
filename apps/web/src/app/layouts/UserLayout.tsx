@@ -7,6 +7,7 @@ import ApartmentOutlinedIcon from "@mui/icons-material/ApartmentOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
+import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 import { BaseLayout } from "./BaseLayout";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -154,39 +155,41 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
   };
 
   return (
-    <List disablePadding>
-      {navItems.map((item) => {
-        const active = item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path);
-        const button = (
-          <ListItemButton
-            key={item.path}
-            selected={active}
-            onClick={() => navigate(item.path)}
-            sx={{ ...itemSx, justifyContent: collapsed ? "center" : "flex-start" }}
-          >
-            <ListItemIcon sx={{ minWidth: collapsed ? 0 : 34, color: active ? "#fff" : "text.secondary" }}>
-              {item.icon}
-            </ListItemIcon>
-            {!collapsed && (
-              <ListItemText
-                primary={
-                  <Typography variant="body2" sx={{ fontWeight: active ? 700 : 600 }}>
-                    {item.label}
-                  </Typography>
-                }
-              />
-            )}
-          </ListItemButton>
-        );
-        return collapsed ? (
-          <Tooltip key={item.path} title={item.label} placement="right">
-            {button}
-          </Tooltip>
-        ) : (
-          button
-        );
-      })}
-    </List>
+    <Box>
+      <List disablePadding>
+        {navItems.map((item) => {
+          const active = item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path);
+          const button = (
+            <ListItemButton
+              key={item.path}
+              selected={active}
+              onClick={() => navigate(item.path)}
+              sx={{ ...itemSx, justifyContent: collapsed ? "center" : "flex-start" }}
+            >
+              <ListItemIcon sx={{ minWidth: collapsed ? 0 : 34, color: active ? "#fff" : "text.secondary" }}>
+                {item.icon}
+              </ListItemIcon>
+              {!collapsed && (
+                <ListItemText
+                  primary={
+                    <Typography variant="body2" sx={{ fontWeight: active ? 700 : 600 }}>
+                      {item.label}
+                    </Typography>
+                  }
+                />
+              )}
+            </ListItemButton>
+          );
+          return collapsed ? (
+            <Tooltip key={item.path} title={item.label} placement="right">
+              {button}
+            </Tooltip>
+          ) : (
+            button
+          );
+        })}
+      </List>
+    </Box>
   );
 }
 
@@ -205,7 +208,43 @@ function UserSidebarFooter({ collapsed }: { collapsed: boolean }) {
   }
 
   return (
-    <Stack spacing={1.25}>
+    <Stack spacing={1.5}>
+      <Box
+        sx={{
+          borderRadius: "10px",
+          border: "1px solid var(--border)",
+          backgroundColor: "var(--surface-2)",
+          p: 1.5,
+          display: "flex",
+          gap: 1.25,
+          alignItems: "flex-start"
+        }}
+      >
+        <SupportAgentOutlinedIcon fontSize="small" sx={{ color: "primary.main", mt: 0.25 }} />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+            {t("helpService")}
+          </Typography>
+          <Typography
+            component="a"
+            href={`tel:${t("helpPhone").replace(/[^+\d]/g, "")}`}
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", "&:hover": { color: "primary.main" } }}
+          >
+            {t("helpPhone")}
+          </Typography>
+          <Typography
+            component="a"
+            href={`mailto:${t("helpEmail")}`}
+            variant="caption"
+            sx={{ color: "primary.main", fontWeight: 600 }}
+          >
+            {t("helpEmail")}
+          </Typography>
+        </Box>
+      </Box>
+
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 0.5 }}>
         <Stack direction="row" spacing={1} alignItems="center">
           <DarkModeOutlinedIcon fontSize="small" sx={{ color: "text.secondary" }} />
