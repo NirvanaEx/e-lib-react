@@ -2659,12 +2659,12 @@ export class FilesService {
     const db = this.dbService.db;
     const visibleFiles = () => db("file_items").whereNull("deleted_at").whereNot("access_type", "department_closed");
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     const [totalFilesRow, newFilesRow, sectionsRow, categoriesRow, downloadsRow] = await Promise.all([
       visibleFiles().count<{ count: string }>("id as count").first(),
-      visibleFiles().where("created_at", ">=", thirtyDaysAgo.toISOString()).count<{ count: string }>("id as count").first(),
+      visibleFiles().where("created_at", ">=", sevenDaysAgo.toISOString()).count<{ count: string }>("id as count").first(),
       db("sections").count<{ count: string }>("id as count").first(),
       db("categories").count<{ count: string }>("id as count").first(),
       db("downloads").count<{ count: string }>("id as count").first()

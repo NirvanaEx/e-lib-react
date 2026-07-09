@@ -1026,7 +1026,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
             variant="outlined"
             startIcon={<VisibilityOutlinedIcon />}
             disabled={!canOpen}
-            onClick={() => handleOpenDetails(row)}
+            onClick={() => navigate(`/users/view/${row.id}`)}
             sx={{ borderRadius: "8px" }}
           >
             {t("view")}

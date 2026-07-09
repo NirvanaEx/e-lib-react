@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, ButtonBase, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import { Box, ButtonBase, IconButton, Paper, Skeleton, Stack, Tooltip, Typography } from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
@@ -10,15 +10,27 @@ import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlin
 import FlightOutlinedIcon from "@mui/icons-material/FlightOutlined";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
-import { useQuery } from "@tanstack/react-query";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { fetchMenu, fetchUserFiles, fetchUserStats } from "../files/files.api";
+import {
+  addUserFavorite,
+  fetchMenu,
+  fetchUserFavorites,
+  fetchUserFiles,
+  fetchUserStats,
+  removeUserFavorite
+} from "../files/files.api";
+import { useToast } from "../../shared/ui/ToastProvider";
+import { getErrorMessage } from "../../shared/utils/errors";
 import UserFilesPage from "../files/UserFilesPage";
 import { LibraryIcon } from "../../shared/ui/iconLibrary";
 import { FileTypeBadge } from "../files/fileVisuals";
 import { formatDate } from "../../shared/utils/date";
-import heroImage from "../../assets/main-back.jpg";
+import heroImage from "../../assets/main-back2.jpg";
 
 const FILTER_PARAMS = ["q", "sectionId", "categoryId", "sectionIds", "categoryIds", "departmentIds"];
 
@@ -43,20 +55,70 @@ export default function UserHomePage() {
   return <HomeContent />;
 }
 
+const NEW_DOCUMENTS_DAYS = 7;
+const NEW_DOCUMENTS_LIMIT = 7;
+
 function HomeContent() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   const { data: statsData, isLoading: statsLoading } = useQuery({ queryKey: ["user-stats"], queryFn: fetchUserStats });
   const { data: menuData, isLoading: menuLoading } = useQuery({ queryKey: ["user-menu-all"], queryFn: () => fetchMenu() });
   const { data: latestData, isLoading: latestLoading } = useQuery({
     queryKey: ["user-files", "latest"],
-    queryFn: () => fetchUserFiles({ page: 1, pageSize: 6 })
+    queryFn: () => fetchUserFiles({ page: 1, pageSize: 20 })
   });
+  const { data: favoritesData } = useQuery({
+    queryKey: ["user-favorites", "ids"],
+    queryFn: () => fetchUserFavorites({ page: 1, pageSize: 1000 })
+  });
+
+  const [favoriteOverrides, setFavoriteOverrides] = React.useState<Record<string, boolean>>({});
+  const favoriteIds = React.useMemo(
+    () => new Set((favoritesData?.data || []).map((item: any) => Number(item.id))),
+    [favoritesData]
+  );
+
+  const favoriteMutation = useMutation({
+    mutationFn: ({ id, isFavorite }: { id: number; isFavorite: boolean }) =>
+      isFavorite ? removeUserFavorite(id) : addUserFavorite(id),
+    onMutate: ({ id, isFavorite }) => {
+      setFavoriteOverrides((prev) => ({ ...prev, [String(id)]: !isFavorite }));
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["user-favorites"] });
+      queryClient.invalidateQueries({ queryKey: ["user-files"] });
+      showToast({ message: variables.isFavorite ? t("favoriteRemoved") : t("favoriteAdded"), severity: "success" });
+    },
+    onError: (error, variables) => {
+      setFavoriteOverrides((prev) => {
+        const next = { ...prev };
+        delete next[String(variables.id)];
+        return next;
+      });
+      showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" });
+    }
+  });
+
+  const isRowFavorite = (row: any) => {
+    const override = favoriteOverrides[String(row.id)];
+    if (override !== undefined) return override;
+    return favoriteIds.has(Number(row.id));
+  };
 
   const numberFormat = React.useMemo(() => new Intl.NumberFormat(i18n.language || "ru"), [i18n.language]);
   const sections = menuData?.sections || [];
-  const latestFiles = latestData?.data || [];
+  const latestFiles = React.useMemo(() => {
+    const threshold = Date.now() - NEW_DOCUMENTS_DAYS * 24 * 60 * 60 * 1000;
+    return (latestData?.data || [])
+      .filter((row: any) => {
+        const created = new Date(row.createdAt).getTime();
+        return Number.isFinite(created) && created >= threshold;
+      })
+      .slice(0, NEW_DOCUMENTS_LIMIT);
+  }, [latestData]);
 
   const statCards = [
     {
@@ -108,9 +170,9 @@ function HomeContent() {
             minHeight: { xs: 190, md: 260 },
             display: "flex",
             alignItems: "center",
-            backgroundImage: `linear-gradient(95deg, rgba(8, 28, 57, 0.92) 0%, rgba(10, 34, 66, 0.72) 42%, rgba(12, 42, 82, 0.08) 100%), url(${heroImage})`,
+            backgroundImage: `linear-gradient(95deg, rgba(8, 28, 57, 0.93) 0%, rgba(10, 34, 66, 0.8) 35%, rgba(12, 42, 82, 0.22) 68%, rgba(12, 42, 82, 0.05) 100%), url(${heroImage})`,
             backgroundSize: "cover",
-            backgroundPosition: "right 68%"
+            backgroundPosition: "right top"
           }}
         >
           <Box sx={{ px: { xs: 3, md: 5 }, py: { xs: 3.5, md: 5 }, pb: { xs: 3.5, md: 10 }, maxWidth: 600 }}>
@@ -288,9 +350,14 @@ function HomeContent() {
           }}
         >
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 2.5, pt: 2, pb: 1.5 }}>
-            <Typography variant="h6" sx={{ fontSize: 17 }}>
-              {t("newDocuments")}
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={0.75}>
+              <Typography variant="h6" sx={{ fontSize: 17 }}>
+                {t("newDocuments")}
+              </Typography>
+              <Tooltip title={t("newDocumentsHint")}>
+                <HelpOutlineIcon sx={{ fontSize: 15, color: "text.disabled", cursor: "help" }} />
+              </Tooltip>
+            </Stack>
             <SectionLink label={t("viewAll")} onClick={() => navigate("/users/files")} />
           </Stack>
           {latestLoading ? (
@@ -305,33 +372,50 @@ function HomeContent() {
             </Typography>
           ) : (
             <Box sx={{ pb: 1 }}>
-              {latestFiles.map((row: any) => (
-                <ButtonBase
-                  key={row.id}
-                  onClick={() => navigate(`/users/${row.id}`)}
-                  sx={{
-                    width: "100%",
-                    display: "flex",
-                    justifyContent: "flex-start",
-                    textAlign: "left",
-                    gap: 1.5,
-                    px: 2.5,
-                    py: 1.25,
-                    borderTop: "1px solid var(--border)",
-                    "&:hover": { backgroundColor: "var(--surface-2)" }
-                  }}
-                >
-                  <FileTypeBadge ext={(row.availableAssetExts || [])[0]} small />
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
-                      {row.title || t("file")}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
-                      {formatDate(row.createdAt)}
-                    </Typography>
+              {latestFiles.map((row: any) => {
+                const isFavorite = isRowFavorite(row);
+                return (
+                  <Box
+                    key={row.id}
+                    onClick={() => navigate(`/users/${row.id}`)}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1.5,
+                      px: 2.5,
+                      py: 1.25,
+                      cursor: "pointer",
+                      borderTop: "1px solid var(--border)",
+                      "&:hover": { backgroundColor: "var(--surface-2)" }
+                    }}
+                  >
+                    <FileTypeBadge ext={(row.availableAssetExts || [])[0]} small />
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                        {row.title || t("file")}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
+                        {formatDate(row.createdAt)}
+                      </Typography>
+                    </Box>
+                    <Tooltip title={t("favorites")}>
+                      <IconButton
+                        size="small"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          favoriteMutation.mutate({ id: Number(row.id), isFavorite });
+                        }}
+                      >
+                        {isFavorite ? (
+                          <StarIcon fontSize="small" sx={{ color: "warning.main" }} />
+                        ) : (
+                          <StarBorderIcon fontSize="small" sx={{ color: "text.disabled" }} />
+                        )}
+                      </IconButton>
+                    </Tooltip>
                   </Box>
-                </ButtonBase>
-              ))}
+                );
+              })}
             </Box>
           )}
         </Paper>
