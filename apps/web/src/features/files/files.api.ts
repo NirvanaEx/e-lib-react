@@ -103,6 +103,7 @@ export async function fetchUserFiles(params: {
   sectionIds?: string;
   categoryIds?: string;
   departmentIds?: string;
+  newDays?: number;
 }) {
   const { data } = await api.get("/user/files", { params });
   return data;

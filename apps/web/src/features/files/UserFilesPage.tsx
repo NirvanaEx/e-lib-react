@@ -40,6 +40,7 @@ import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -115,10 +116,11 @@ export default function UserFilesPage() {
   const sectionIds = searchParams.get("sectionIds") || undefined;
   const categoryIds = searchParams.get("categoryIds") || undefined;
   const departmentIds = searchParams.get("departmentIds") || undefined;
+  const newDays = Number(searchParams.get("newDays") || 0) || undefined;
 
   React.useEffect(() => {
     setPage(1);
-  }, [search, pageSize, sort.key, sort.direction, sectionId, categoryId, sectionIds, categoryIds, departmentIds]);
+  }, [search, pageSize, sort.key, sort.direction, sectionId, categoryId, sectionIds, categoryIds, departmentIds, newDays]);
 
   React.useEffect(() => {
     localStorage.setItem("shared-library-view", viewMode);
@@ -156,7 +158,8 @@ export default function UserFilesPage() {
       categoryId,
       sectionIds,
       categoryIds,
-      departmentIds
+      departmentIds,
+      newDays
     ],
     queryFn: () =>
       fetchUserFiles({
@@ -169,7 +172,8 @@ export default function UserFilesPage() {
         categoryId,
         sectionIds,
         categoryIds,
-        departmentIds
+        departmentIds,
+        newDays
       })
   });
   const { data: favoritesData } = useQuery({
@@ -866,6 +870,21 @@ export default function UserFilesPage() {
           </ToggleButtonGroup>
         }
       >
+        {newDays ? (
+          <Tooltip title={t("newDocumentsHint")}>
+            <Chip
+              icon={<AccessTimeOutlinedIcon sx={{ fontSize: 16 }} />}
+              label={t("newDocuments")}
+              color="primary"
+              sx={{ fontWeight: 700, borderRadius: "8px" }}
+              onDelete={() => {
+                const params = new URLSearchParams(searchParams);
+                params.delete("newDays");
+                setSearchParams(params, { replace: true });
+              }}
+            />
+          </Tooltip>
+        ) : null}
         <Select
           size="small"
           value={sort.direction && sort.key ? `${sort.key}:${sort.direction}` : "updated_at:desc"}

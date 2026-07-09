@@ -1957,6 +1957,7 @@ export class FilesService {
       departmentIds?: number[];
       fileIds?: number[];
       includeDepartmentClosed?: boolean;
+      createdWithinDays?: number;
     },
     user: any,
     preferredLang: string | null
@@ -1973,7 +1974,8 @@ export class FilesService {
       categoryIds: filterCategoryIds,
       departmentIds: filterDepartmentIds,
       fileIds: filterFileIds,
-      includeDepartmentClosed
+      includeDepartmentClosed,
+      createdWithinDays
     } = params;
     if (filterFileIds && filterFileIds.length === 0) {
       return { data: [], meta: buildPaginationMeta(page, pageSize, 0) };
@@ -1984,7 +1986,6 @@ export class FilesService {
     const sortLang = lang || defaultLang;
     const departmentIds = await this.getDepartmentScopeIds(user.departmentId);
     const query = db("file_items")
-      .leftJoin("file_translations", "file_items.id", "file_translations.file_item_id")
       .select(
         "file_items.id",
         "file_items.section_id",
@@ -1992,10 +1993,7 @@ export class FilesService {
         "file_items.access_type",
         "file_items.current_version_id",
         "file_items.created_at",
-        "file_items.updated_at",
-        "file_translations.lang",
-        "file_translations.title",
-        "file_translations.description"
+        "file_items.updated_at"
       )
       .whereNull("file_items.deleted_at");
     if (!includeDepartmentClosed) {
@@ -2043,7 +2041,18 @@ export class FilesService {
     }
 
     if (q) {
-      query.whereILike("file_translations.title", `%${q}%`);
+      query.whereExists(function () {
+        this.select(1)
+          .from("file_translations")
+          .whereRaw("file_translations.file_item_id = file_items.id")
+          .whereILike("file_translations.title", `%${q}%`);
+      });
+    }
+
+    if (createdWithinDays && createdWithinDays > 0) {
+      const since = new Date();
+      since.setDate(since.getDate() - createdWithinDays);
+      query.where("file_items.created_at", ">=", since.toISOString());
     }
 
     const direction = sortDir === "asc" ? "asc" : "desc";
@@ -2103,6 +2112,13 @@ export class FilesService {
       .first();
     const rows = await query.offset((page - 1) * pageSize).limit(pageSize);
 
+    const pageFileIds = rows.map((row: any) => row.id);
+    const translationRows = pageFileIds.length
+      ? await db("file_translations")
+          .select("file_item_id", "lang", "title", "description")
+          .whereIn("file_item_id", pageFileIds)
+      : [];
+
     type UserFileRow = {
       id: number;
       section_id: number;
@@ -2115,19 +2131,19 @@ export class FilesService {
     };
     const grouped = new Map<number, UserFileRow>();
     rows.forEach((row: any) => {
-      if (!grouped.has(row.id)) {
-        grouped.set(row.id, {
-          id: row.id,
-          section_id: row.section_id,
-          category_id: row.category_id,
-          access_type: row.access_type,
-          current_version_id: row.current_version_id,
-          created_at: row.created_at,
-          updated_at: row.updated_at,
-          translations: []
-        });
-      }
-      const current = grouped.get(row.id);
+      grouped.set(row.id, {
+        id: row.id,
+        section_id: row.section_id,
+        category_id: row.category_id,
+        access_type: row.access_type,
+        current_version_id: row.current_version_id,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        translations: []
+      });
+    });
+    translationRows.forEach((row: any) => {
+      const current = grouped.get(row.file_item_id);
       if (row.lang && current) {
         current.translations.push({
           lang: row.lang,
