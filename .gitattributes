@@ -1,0 +1,3 @@
+# Shell scripts and git hooks must use LF, otherwise a Windows CRLF checkout
+# turns `#!/usr/bin/env bash` into `bash\r` and the hook fails on Linux.
+*.sh text eol=lf
