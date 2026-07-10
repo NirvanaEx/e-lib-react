@@ -26,6 +26,7 @@ import {
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
+import { agreementSignature, isAgreementAnswered, markAgreementAnswered } from "../../shared/utils/agreementSession";
 import SettingsIcon from "@mui/icons-material/Settings";
 import BusinessIcon from "@mui/icons-material/Business";
 import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
@@ -104,7 +105,6 @@ export function BaseLayout({
   const collapsed = sidebarCollapsible ? isCollapsed : false;
   const effectiveDrawerWidth = collapsed ? collapsedDrawerWidth : drawerWidth;
   const [agreementOpen, setAgreementOpen] = React.useState(false);
-  const [agreementDismissed, setAgreementDismissed] = React.useState(false);
   // Distinguishes the mandatory login prompt from opening the agreement to re-read it.
   const [agreementRequired, setAgreementRequired] = React.useState(false);
   const [mobileMenuAnchor, setMobileMenuAnchor] = React.useState<HTMLElement | null>(null);
@@ -137,16 +137,15 @@ export function BaseLayout({
     setIsCollapsed((prev) => !prev);
   };
 
-  React.useEffect(() => {
-    setAgreementDismissed(false);
-  }, [user?.id]);
+  const agreementKeySignature = user?.id ? agreementSignature(user.id, agreementData?.updatedAt) : null;
 
   React.useEffect(() => {
-    if (agreementData?.shouldShow && !agreementDismissed) {
+    if (!agreementKeySignature) return;
+    if (agreementData?.shouldShow && !isAgreementAnswered(agreementKeySignature)) {
       setAgreementRequired(true);
       setAgreementOpen(true);
     }
-  }, [agreementData?.shouldShow, agreementDismissed]);
+  }, [agreementKeySignature, agreementData?.shouldShow]);
 
   const closeAgreement = () => {
     setAgreementOpen(false);
@@ -154,8 +153,10 @@ export function BaseLayout({
   };
 
   const handleAgreementAccept = () => {
-    setAgreementDismissed(true);
     closeAgreement();
+    if (agreementKeySignature) {
+      markAgreementAnswered(agreementKeySignature);
+    }
     if (user?.id) {
       acceptAgreementMutation.mutate();
     }
