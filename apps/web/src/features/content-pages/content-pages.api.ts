@@ -22,6 +22,7 @@ export type ContentPageUserResponse = {
   requiresAcceptance: boolean;
   isActive: boolean;
   shouldShow: boolean;
+  updatedAt: string | null;
 };
 
 export async function fetchContentPage(key: string) {

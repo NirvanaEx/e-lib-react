@@ -2,6 +2,7 @@ import React, { createContext, useContext, useMemo, useState, useEffect, useCall
 import axios from "axios";
 import i18n from "../../app/i18n";
 import { me, logout } from "../../features/auth/auth.api";
+import { clearAgreementAnswered } from "../utils/agreementSession";
 
 export type AuthUser = {
   id: number;
@@ -63,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearAuth = useCallback(() => {
     logout().catch(() => undefined);
+    clearAgreementAnswered();
     setUser(null);
     setIsInitialized(true);
   }, []);
