@@ -30,7 +30,7 @@ import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
 import { getDefaultRoute } from "../../shared/utils/access";
 import i18n from "../../app/i18n";
-import loginHero from "../../assets/main-login-back.png";
+import loginHero from "../../assets/login-back3.png";
 
 const schema = z.object({
   login: z.string().min(1),
