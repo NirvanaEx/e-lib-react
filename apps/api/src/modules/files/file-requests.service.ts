@@ -7,6 +7,7 @@ import { DatabaseService } from "../../db/database.service";
 import { AuditService } from "../audit/audit.service";
 import { buildPaginationMeta } from "../../common/utils/pagination";
 import { getAvailableLangs, normalizeLang, selectTranslation, Lang } from "../../common/utils/lang";
+import { decodeUploadFilename } from "../../common/utils/filename";
 
 type FileRequestTranslation = { lang: Lang; title: string; description?: string | null };
 
@@ -353,7 +354,8 @@ export class FileRequestsService {
       .split(",")
       .map((x) => x.trim().toLowerCase())
       .filter(Boolean);
-    const ext = path.extname(file.originalname).replace(".", "").toLowerCase();
+    const originalName = decodeUploadFilename(file.originalname);
+    const ext = path.extname(originalName).replace(".", "").toLowerCase();
     if (allowed.length && !allowed.includes(ext)) {
       await this.deleteFileSafe(file.path);
       throw new BadRequestException("File extension not allowed");
@@ -368,7 +370,7 @@ export class FileRequestsService {
       throw new BadRequestException("File type not allowed");
     }
 
-    const newPath = await this.buildAssetPath(file.originalname);
+    const newPath = await this.buildAssetPath(originalName);
     await this.ensureUploadDir(path.dirname(newPath));
     await fs.rename(file.path, newPath);
 
@@ -384,7 +386,7 @@ export class FileRequestsService {
       .insert({
         file_request_id: requestId,
         lang,
-        original_name: file.originalname,
+        original_name: originalName,
         mime: file.mimetype,
         size: file.size,
         path: newPath,
@@ -402,7 +404,7 @@ export class FileRequestsService {
       action: "FILE_REQUEST_ASSET_UPLOADED",
       entityType: "FILE_REQUEST",
       entityId: requestId,
-      meta: { lang, size: file.size, originalName: file.originalname }
+      meta: { lang, size: file.size, originalName }
     });
 
     return { id: asset.id || asset };
