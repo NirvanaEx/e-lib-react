@@ -75,6 +75,8 @@ const resources = {
       userAgreement: "User agreement",
       userAgreementIntro: "Please read the following terms before using E-lib.",
       agreementAccept: "I agree",
+      agreementDecline: "Decline",
+      agreementDeclineHint: "If you decline, you will be signed out and will not be able to continue.",
       agreementSubtitle: "Edit the agreement text and display settings.",
       agreementDisplayMode: "Display mode",
       agreementDisplayOnce: "Show once on first login",
@@ -429,6 +431,8 @@ const resources = {
       versionLabel: "Version",
       helpService: "Support service",
       helpOrg: "DCAII",
+      helpExtensions: "Internal numbers",
+      close: "Close",
       darkMode: "Dark mode"
     }
   },
@@ -505,6 +509,8 @@ const resources = {
       userAgreement: "Пользовательское соглашение",
       userAgreementIntro: "Пожалуйста, ознакомьтесь с условиями использования E-lib.",
       agreementAccept: "Ознакомлен",
+      agreementDecline: "Отказаться",
+      agreementDeclineHint: "При отказе вы будете возвращены на экран входа и не сможете продолжить работу.",
       agreementSubtitle: "Редактируйте текст соглашения и настройки показа.",
       agreementDisplayMode: "Режим показа",
       agreementDisplayOnce: "Показывать один раз при первом входе",
@@ -861,6 +867,8 @@ const resources = {
       versionLabel: "Версия",
       helpService: "Служба поддержки",
       helpOrg: "ДЦиИИ",
+      helpExtensions: "Внутренние номера",
+      close: "Закрыть",
       darkMode: "Тёмный режим"
     }
   },
@@ -937,6 +945,8 @@ const resources = {
       userAgreement: "Foydalanuvchi kelishuvi",
       userAgreementIntro: "E-lib dan foydalanish shartlari bilan tanishing.",
       agreementAccept: "Tanishdim",
+      agreementDecline: "Rad etish",
+      agreementDeclineHint: "Rad etsangiz, tizimdan chiqarilasiz va davom eta olmaysiz.",
       agreementSubtitle: "Kelishuv matni va ko'rsatish sozlamalarini tahrirlang.",
       agreementDisplayMode: "Ko'rsatish rejimi",
       agreementDisplayOnce: "Birinchi kirishda bir marta ko'rsatish",
@@ -1291,6 +1301,8 @@ const resources = {
       versionLabel: "Versiya",
       helpService: "Yordam xizmati",
       helpOrg: "DCAII",
+      helpExtensions: "Ichki raqamlar",
+      close: "Yopish",
       darkMode: "Tungi rejim"
     }
   }
