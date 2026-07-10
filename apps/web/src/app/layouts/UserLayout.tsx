@@ -8,6 +8,7 @@ import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlin
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
+import LocalPhoneOutlinedIcon from "@mui/icons-material/LocalPhoneOutlined";
 import { BaseLayout } from "./BaseLayout";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -19,6 +20,8 @@ import logoFullColor from "../../assets/logo-full-color.png";
 import logoFullWhite from "../../assets/logo-full-white.png";
 
 const APP_VERSION = "1.0.0";
+const HELP_EXTENSIONS = ["2624", "2627", "2623"];
+const HELP_PHONE = "+998 78 140-38-30";
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -214,35 +217,60 @@ function UserSidebarFooter({ collapsed }: { collapsed: boolean }) {
           borderRadius: "10px",
           border: "1px solid var(--border)",
           backgroundColor: "var(--surface-2)",
-          p: 1.5,
-          display: "flex",
-          gap: 1.25,
-          alignItems: "flex-start"
+          p: 1.5
         }}
       >
-        <SupportAgentOutlinedIcon fontSize="small" sx={{ color: "primary.main", mt: 0.25 }} />
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>
-            {t("helpService")}
+        <Stack direction="row" spacing={1.25} alignItems="flex-start">
+          <SupportAgentOutlinedIcon fontSize="small" sx={{ color: "primary.main", mt: 0.25 }} />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {t("helpService")}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontWeight: 600 }}>
+              {t("helpOrg")}
+            </Typography>
+          </Box>
+        </Stack>
+
+        <Stack direction="row" spacing={0.75} sx={{ mt: 1.25 }}>
+          {HELP_EXTENSIONS.map((extension) => (
+            <Typography
+              key={extension}
+              variant="caption"
+              sx={{
+                flex: 1,
+                textAlign: "center",
+                py: 0.5,
+                borderRadius: "6px",
+                border: "1px solid var(--border)",
+                backgroundColor: "var(--surface)",
+                color: "text.primary",
+                fontWeight: 700,
+                letterSpacing: "0.02em"
+              }}
+            >
+              {extension}
+            </Typography>
+          ))}
+        </Stack>
+
+        <Stack
+          component="a"
+          href={`tel:${HELP_PHONE.replace(/[^+\d]/g, "")}`}
+          direction="row"
+          spacing={0.75}
+          alignItems="center"
+          sx={{
+            mt: 0.75,
+            color: "text.secondary",
+            "&:hover": { color: "primary.main" }
+          }}
+        >
+          <LocalPhoneOutlinedIcon sx={{ fontSize: 14 }} />
+          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+            {HELP_PHONE}
           </Typography>
-          <Typography
-            component="a"
-            href={`tel:${t("helpPhone").replace(/[^+\d]/g, "")}`}
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block", "&:hover": { color: "primary.main" } }}
-          >
-            {t("helpPhone")}
-          </Typography>
-          <Typography
-            component="a"
-            href={`mailto:${t("helpEmail")}`}
-            variant="caption"
-            sx={{ color: "primary.main", fontWeight: 600 }}
-          >
-            {t("helpEmail")}
-          </Typography>
-        </Box>
+        </Stack>
       </Box>
 
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 0.5 }}>
@@ -254,10 +282,6 @@ function UserSidebarFooter({ collapsed }: { collapsed: boolean }) {
         </Stack>
         <Switch size="small" checked={mode === "dark"} onChange={toggleMode} />
       </Stack>
-
-      <Typography variant="caption" color="text.secondary" sx={{ px: 0.5 }}>
-        © {new Date().getFullYear()} {t("appName")}
-      </Typography>
     </Stack>
   );
 }

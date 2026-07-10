@@ -8,6 +8,7 @@ import { AuditService } from "../audit/audit.service";
 import { DownloadsService } from "../downloads/downloads.service";
 import { buildPaginationMeta } from "../../common/utils/pagination";
 import { getAvailableLangs, normalizeLang, selectTranslation, Lang } from "../../common/utils/lang";
+import { decodeUploadFilename } from "../../common/utils/filename";
 
 type FileTranslation = { lang: Lang; title: string; description?: string | null };
 
@@ -1815,7 +1816,8 @@ export class FilesService {
       .split(",")
       .map((x) => x.trim().toLowerCase())
       .filter(Boolean);
-    const ext = path.extname(file.originalname).replace(".", "").toLowerCase();
+    const originalName = decodeUploadFilename(file.originalname);
+    const ext = path.extname(originalName).replace(".", "").toLowerCase();
     if (allowed.length && !allowed.includes(ext)) {
       await this.deleteFileSafe(file.path);
       throw new BadRequestException("File extension not allowed");
@@ -1830,7 +1832,7 @@ export class FilesService {
       throw new BadRequestException("File type not allowed");
     }
 
-    const newPath = await this.buildAssetPath(file.originalname);
+    const newPath = await this.buildAssetPath(originalName);
     await this.ensureUploadDir(path.dirname(newPath));
     await fs.rename(file.path, newPath);
 
@@ -1843,7 +1845,7 @@ export class FilesService {
       await this.dbService.db("file_version_assets")
         .where({ id: existing.id })
         .update({
-          original_name: file.originalname,
+          original_name: originalName,
           mime: file.mimetype,
           size: file.size,
           path: newPath,
@@ -1856,7 +1858,7 @@ export class FilesService {
         action: "FILE_ASSET_UPLOADED",
         entityType: "FILE_VERSION",
         entityId: versionId,
-        meta: { lang, size: file.size, originalName: file.originalname }
+        meta: { lang, size: file.size, originalName }
       });
       return { id: existing.id };
     }
@@ -1865,7 +1867,7 @@ export class FilesService {
       .insert({
         file_version_id: versionId,
         lang,
-        original_name: file.originalname,
+        original_name: originalName,
         mime: file.mimetype,
         size: file.size,
         path: newPath,
@@ -1879,7 +1881,7 @@ export class FilesService {
       action: "FILE_ASSET_UPLOADED",
       entityType: "FILE_VERSION",
       entityId: versionId,
-      meta: { lang, size: file.size, originalName: file.originalname }
+      meta: { lang, size: file.size, originalName }
     });
 
     return { id: asset.id || asset };

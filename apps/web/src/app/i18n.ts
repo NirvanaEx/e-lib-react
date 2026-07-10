@@ -428,8 +428,7 @@ const resources = {
       allRightsReserved: "All rights reserved",
       versionLabel: "Version",
       helpService: "Support service",
-      helpPhone: "+998 (78) 123-45-67",
-      helpEmail: "mail@example.com",
+      helpOrg: "DCAII",
       darkMode: "Dark mode"
     }
   },
@@ -861,8 +860,7 @@ const resources = {
       allRightsReserved: "Все права защищены",
       versionLabel: "Версия",
       helpService: "Служба поддержки",
-      helpPhone: "+998 (78) 123-45-67",
-      helpEmail: "mail@example.com",
+      helpOrg: "ДЦиИИ",
       darkMode: "Тёмный режим"
     }
   },
@@ -1292,8 +1290,7 @@ const resources = {
       allRightsReserved: "Barcha huquqlar himoyalangan",
       versionLabel: "Versiya",
       helpService: "Yordam xizmati",
-      helpPhone: "+998 (78) 123-45-67",
-      helpEmail: "mail@example.com",
+      helpOrg: "DCAII",
       darkMode: "Tungi rejim"
     }
   }
