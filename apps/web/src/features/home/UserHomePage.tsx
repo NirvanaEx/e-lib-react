@@ -30,7 +30,7 @@ import UserFilesPage from "../files/UserFilesPage";
 import { LibraryIcon } from "../../shared/ui/iconLibrary";
 import { FileTypeBadge } from "../files/fileVisuals";
 import { formatDate } from "../../shared/utils/date";
-import heroImage from "../../assets/main-back2.jpg";
+import heroImage from "../../assets/main-back3.png";
 
 const FILTER_PARAMS = ["q", "sectionId", "categoryId", "sectionIds", "categoryIds", "departmentIds", "newDays"];
 
@@ -161,13 +161,13 @@ function HomeContent() {
 
   return (
     <Box sx={{ width: "100%" }}>
-      <Box sx={{ position: "relative", pb: { xs: 0, md: 7 } }}>
+      <Box sx={{ position: "relative", pb: { xs: 0, md: 3 } }}>
         <Box
           sx={{
             borderRadius: "12px",
             overflow: "hidden",
             position: "relative",
-            minHeight: { xs: 220, md: 350 },
+            minHeight: { xs: 260, md: 440 },
             display: "flex",
             alignItems: "center",
             backgroundImage: `linear-gradient(95deg, rgba(8, 28, 57, 0.93) 0%, rgba(10, 34, 66, 0.8) 35%, rgba(12, 42, 82, 0.22) 68%, rgba(12, 42, 82, 0.05) 100%), url(${heroImage})`,
@@ -195,7 +195,7 @@ function HomeContent() {
             position: { xs: "static", md: "absolute" },
             left: 0,
             right: 0,
-            bottom: 0
+            bottom: { md: 36 }
           }}
         >
           {statCards.map((card) => (
