@@ -25,6 +25,7 @@ import {
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
+import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import SettingsIcon from "@mui/icons-material/Settings";
 import BusinessIcon from "@mui/icons-material/Business";
 import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
@@ -104,6 +105,8 @@ export function BaseLayout({
   const effectiveDrawerWidth = collapsed ? collapsedDrawerWidth : drawerWidth;
   const [agreementOpen, setAgreementOpen] = React.useState(false);
   const [agreementDismissed, setAgreementDismissed] = React.useState(false);
+  // Distinguishes the mandatory login prompt from opening the agreement to re-read it.
+  const [agreementRequired, setAgreementRequired] = React.useState(false);
   const [mobileMenuAnchor, setMobileMenuAnchor] = React.useState<HTMLElement | null>(null);
   const queryClient = useQueryClient();
 
@@ -140,16 +143,32 @@ export function BaseLayout({
 
   React.useEffect(() => {
     if (agreementData?.shouldShow && !agreementDismissed) {
+      setAgreementRequired(true);
       setAgreementOpen(true);
     }
   }, [agreementData?.shouldShow, agreementDismissed]);
 
-  const handleAgreementClose = () => {
-    setAgreementDismissed(true);
+  const closeAgreement = () => {
     setAgreementOpen(false);
+    setAgreementRequired(false);
+  };
+
+  const handleAgreementAccept = () => {
+    setAgreementDismissed(true);
+    closeAgreement();
     if (user?.id) {
       acceptAgreementMutation.mutate();
     }
+  };
+
+  const handleAgreementDecline = () => {
+    closeAgreement();
+    clearAuth();
+  };
+
+  // A required agreement must be answered: swallow backdrop clicks and Escape.
+  const handleAgreementClose = () => {
+    if (!agreementRequired) closeAgreement();
   };
 
   const handleLanguageChange = async (lang: string) => {
@@ -677,8 +696,19 @@ export function BaseLayout({
         <Box sx={{ flex: "1 0 auto", display: "flex", flexDirection: "column", p: { xs: 2, md: 4 } }}>{children}</Box>
         {footer}
       </Box>
-      <Dialog open={agreementOpen} onClose={handleAgreementClose} fullWidth maxWidth="sm">
-        <DialogTitle>{agreementData?.title || t("userAgreement")}</DialogTitle>
+      <Dialog
+        open={agreementOpen}
+        onClose={handleAgreementClose}
+        disableEscapeKeyDown={agreementRequired}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          <Stack direction="row" spacing={1.25} alignItems="center">
+            <WarningAmberOutlinedIcon sx={{ color: "warning.main" }} />
+            <span>{agreementData?.title || t("userAgreement")}</span>
+          </Stack>
+        </DialogTitle>
         <DialogContent>
           {agreementLoading ? (
             <Typography variant="body2" color="text.secondary">
@@ -689,9 +719,21 @@ export function BaseLayout({
               {agreementData?.body || ""}
             </Typography>
           )}
+          {agreementRequired && !agreementLoading && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
+              {t("agreementDeclineHint")}
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleAgreementClose} variant="contained">
+          {agreementRequired ? (
+            <Button onClick={handleAgreementDecline} color="error">
+              {t("agreementDecline")}
+            </Button>
+          ) : (
+            <Button onClick={closeAgreement}>{t("close")}</Button>
+          )}
+          <Button onClick={handleAgreementAccept} variant="contained">
             {t("agreementAccept")}
           </Button>
         </DialogActions>

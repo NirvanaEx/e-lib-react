@@ -2,6 +2,7 @@ import React from "react";
 import {
   Box,
   Button,
+  ButtonBase,
   Checkbox,
   Divider,
   FormControlLabel,
@@ -27,6 +28,7 @@ import { login } from "./auth.api";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../shared/ui/ToastProvider";
+import { SupportDialog } from "../../shared/ui/SupportDialog";
 import { useTranslation } from "react-i18next";
 import { getDefaultRoute } from "../../shared/utils/access";
 import i18n from "../../app/i18n";
@@ -49,6 +51,7 @@ export default function LoginPage() {
   const rememberedLogin = React.useMemo(() => localStorage.getItem(REMEMBER_KEY) || "", []);
   const [rememberMe, setRememberMe] = React.useState(Boolean(rememberedLogin));
   const [showPassword, setShowPassword] = React.useState(false);
+  const [supportOpen, setSupportOpen] = React.useState(false);
   const [lang, setLang] = React.useState((i18n.language || "ru").split("-")[0]);
   const {
     register,
@@ -223,13 +226,25 @@ export default function LoginPage() {
               <Typography variant="body2" color="text.secondary">
                 {t("supportQuestion")}
               </Typography>
-              <Typography variant="body2" sx={{ color: "primary.main", fontWeight: 600 }}>
+              <ButtonBase
+                onClick={() => setSupportOpen(true)}
+                sx={{
+                  borderRadius: "4px",
+                  px: 0.25,
+                  color: "primary.main",
+                  fontWeight: 600,
+                  fontSize: "0.875rem",
+                  "&:hover": { textDecoration: "underline" }
+                }}
+              >
                 {t("supportContact")}
-              </Typography>
+              </ButtonBase>
             </Stack>
           </Box>
         </Box>
       </Box>
+
+      <SupportDialog open={supportOpen} onClose={() => setSupportOpen(false)} />
     </Box>
   );
 }
