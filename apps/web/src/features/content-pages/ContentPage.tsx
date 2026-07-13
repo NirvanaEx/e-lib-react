@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import { LoadingState } from "../../shared/ui/LoadingState";
 import { TranslationsEditor } from "../../shared/ui/TranslationsEditor";
 import { fetchContentPage, updateContentPage } from "./content-pages.api";
+import { fetchAdminAppSettings, updateAppSettings } from "../settings/app-settings.api";
 
 type EditorTranslation = {
   lang: "ru" | "en" | "uz";
@@ -128,6 +129,57 @@ function UserAgreementPanel() {
   );
 }
 
+function InterfacePanel() {
+  const { t } = useTranslation();
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
+  const [testRibbonEnabled, setTestRibbonEnabled] = React.useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["app-settings-admin"],
+    queryFn: fetchAdminAppSettings
+  });
+
+  React.useEffect(() => {
+    if (!data) return;
+    setTestRibbonEnabled(data.testRibbonEnabled);
+  }, [data]);
+
+  const updateMutation = useMutation({
+    mutationFn: () => updateAppSettings({ testRibbonEnabled }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["app-settings-admin"] });
+      queryClient.invalidateQueries({ queryKey: ["app-settings"] });
+      showToast({ message: t("settingsUpdated"), severity: "success" });
+    },
+    onError: () => showToast({ message: t("actionFailed"), severity: "error" })
+  });
+
+  return isLoading ? (
+    <LoadingState rows={2} />
+  ) : (
+    <Stack spacing={2}>
+      <Paper sx={{ p: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
+        <FormControlLabel
+          control={
+            <Switch checked={testRibbonEnabled} onChange={(event) => setTestRibbonEnabled(event.target.checked)} />
+          }
+          label={t("testRibbonSetting")}
+        />
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, ml: 6 }}>
+          {t("testRibbonSettingHint")}
+        </Typography>
+      </Paper>
+
+      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+        <Button variant="contained" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
+          {t("saveChanges")}
+        </Button>
+      </Box>
+    </Stack>
+  );
+}
+
 export default function ContentPage() {
   const { t } = useTranslation();
   const [tab, setTab] = React.useState("agreement");
@@ -136,6 +188,7 @@ export default function ContentPage() {
     <Page title={t("content")} subtitle={t("contentSubtitle")}>
       <Tabs value={tab} onChange={(_, next) => setTab(next)}>
         <Tab value="agreement" label={t("userAgreement")} />
+        <Tab value="interface" label={t("interfaceTab")} />
       </Tabs>
       <Box sx={{ mt: 2 }}>
         {tab === "agreement" && (
@@ -144,6 +197,14 @@ export default function ContentPage() {
               {t("agreementSubtitle")}
             </Typography>
             <UserAgreementPanel />
+          </Box>
+        )}
+        {tab === "interface" && (
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {t("interfaceSubtitle")}
+            </Typography>
+            <InterfacePanel />
           </Box>
         )}
       </Box>

@@ -20,6 +20,7 @@ import { StatsModule } from "./modules/stats/stats.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { HealthModule } from "./modules/health/health.module";
 import { ContentPagesModule } from "./modules/content-pages/content-pages.module";
+import { AppSettingsModule } from "./modules/app-settings/app-settings.module";
 import { SeedModule } from "./modules/seed/seed.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
@@ -56,6 +57,7 @@ import { LoggerModule } from "nestjs-pino";
     StatsModule,
     AuditModule,
     ContentPagesModule,
+    AppSettingsModule,
     SeedModule,
     HealthModule
   ],
