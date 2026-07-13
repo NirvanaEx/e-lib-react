@@ -1,9 +1,11 @@
 import React from "react";
 import {
   AppBar,
+  Avatar,
   Box,
   Badge,
   Button,
+  ButtonBase,
   Chip,
   Divider,
   Dialog,
@@ -29,19 +31,21 @@ import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import { agreementSignature, isAgreementAnswered, markAgreementAnswered } from "../../shared/utils/agreementSession";
 import SettingsIcon from "@mui/icons-material/Settings";
 import BusinessIcon from "@mui/icons-material/Business";
-import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
+import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../shared/hooks/useAuth";
-import { LanguageMenu, LANGUAGES, flagFrameSx } from "../../shared/ui/LanguageMenu";
+import { LANGUAGES, flagFrameSx } from "../../shared/ui/LanguageMenu";
+import { TestVersionRibbon, TEST_RIBBON_HEIGHT } from "../../shared/ui/TestVersionRibbon";
 import i18n from "../i18n";
 import { changeLanguage } from "../../features/settings/settings.api";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
 import { getDashboardRoute, getDefaultRoute, hasAccess } from "../../shared/utils/access";
 import { acceptUserContentPage, fetchUserContentPage } from "../../features/content-pages/content-pages.api";
+import { fetchAppSettings } from "../../features/settings/app-settings.api";
 
 export type NavItem = {
   label: string;
@@ -107,7 +111,7 @@ export function BaseLayout({
   const [agreementOpen, setAgreementOpen] = React.useState(false);
   // Distinguishes the mandatory login prompt from opening the agreement to re-read it.
   const [agreementRequired, setAgreementRequired] = React.useState(false);
-  const [mobileMenuAnchor, setMobileMenuAnchor] = React.useState<HTMLElement | null>(null);
+  const [userMenuAnchor, setUserMenuAnchor] = React.useState<HTMLElement | null>(null);
   const queryClient = useQueryClient();
 
   const agreementKey = "user_agreement";
@@ -117,6 +121,13 @@ export function BaseLayout({
     queryFn: () => fetchUserContentPage(agreementKey),
     enabled: Boolean(user?.id)
   });
+
+  const { data: appSettings } = useQuery({
+    queryKey: ["app-settings"],
+    queryFn: fetchAppSettings,
+    enabled: Boolean(user?.id)
+  });
+  const ribbonEnabled = Boolean(appSettings?.testRibbonEnabled);
 
   const acceptAgreementMutation = useMutation({
     mutationFn: () => acceptUserContentPage(agreementKey),
@@ -230,10 +241,21 @@ export function BaseLayout({
 
     return user.login || null;
   }, [user]);
-  const showRoleChip = Boolean(
-    user?.role &&
-      (!userDisplayName || user.role.toLowerCase() !== userDisplayName.toLowerCase())
-  );
+  const roleLabel = user?.role || null;
+  // Profile line shows the department; only falls back to the role when the
+  // user has no department assigned.
+  const profileSubtitle = user?.department || roleLabel;
+  const profileSubtitleIsRole = !user?.department && Boolean(roleLabel);
+  const avatarInitials = React.useMemo(() => {
+    const surnameInitial = user?.surname?.trim().charAt(0);
+    const nameInitial = user?.name?.trim().charAt(0);
+    const combined = [surnameInitial, nameInitial].filter(Boolean).join("");
+    if (combined) return combined.toUpperCase();
+    const fromFull = user?.fullName?.trim().charAt(0);
+    if (fromFull) return fromFull.toUpperCase();
+    const fromLogin = user?.login?.trim().charAt(0);
+    return fromLogin ? fromLogin.toUpperCase() : "?";
+  }, [user]);
 
   const defaultSidebarHeader = collapsed ? (
     <Box sx={{ mb: 2, display: "flex", justifyContent: "center" }}>
@@ -459,192 +481,197 @@ export function BaseLayout({
               {headerContent}
             </Box>
           )}
-          <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, md: 2 }, flexShrink: 0 }}>
-            {switchLink && (
-              <Stack direction="row" spacing={1} sx={{ display: { xs: "none", md: "flex" } }}>
-                <Button size="small" variant="outlined" onClick={() => navigate(switchLink.path)}>
-                  {switchLink.label}
-                </Button>
-              </Stack>
-            )}
-            <Box sx={{ display: { xs: "none", md: "inline-flex" } }}>
-              <LanguageMenu value={i18n.language} tooltip={t("language")} onChange={handleLanguageChange} />
-            </Box>
-            {(settingsPath || settingsAction) && (
-              <Tooltip title={t("settings")}>
-                <IconButton
-                  color="inherit"
-                  onClick={() => (settingsAction ? settingsAction() : settingsPath && navigate(settingsPath))}
-                  sx={{ display: { xs: "none", md: "inline-flex" } }}
-                >
-                  <SettingsIcon />
-                </IconButton>
-              </Tooltip>
-            )}
-            {user && agreementData?.isActive && (
-              <Tooltip title={t("userAgreement")}>
-                <IconButton
-                  color="inherit"
-                  onClick={() => setAgreementOpen(true)}
-                  sx={{ display: { xs: "none", md: "inline-flex" } }}
-                >
-                  <PolicyOutlinedIcon />
-                </IconButton>
-              </Tooltip>
-            )}
+          <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, md: 1 }, flexShrink: 0 }}>
             {user && (
-              <Stack
-                direction="row"
-                spacing={1}
-                alignItems="center"
-                sx={{
-                  px: 1.5,
-                  py: 0.6,
-                  borderRadius: "8px",
-                  border: "1px solid var(--border)",
-                  backgroundColor: "var(--surface)",
-                  display: { xs: "none", lg: "flex" }
-                }}
-              >
-                {user.department && (
-                  <Chip
-                    icon={<BusinessIcon fontSize="small" />}
-                    label={user.department}
-                    size="small"
-                    sx={{ fontWeight: 600 }}
-                  />
-                )}
-                {showRoleChip && user?.role && (
-                  <Chip
-                    label={user.role}
-                    size="small"
-                    sx={{ textTransform: "capitalize", fontWeight: 600, backgroundColor: "rgba(37, 99, 235, 0.12)" }}
-                  />
-                )}
-                {userDisplayName && (
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {userDisplayName}
-                  </Typography>
-                )}
-              </Stack>
-            )}
-            <Tooltip title={t("logout")}>
-              <IconButton onClick={clearAuth} color="inherit" sx={{ display: { xs: "none", md: "inline-flex" } }}>
-                <LogoutIcon />
-              </IconButton>
-            </Tooltip>
-            <IconButton
-              color="inherit"
-              onClick={(event) => setMobileMenuAnchor(event.currentTarget)}
-              sx={{ display: { xs: "inline-flex", md: "none" } }}
-            >
-              <MoreVertIcon />
-            </IconButton>
-            <Menu
-              open={Boolean(mobileMenuAnchor)}
-              anchorEl={mobileMenuAnchor}
-              onClose={() => setMobileMenuAnchor(null)}
-              slotProps={{ paper: { sx: { mt: 1, borderRadius: "8px", border: "1px solid var(--border)", minWidth: 210 } } }}
-            >
-              {userDisplayName && (
-                <Box sx={{ px: 2, pt: 0.75, pb: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    {userDisplayName}
-                  </Typography>
-                  {user?.department && (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                      {user.department}
-                    </Typography>
-                  )}
-                </Box>
-              )}
-              {userDisplayName && <Divider sx={{ mb: 0.5 }} />}
-              {switchLink && (
-                <MenuItem
-                  onClick={() => {
-                    setMobileMenuAnchor(null);
-                    navigate(switchLink.path);
+              <>
+                <ButtonBase
+                  onClick={(event) => setUserMenuAnchor(event.currentTarget)}
+                  aria-label={t("account")}
+                  sx={{
+                    borderRadius: "999px",
+                    pl: 0.5,
+                    pr: { xs: 0.5, sm: 1.25 },
+                    py: 0.5,
+                    gap: 1,
+                    border: "1px solid var(--border)",
+                    backgroundColor: "var(--surface)",
+                    transition: "border-color 0.2s ease, background-color 0.2s ease",
+                    "&:hover": { borderColor: "primary.main" }
                   }}
                 >
-                  <ListItemIcon>
-                    <GridViewOutlinedIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText primaryTypographyProps={{ variant: "body2", fontWeight: 600 }}>
-                    {switchLink.label}
-                  </ListItemText>
-                </MenuItem>
-              )}
-              {(settingsPath || settingsAction) && (
-                <MenuItem
-                  onClick={() => {
-                    setMobileMenuAnchor(null);
-                    if (settingsAction) settingsAction();
-                    else if (settingsPath) navigate(settingsPath);
-                  }}
-                >
-                  <ListItemIcon>
-                    <SettingsIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText primaryTypographyProps={{ variant: "body2", fontWeight: 600 }}>
-                    {t("settings")}
-                  </ListItemText>
-                </MenuItem>
-              )}
-              {user && agreementData?.isActive && (
-                <MenuItem
-                  onClick={() => {
-                    setMobileMenuAnchor(null);
-                    setAgreementOpen(true);
-                  }}
-                >
-                  <ListItemIcon>
-                    <PolicyOutlinedIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText primaryTypographyProps={{ variant: "body2", fontWeight: 600 }}>
-                    {t("userAgreement")}
-                  </ListItemText>
-                </MenuItem>
-              )}
-              <Divider sx={{ my: 0.5 }} />
-              {LANGUAGES.map((item) => {
-                const currentLang = (i18n.language || "ru").split("-")[0];
-                return (
-                  <MenuItem
-                    key={item.code}
-                    selected={item.code === currentLang}
-                    onClick={() => {
-                      setMobileMenuAnchor(null);
-                      if (item.code !== currentLang) {
-                        handleLanguageChange(item.code);
-                      }
+                  <Avatar sx={{ width: 34, height: 34, fontSize: 14, fontWeight: 700, bgcolor: "primary.main", color: "#fff" }}>
+                    {avatarInitials}
+                  </Avatar>
+                  <Box
+                    sx={{
+                      display: { xs: "none", sm: "flex" },
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      minWidth: 0,
+                      maxWidth: 160
                     }}
                   >
-                    <ListItemIcon sx={{ minWidth: 34 }}>
-                      <Box sx={flagFrameSx}>{item.flag}</Box>
-                    </ListItemIcon>
-                    <ListItemText
-                      primaryTypographyProps={{ variant: "body2", fontWeight: item.code === currentLang ? 700 : 500 }}
+                    {userDisplayName && (
+                      <Typography variant="body2" noWrap sx={{ fontWeight: 700, lineHeight: 1.25, maxWidth: "100%" }}>
+                        {userDisplayName}
+                      </Typography>
+                    )}
+                    {profileSubtitle && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        noWrap
+                        sx={{ lineHeight: 1.2, textTransform: profileSubtitleIsRole ? "capitalize" : "none", maxWidth: "100%" }}
+                      >
+                        {profileSubtitle}
+                      </Typography>
+                    )}
+                  </Box>
+                  <KeyboardArrowDownIcon
+                    sx={{
+                      fontSize: 20,
+                      color: "text.secondary",
+                      display: { xs: "none", sm: "block" },
+                      transition: "transform 0.2s ease",
+                      transform: userMenuAnchor ? "rotate(180deg)" : "none"
+                    }}
+                  />
+                </ButtonBase>
+                <Menu
+                  open={Boolean(userMenuAnchor)}
+                  anchorEl={userMenuAnchor}
+                  onClose={() => setUserMenuAnchor(null)}
+                  anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                  transformOrigin={{ vertical: "top", horizontal: "right" }}
+                  slotProps={{
+                    paper: { sx: { mt: 1, borderRadius: "12px", border: "1px solid var(--border)", minWidth: 250, overflow: "hidden" } }
+                  }}
+                >
+                  <Stack direction="row" spacing={1.25} alignItems="center" sx={{ px: 2, pt: 1.75, pb: 1.5 }}>
+                    <Avatar sx={{ width: 44, height: 44, fontSize: 16, fontWeight: 700, bgcolor: "primary.main", color: "#fff" }}>
+                      {avatarInitials}
+                    </Avatar>
+                    <Box sx={{ minWidth: 0 }}>
+                      {userDisplayName && (
+                        <Typography variant="body2" noWrap sx={{ fontWeight: 700 }}>
+                          {userDisplayName}
+                        </Typography>
+                      )}
+                      {user?.department ? (
+                        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.25, color: "text.secondary" }}>
+                          <BusinessIcon sx={{ fontSize: 14 }} />
+                          <Typography variant="caption" noWrap>
+                            {user.department}
+                          </Typography>
+                        </Stack>
+                      ) : roleLabel ? (
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          noWrap
+                          sx={{ display: "block", textTransform: "capitalize" }}
+                        >
+                          {roleLabel}
+                        </Typography>
+                      ) : null}
+                    </Box>
+                  </Stack>
+                  <Divider />
+                  {switchLink && (
+                    <MenuItem
+                      onClick={() => {
+                        setUserMenuAnchor(null);
+                        navigate(switchLink.path);
+                      }}
                     >
-                      {item.label}
+                      <ListItemIcon>
+                        <GridViewOutlinedIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primaryTypographyProps={{ variant: "body2", fontWeight: 600 }}>
+                        {switchLink.label}
+                      </ListItemText>
+                    </MenuItem>
+                  )}
+                  {(settingsPath || settingsAction) && (
+                    <MenuItem
+                      onClick={() => {
+                        setUserMenuAnchor(null);
+                        if (settingsAction) settingsAction();
+                        else if (settingsPath) navigate(settingsPath);
+                      }}
+                    >
+                      <ListItemIcon>
+                        <SettingsIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primaryTypographyProps={{ variant: "body2", fontWeight: 600 }}>
+                        {t("settings")}
+                      </ListItemText>
+                    </MenuItem>
+                  )}
+                  {agreementData?.isActive && (
+                    <MenuItem
+                      onClick={() => {
+                        setUserMenuAnchor(null);
+                        setAgreementOpen(true);
+                      }}
+                    >
+                      <ListItemIcon>
+                        <HandshakeOutlinedIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primaryTypographyProps={{ variant: "body2", fontWeight: 600 }}>
+                        {t("userAgreement")}
+                      </ListItemText>
+                    </MenuItem>
+                  )}
+                  <Divider />
+                  <Typography
+                    variant="overline"
+                    color="text.secondary"
+                    sx={{ px: 2, pt: 0.75, display: "block", letterSpacing: "0.14em", lineHeight: 2 }}
+                  >
+                    {t("language")}
+                  </Typography>
+                  {LANGUAGES.map((item) => {
+                    const currentLang = (i18n.language || "ru").split("-")[0];
+                    return (
+                      <MenuItem
+                        key={item.code}
+                        selected={item.code === currentLang}
+                        onClick={() => {
+                          setUserMenuAnchor(null);
+                          if (item.code !== currentLang) {
+                            handleLanguageChange(item.code);
+                          }
+                        }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 34 }}>
+                          <Box sx={flagFrameSx}>{item.flag}</Box>
+                        </ListItemIcon>
+                        <ListItemText
+                          primaryTypographyProps={{ variant: "body2", fontWeight: item.code === currentLang ? 700 : 500 }}
+                        >
+                          {item.label}
+                        </ListItemText>
+                      </MenuItem>
+                    );
+                  })}
+                  <Divider />
+                  <MenuItem
+                    onClick={() => {
+                      setUserMenuAnchor(null);
+                      clearAuth();
+                    }}
+                  >
+                    <ListItemIcon>
+                      <LogoutIcon fontSize="small" sx={{ color: "error.main" }} />
+                    </ListItemIcon>
+                    <ListItemText primaryTypographyProps={{ variant: "body2", fontWeight: 600, color: "error.main" }}>
+                      {t("logout")}
                     </ListItemText>
                   </MenuItem>
-                );
-              })}
-              <Divider sx={{ my: 0.5 }} />
-              <MenuItem
-                onClick={() => {
-                  setMobileMenuAnchor(null);
-                  clearAuth();
-                }}
-              >
-                <ListItemIcon>
-                  <LogoutIcon fontSize="small" sx={{ color: "error.main" }} />
-                </ListItemIcon>
-                <ListItemText primaryTypographyProps={{ variant: "body2", fontWeight: 600, color: "error.main" }}>
-                  {t("logout")}
-                </ListItemText>
-              </MenuItem>
-            </Menu>
+                </Menu>
+              </>
+            )}
           </Box>
         </Toolbar>
       </AppBar>
@@ -676,6 +703,7 @@ export function BaseLayout({
             "& .MuiDrawer-paper": {
               boxSizing: "border-box",
               width: effectiveDrawerWidth,
+              height: ribbonEnabled ? `calc(100% - ${TEST_RIBBON_HEIGHT}px)` : "100%",
               borderRight: darkSidebar ? "none" : "1px solid var(--border)",
               overflow: "hidden",
               ...(darkSidebar ? { background: darkSidebarBackground, color: "#fff" } : {})
@@ -696,6 +724,7 @@ export function BaseLayout({
         <Toolbar />
         <Box sx={{ flex: "1 0 auto", display: "flex", flexDirection: "column", p: { xs: 2, md: 4 } }}>{children}</Box>
         {footer}
+        {ribbonEnabled && <Box sx={{ flexShrink: 0, height: `${TEST_RIBBON_HEIGHT}px` }} />}
       </Box>
       <Dialog
         open={agreementOpen}
@@ -739,6 +768,7 @@ export function BaseLayout({
           </Button>
         </DialogActions>
       </Dialog>
+      {ribbonEnabled && <TestVersionRibbon />}
     </Box>
   );
 }
