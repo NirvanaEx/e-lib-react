@@ -37,7 +37,7 @@ import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../shared/hooks/useAuth";
-import { LANGUAGES, flagFrameSx } from "../../shared/ui/LanguageMenu";
+import { LanguageMenu } from "../../shared/ui/LanguageMenu";
 import { TestVersionRibbon, TEST_RIBBON_HEIGHT } from "../../shared/ui/TestVersionRibbon";
 import i18n from "../i18n";
 import { changeLanguage } from "../../features/settings/settings.api";
@@ -484,6 +484,7 @@ export function BaseLayout({
           <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, md: 1 }, flexShrink: 0 }}>
             {user && (
               <>
+                <LanguageMenu value={i18n.language} tooltip={t("language")} onChange={handleLanguageChange} />
                 <ButtonBase
                   onClick={(event) => setUserMenuAnchor(event.currentTarget)}
                   aria-label={t("account")}
@@ -623,38 +624,6 @@ export function BaseLayout({
                       </ListItemText>
                     </MenuItem>
                   )}
-                  <Divider />
-                  <Typography
-                    variant="overline"
-                    color="text.secondary"
-                    sx={{ px: 2, pt: 0.75, display: "block", letterSpacing: "0.14em", lineHeight: 2 }}
-                  >
-                    {t("language")}
-                  </Typography>
-                  {LANGUAGES.map((item) => {
-                    const currentLang = (i18n.language || "ru").split("-")[0];
-                    return (
-                      <MenuItem
-                        key={item.code}
-                        selected={item.code === currentLang}
-                        onClick={() => {
-                          setUserMenuAnchor(null);
-                          if (item.code !== currentLang) {
-                            handleLanguageChange(item.code);
-                          }
-                        }}
-                      >
-                        <ListItemIcon sx={{ minWidth: 34 }}>
-                          <Box sx={flagFrameSx}>{item.flag}</Box>
-                        </ListItemIcon>
-                        <ListItemText
-                          primaryTypographyProps={{ variant: "body2", fontWeight: item.code === currentLang ? 700 : 500 }}
-                        >
-                          {item.label}
-                        </ListItemText>
-                      </MenuItem>
-                    );
-                  })}
                   <Divider />
                   <MenuItem
                     onClick={() => {
