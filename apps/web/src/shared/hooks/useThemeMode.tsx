@@ -10,11 +10,10 @@ type ThemeModeContextValue = {
 
 const ThemeModeContext = createContext<ThemeModeContextValue | null>(null);
 
-const STORAGE_KEY = "theme-mode";
+const MODE_KEY = "theme-mode";
 
 function readStoredMode(): ThemeMode {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return stored === "dark" ? "dark" : "light";
+  return localStorage.getItem(MODE_KEY) === "dark" ? "dark" : "light";
 }
 
 export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
@@ -22,16 +21,11 @@ export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", mode);
-    localStorage.setItem(STORAGE_KEY, mode);
+    localStorage.setItem(MODE_KEY, mode);
   }, [mode]);
 
-  const setMode = useCallback((next: ThemeMode) => {
-    setModeState(next);
-  }, []);
-
-  const toggleMode = useCallback(() => {
-    setModeState((prev) => (prev === "light" ? "dark" : "light"));
-  }, []);
+  const setMode = useCallback((next: ThemeMode) => setModeState(next), []);
+  const toggleMode = useCallback(() => setModeState((prev) => (prev === "light" ? "dark" : "light")), []);
 
   const value = useMemo(() => ({ mode, toggleMode, setMode }), [mode, toggleMode, setMode]);
 
