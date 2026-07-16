@@ -77,12 +77,12 @@ export default function LoginPage() {
   const fieldSx = {
     "& .MuiOutlinedInput-root": {
       borderRadius: "10px",
-      backgroundColor: "#fff"
+      backgroundColor: "background.paper"
     }
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", display: "flex", backgroundColor: "#fff" }}>
+    <Box sx={{ minHeight: "100vh", display: "flex", backgroundColor: "background.paper" }}>
       <Box
         sx={{
           flex: 1.2,
