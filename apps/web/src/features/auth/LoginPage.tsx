@@ -78,7 +78,18 @@ export default function LoginPage() {
     "& .MuiOutlinedInput-root": {
       borderRadius: "10px",
       backgroundColor: "background.paper"
-    }
+    },
+    // Перекрываем фон браузерного автозаполнения цветом поля, иначе браузер
+    // рисует свой светлый прямоугольник, который не совпадает по цвету и не
+    // повторяет скругление (в тёмной теме выглядит как «обрезанный» блок).
+    "& input:-webkit-autofill, & input:-webkit-autofill:hover, & input:-webkit-autofill:focus, & input:-webkit-autofill:active":
+      {
+        WebkitBoxShadow: "0 0 0 100px var(--surface) inset",
+        WebkitTextFillColor: "var(--ink)",
+        caretColor: "var(--ink)",
+        borderRadius: "inherit",
+        transition: "background-color 600000s 0s, color 600000s 0s"
+      }
   };
 
   return (
