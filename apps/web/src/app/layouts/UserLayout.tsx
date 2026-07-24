@@ -15,6 +15,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { SettingsDialog } from "../../features/settings/SettingsDialog";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { useThemeMode } from "../../shared/hooks/useThemeMode";
+import { useBranding } from "../../shared/hooks/useBranding";
+import { getBrandingImageUrl } from "../../features/settings/app-settings.api";
 import { NavbarSearch } from "../../features/files/NavbarSearch";
 import { HELP_EXTENSIONS, HELP_PHONE, HELP_PHONE_HREF } from "../../shared/constants/support";
 import logoFullColor from "../../assets/logo-full-color.png";
@@ -26,8 +28,10 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   const { t } = useTranslation();
   const { mode } = useThemeMode();
   const navigate = useNavigate();
+  const branding = useBranding();
   const [settingsOpen, setSettingsOpen] = React.useState(false);
-  const logoSrc = mode === "dark" ? logoFullWhite : logoFullColor;
+  const customLogo = mode === "dark" ? branding?.logoDark : branding?.logoLight;
+  const logoSrc = getBrandingImageUrl(customLogo) || (mode === "dark" ? logoFullWhite : logoFullColor);
 
   const sidebarTop = ({ collapsed }: { collapsed: boolean }) => (
     <ButtonBase

@@ -30,7 +30,7 @@ import UserFilesPage from "../files/UserFilesPage";
 import { LibraryIcon } from "../../shared/ui/iconLibrary";
 import { FileTypeBadge } from "../files/fileVisuals";
 import { formatDate } from "../../shared/utils/date";
-import heroImage from "../../assets/main-back3.png";
+import { HeroCarousel } from "./HeroCarousel";
 
 const FILTER_PARAMS = ["q", "sectionId", "categoryId", "sectionIds", "categoryIds", "departmentIds", "newDays"];
 
@@ -162,28 +162,7 @@ function HomeContent() {
   return (
     <Box sx={{ width: "100%" }}>
       <Box sx={{ position: "relative", pb: { xs: 0, md: 3 } }}>
-        <Box
-          sx={{
-            borderRadius: "12px",
-            overflow: "hidden",
-            position: "relative",
-            minHeight: { xs: 260, md: 440 },
-            display: "flex",
-            alignItems: "center",
-            backgroundImage: `linear-gradient(95deg, rgba(8, 28, 57, 0.93) 0%, rgba(10, 34, 66, 0.8) 35%, rgba(12, 42, 82, 0.22) 68%, rgba(12, 42, 82, 0.05) 100%), url(${heroImage})`,
-            backgroundSize: "cover",
-            backgroundPosition: "right top"
-          }}
-        >
-          <Box sx={{ px: { xs: 3, md: 5 }, py: { xs: 3.5, md: 5 }, pb: { xs: 3.5, md: 10 }, maxWidth: 600 }}>
-            <Typography variant="h3" sx={{ color: "#fff", fontWeight: 800, letterSpacing: "-0.02em", fontSize: { xs: 24, md: 32 } }}>
-              {t("homeHeroTitle")}
-            </Typography>
-            <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.82)", mt: 1.25, maxWidth: 500 }}>
-              {t("homeHeroSubtitle")}
-            </Typography>
-          </Box>
-        </Box>
+        <HeroCarousel />
 
         <Box
           sx={{

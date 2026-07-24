@@ -32,6 +32,8 @@ import { SupportDialog } from "../../shared/ui/SupportDialog";
 import { useTranslation } from "react-i18next";
 import { getDefaultRoute } from "../../shared/utils/access";
 import i18n from "../../app/i18n";
+import { useBranding } from "../../shared/hooks/useBranding";
+import { getBrandingImageUrl } from "../settings/app-settings.api";
 import loginHero from "../../assets/login-back3.png";
 
 const schema = z.object({
@@ -48,6 +50,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { t } = useTranslation();
+  const branding = useBranding();
+  const loginBackground = getBrandingImageUrl(branding?.loginBackground) || loginHero;
   const rememberedLogin = React.useMemo(() => localStorage.getItem(REMEMBER_KEY) || "", []);
   const [rememberMe, setRememberMe] = React.useState(Boolean(rememberedLogin));
   const [showPassword, setShowPassword] = React.useState(false);
@@ -99,7 +103,7 @@ export default function LoginPage() {
           flex: 1.2,
           display: { xs: "none", md: "block" },
           backgroundColor: "#0c2a52",
-          backgroundImage: `url(${loginHero})`,
+          backgroundImage: `url(${loginBackground})`,
           backgroundSize: "cover",
           backgroundPosition: "left center",
           backgroundRepeat: "no-repeat"
