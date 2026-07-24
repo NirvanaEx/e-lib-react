@@ -84,7 +84,7 @@ export default function LoginPage() {
     // повторяет скругление (в тёмной теме выглядит как «обрезанный» блок).
     "& input:-webkit-autofill, & input:-webkit-autofill:hover, & input:-webkit-autofill:focus, & input:-webkit-autofill:active":
       {
-        WebkitBoxShadow: "0 0 0 100px var(--surface) inset",
+        WebkitBoxShadow: "0 0 0 100px var(--surface-solid) inset",
         WebkitTextFillColor: "var(--ink)",
         caretColor: "var(--ink)",
         borderRadius: "inherit",

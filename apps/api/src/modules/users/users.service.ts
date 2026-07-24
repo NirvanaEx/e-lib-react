@@ -1,6 +1,9 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+import fs from "fs/promises";
+import path from "path";
 import { DatabaseService } from "../../db/database.service";
 import { buildPaginationMeta } from "../../common/utils/pagination";
 import { AuditService } from "../audit/audit.service";
@@ -9,12 +12,132 @@ function generateTempPassword() {
   return crypto.randomBytes(6).toString("base64url");
 }
 
+export const AVATAR_CONTENT_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif"
+};
+
 @Injectable()
 export class UsersService {
   constructor(
     private readonly dbService: DatabaseService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly config: ConfigService
   ) {}
+
+  getAvatarDir() {
+    const dir = this.config.get<string>("UPLOAD_DIR", "uploads");
+    const uploadDir = path.isAbsolute(dir) ? dir : path.resolve(process.cwd(), dir);
+    return path.join(uploadDir, "avatars");
+  }
+
+  async getAvatarFile(userId: number) {
+    const user = await this.dbService.db("users").select("avatar").where({ id: userId }).first();
+    if (!user?.avatar) throw new NotFoundException("Avatar not set");
+    const fileName = path.basename(user.avatar);
+    const filePath = path.join(this.getAvatarDir(), fileName);
+    try {
+      await fs.access(filePath);
+    } catch {
+      throw new NotFoundException("Avatar file missing");
+    }
+    const contentType = AVATAR_CONTENT_TYPES[path.extname(fileName).toLowerCase()] || "application/octet-stream";
+    return { filePath, contentType };
+  }
+
+  private async deleteAvatarFile(fileName: string | null) {
+    if (!fileName) return;
+    const filePath = path.join(this.getAvatarDir(), path.basename(fileName));
+    await fs.unlink(filePath).catch(() => undefined);
+  }
+
+  private async removeUploadedFile(file: Express.Multer.File) {
+    await fs.unlink(file.path).catch(() => undefined);
+  }
+
+  async setAvatar(userId: number, file: Express.Multer.File) {
+    const user = await this.dbService.db("users").select("id", "avatar").where({ id: userId }).first();
+    if (!user) {
+      await this.removeUploadedFile(file);
+      throw new NotFoundException();
+    }
+    // Multer resolves its destination before .env is loaded, so move the file
+    // into the ConfigService-resolved uploads dir (same pattern as uploadAsset).
+    const dir = this.getAvatarDir();
+    await fs.mkdir(dir, { recursive: true });
+    const targetPath = path.join(dir, file.filename);
+    if (path.resolve(file.path) !== path.resolve(targetPath)) {
+      await fs.rename(file.path, targetPath);
+    }
+    await this.deleteAvatarFile(user.avatar);
+    await this.dbService
+      .db("users")
+      .update({ avatar: file.filename, updated_at: this.dbService.db.fn.now() })
+      .where({ id: userId });
+    return { avatar: file.filename };
+  }
+
+  async removeAvatar(userId: number) {
+    const user = await this.dbService.db("users").select("id", "avatar").where({ id: userId }).first();
+    if (!user) throw new NotFoundException();
+    await this.deleteAvatarFile(user.avatar);
+    await this.dbService
+      .db("users")
+      .update({ avatar: null, updated_at: this.dbService.db.fn.now() })
+      .where({ id: userId });
+    return { success: true };
+  }
+
+  async setAvatarByAdmin(id: number, file: Express.Multer.File, actorId: number) {
+    const target = await this.dbService.db("users")
+      .leftJoin("roles", "roles.id", "users.role_id")
+      .select("users.id", "roles.level as role_level")
+      .where("users.id", id)
+      .first();
+    if (!target) {
+      await this.removeUploadedFile(file);
+      throw new NotFoundException();
+    }
+    const actor = await this.getActorRole(actorId);
+    try {
+      this.assertCanManageRole(actor, { level: target.role_level });
+    } catch (error) {
+      await this.removeUploadedFile(file);
+      throw error;
+    }
+
+    const result = await this.setAvatar(id, file);
+    await this.auditService.log({
+      actorUserId: actorId,
+      action: "USER_AVATAR_UPDATED",
+      entityType: "USER",
+      entityId: id
+    });
+    return result;
+  }
+
+  async removeAvatarByAdmin(id: number, actorId: number) {
+    const target = await this.dbService.db("users")
+      .leftJoin("roles", "roles.id", "users.role_id")
+      .select("users.id", "roles.level as role_level")
+      .where("users.id", id)
+      .first();
+    if (!target) throw new NotFoundException();
+    const actor = await this.getActorRole(actorId);
+    this.assertCanManageRole(actor, { level: target.role_level });
+
+    const result = await this.removeAvatar(id);
+    await this.auditService.log({
+      actorUserId: actorId,
+      action: "USER_AVATAR_REMOVED",
+      entityType: "USER",
+      entityId: id
+    });
+    return result;
+  }
 
   private async getActorRole(actorId: number) {
     return this.dbService.db("users")
@@ -58,6 +181,7 @@ export class UsersService {
         "users.deleted_at",
         "users.lang",
         "users.can_submit_files",
+        "users.avatar",
         "users.created_at"
       )
       .orderBy("users.created_at", "desc");

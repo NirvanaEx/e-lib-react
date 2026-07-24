@@ -44,6 +44,8 @@ import { changeLanguage } from "../../features/settings/settings.api";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
 import { getDashboardRoute, getDefaultRoute, hasAccess } from "../../shared/utils/access";
+import { getAvatarUrl } from "../../shared/utils/avatar";
+import { ImageLightbox } from "../../shared/ui/AvatarEditor";
 import { acceptUserContentPage, fetchUserContentPage } from "../../features/content-pages/content-pages.api";
 import { fetchAppSettings } from "../../features/settings/app-settings.api";
 
@@ -112,6 +114,7 @@ export function BaseLayout({
   // Distinguishes the mandatory login prompt from opening the agreement to re-read it.
   const [agreementRequired, setAgreementRequired] = React.useState(false);
   const [userMenuAnchor, setUserMenuAnchor] = React.useState<HTMLElement | null>(null);
+  const [avatarLightboxOpen, setAvatarLightboxOpen] = React.useState(false);
   const queryClient = useQueryClient();
 
   const agreementKey = "user_agreement";
@@ -305,7 +308,8 @@ export function BaseLayout({
         display: "flex",
         flexDirection: "column",
         color: darkSidebar ? "#fff" : "inherit",
-        background: darkSidebar ? "transparent" : "var(--surface)"
+        // The drawer paper already provides the surface color (translucent when glass).
+        background: "transparent"
       }}
     >
       {resolvedSidebarHeader}
@@ -500,7 +504,10 @@ export function BaseLayout({
                     "&:hover": { borderColor: "primary.main" }
                   }}
                 >
-                  <Avatar sx={{ width: 34, height: 34, fontSize: 14, fontWeight: 700, bgcolor: "primary.main", color: "#fff" }}>
+                  <Avatar
+                    src={getAvatarUrl(user)}
+                    sx={{ width: 34, height: 34, fontSize: 14, fontWeight: 700, bgcolor: "primary.main", color: "#fff" }}
+                  >
                     {avatarInitials}
                   </Avatar>
                   <Box
@@ -549,9 +556,26 @@ export function BaseLayout({
                   }}
                 >
                   <Stack direction="row" spacing={1.25} alignItems="center" sx={{ px: 2, pt: 1.75, pb: 1.5 }}>
-                    <Avatar sx={{ width: 44, height: 44, fontSize: 16, fontWeight: 700, bgcolor: "primary.main", color: "#fff" }}>
-                      {avatarInitials}
-                    </Avatar>
+                    <Tooltip title={user?.avatar ? t("viewPhoto") : ""}>
+                      <ButtonBase
+                        onClick={() => {
+                          if (user?.avatar) {
+                            setUserMenuAnchor(null);
+                            setAvatarLightboxOpen(true);
+                          }
+                        }}
+                        disabled={!user?.avatar}
+                        aria-label={t("viewPhoto")}
+                        sx={{ borderRadius: "50%", cursor: user?.avatar ? "zoom-in" : "default" }}
+                      >
+                        <Avatar
+                          src={getAvatarUrl(user)}
+                          sx={{ width: 44, height: 44, fontSize: 16, fontWeight: 700, bgcolor: "primary.main", color: "#fff" }}
+                        >
+                          {avatarInitials}
+                        </Avatar>
+                      </ButtonBase>
+                    </Tooltip>
                     <Box sx={{ minWidth: 0 }}>
                       {userDisplayName && (
                         <Typography variant="body2" noWrap sx={{ fontWeight: 700 }}>
@@ -737,6 +761,7 @@ export function BaseLayout({
           </Button>
         </DialogActions>
       </Dialog>
+      <ImageLightbox open={avatarLightboxOpen} src={getAvatarUrl(user)} onClose={() => setAvatarLightboxOpen(false)} />
       {ribbonEnabled && <TestVersionRibbon />}
     </Box>
   );

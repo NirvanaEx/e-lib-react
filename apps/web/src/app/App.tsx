@@ -83,8 +83,8 @@ function MyLibraryRedirect() {
 }
 
 function ThemedApp({ children }: { children: React.ReactNode }) {
-  const { mode } = useThemeMode();
-  const muiTheme = React.useMemo(() => createAppTheme(mode), [mode]);
+  const { mode, style, glassOpacity } = useThemeMode();
+  const muiTheme = React.useMemo(() => createAppTheme(mode, style, glassOpacity), [mode, style, glassOpacity]);
   return (
     <ThemeProvider theme={muiTheme}>
       <CssBaseline />

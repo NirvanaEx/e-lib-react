@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Autocomplete,
+  Avatar,
   Box,
   Button,
   Chip,
@@ -25,6 +26,8 @@ import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import LinkOffOutlinedIcon from "@mui/icons-material/LinkOffOutlined";
+import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
+import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useForm, Controller } from "react-hook-form";
@@ -34,9 +37,11 @@ import {
   deleteUser,
   fetchRoles,
   fetchUsers,
+  removeUserAvatar,
   resetUserPassword,
   restoreUser,
-  updateUser
+  updateUser,
+  uploadUserAvatar
 } from "./users.api";
 import { fetchDepartments } from "../departments/departments.api";
 import { DataTable } from "../../shared/ui/DataTable";
@@ -53,7 +58,21 @@ import { useNavigate } from "react-router-dom";
 import { buildPathMap, formatPath } from "../../shared/utils/tree";
 import { formatDateTime } from "../../shared/utils/date";
 import { useAuth } from "../../shared/hooks/useAuth";
+import { getAvatarUrl } from "../../shared/utils/avatar";
+import { getErrorMessage } from "../../shared/utils/errors";
+import { AvatarCropDialog, ImageLightbox } from "../../shared/ui/AvatarEditor";
 import { UserFilesPanel } from "./UserFilesPanel";
+
+const AVATAR_ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
+
+function userInitials(row: { surname?: string | null; name?: string | null; login?: string }) {
+  const combined = [row.surname, row.name]
+    .map((part) => part?.trim().charAt(0))
+    .filter(Boolean)
+    .join("")
+    .toUpperCase();
+  return combined || row.login?.trim().charAt(0).toUpperCase() || "?";
+}
 
 const schema = z.object({
   login: z.string().min(1),
@@ -81,6 +100,7 @@ type UserRow = {
   deleted_at?: string | null;
   created_at?: string;
   can_submit_files?: boolean;
+  avatar?: string | null;
 };
 
 type RoleOption = { id: number; name: string; level?: number };
@@ -113,7 +133,7 @@ export default function UsersPage() {
   const { showToast } = useToast();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, updateUser: updateAuthUser } = useAuth();
 
   React.useEffect(() => {
     setPage(1);
@@ -222,6 +242,45 @@ export default function UsersPage() {
     },
     onError: () => showToast({ message: t("actionFailed"), severity: "error" })
   });
+
+  const avatarInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [avatarCropFile, setAvatarCropFile] = React.useState<File | null>(null);
+  const [avatarLightboxOpen, setAvatarLightboxOpen] = React.useState(false);
+
+  const applyAvatarChange = (targetId: number, avatar: string | null) => {
+    queryClient.invalidateQueries({ queryKey: ["users"] });
+    setEditingUser((prev) => (prev && prev.id === targetId ? { ...prev, avatar } : prev));
+    if (user?.id === targetId) {
+      updateAuthUser({ avatar });
+    }
+  };
+
+  const avatarUploadMutation = useMutation({
+    mutationFn: ({ id, file }: { id: number; file: File }) => uploadUserAvatar(id, file),
+    onSuccess: (result, variables) => {
+      applyAvatarChange(variables.id, result?.avatar || null);
+      setAvatarCropFile(null);
+      showToast({ message: t("avatarUpdated"), severity: "success" });
+    },
+    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
+  });
+
+  const avatarRemoveMutation = useMutation({
+    mutationFn: removeUserAvatar,
+    onSuccess: (_result, id) => {
+      applyAvatarChange(id, null);
+      showToast({ message: t("avatarRemoved"), severity: "success" });
+    },
+    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
+  });
+
+  const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file && editingUser) {
+      setAvatarCropFile(file);
+    }
+  };
 
   const resetMutation = useMutation({
     mutationFn: resetUserPassword,
@@ -338,7 +397,19 @@ export default function UsersPage() {
               key: "name",
               label: t("fullName"),
               sortValue: (row) => `${row.surname} ${row.name}${row.patronymic ? ` ${row.patronymic}` : ""}`.trim(),
-              render: (row) => `${row.surname} ${row.name}${row.patronymic ? ` ${row.patronymic}` : ""}`
+              render: (row) => (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Avatar
+                    src={getAvatarUrl(row)}
+                    sx={{ width: 28, height: 28, fontSize: 12, fontWeight: 700, bgcolor: "primary.main", color: "#fff" }}
+                  >
+                    {userInitials(row)}
+                  </Avatar>
+                  <Box component="span" sx={{ minWidth: 0 }}>
+                    {`${row.surname} ${row.name}${row.patronymic ? ` ${row.patronymic}` : ""}`}
+                  </Box>
+                </Stack>
+              )
             },
             {
               key: "role",
@@ -480,6 +551,52 @@ export default function UsersPage() {
           )}
           {!editingUser || dialogTab === 0 ? (
             <Stack spacing={2} sx={{ mt: 1 }}>
+              {editingUser && (
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <input ref={avatarInputRef} type="file" accept={AVATAR_ACCEPT} hidden onChange={handleAvatarFileChange} />
+                  <Tooltip title={editingUser.avatar ? t("viewPhoto") : ""}>
+                    <Box
+                      component="span"
+                      onClick={() => editingUser.avatar && setAvatarLightboxOpen(true)}
+                      sx={{ cursor: editingUser.avatar ? "zoom-in" : "default", display: "inline-flex", borderRadius: "50%" }}
+                    >
+                      <Avatar
+                        src={getAvatarUrl(editingUser)}
+                        sx={{ width: 56, height: 56, fontSize: 20, fontWeight: 700, bgcolor: "primary.main", color: "#fff" }}
+                      >
+                        {userInitials(editingUser)}
+                      </Avatar>
+                    </Box>
+                  </Tooltip>
+                  <Box>
+                    <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<PhotoCameraOutlinedIcon />}
+                        disabled={avatarUploadMutation.isPending}
+                        onClick={() => avatarInputRef.current?.click()}
+                      >
+                        {editingUser.avatar ? t("changeAvatar") : t("uploadAvatar")}
+                      </Button>
+                      {editingUser.avatar && (
+                        <Button
+                          size="small"
+                          color="error"
+                          startIcon={<DeleteOutlineOutlinedIcon />}
+                          disabled={avatarRemoveMutation.isPending}
+                          onClick={() => avatarRemoveMutation.mutate(editingUser.id)}
+                        >
+                          {t("removeAvatar")}
+                        </Button>
+                      )}
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                      {t("avatarHint")}
+                    </Typography>
+                  </Box>
+                </Stack>
+              )}
               <TextField label={t("login")} fullWidth required {...register("login")} error={!!errors.login} />
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                 <TextField label={t("surname")} fullWidth required {...register("surname")} error={!!errors.surname} />
@@ -601,6 +718,26 @@ export default function UsersPage() {
           }
         }}
         onCancel={() => setConfirmReset(null)}
+      />
+
+      <AvatarCropDialog
+        open={Boolean(avatarCropFile && editingUser)}
+        file={avatarCropFile}
+        saving={avatarUploadMutation.isPending}
+        onClose={() => setAvatarCropFile(null)}
+        onSave={(blob) => {
+          if (editingUser) {
+            avatarUploadMutation.mutate({
+              id: editingUser.id,
+              file: new File([blob], "avatar.png", { type: "image/png" })
+            });
+          }
+        }}
+      />
+      <ImageLightbox
+        open={avatarLightboxOpen}
+        src={editingUser ? getAvatarUrl(editingUser) : undefined}
+        onClose={() => setAvatarLightboxOpen(false)}
       />
 
       <Dialog open={!!tempCredentials} onClose={() => setTempCredentials(null)} fullWidth maxWidth="xs">

@@ -221,8 +221,9 @@ function HomeContent() {
                     borderRadius: "10px",
                     display: "grid",
                     placeItems: "center",
-                    backgroundColor: `${card.tone}1a`,
-                    color: card.tone,
+                    backgroundColor: card.tone,
+                    color: "#fff",
+                    boxShadow: `0 6px 16px ${card.tone}55`,
                     flexShrink: 0
                   }}
                 >
