@@ -11,6 +11,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import StorageIcon from "@mui/icons-material/Storage";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
@@ -68,6 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: t("departments"), path: "/dashboard/departments", icon: <AccountTreeIcon />, access: "department.read" },
     { label: t("roles"), path: "/dashboard/roles", icon: <ShieldIcon />, access: "role.read" },
     { label: t("content"), path: "/dashboard/content", icon: <PolicyOutlinedIcon />, access: "content.read" },
+    { label: t("appearanceNav"), path: "/dashboard/appearance", icon: <PaletteOutlinedIcon />, access: "content.read" },
     { label: t("sessions"), path: "/dashboard/sessions", icon: <HistoryIcon />, access: "session.read" },
     { label: t("audit"), path: "/dashboard/audit", icon: <SecurityIcon />, access: "audit.read" }
   ];
