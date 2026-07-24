@@ -1,10 +1,13 @@
 import React from "react";
 import {
+  Avatar,
   Box,
   Button,
   ButtonBase,
+  CircularProgress,
   IconButton,
   InputAdornment,
+  Slider,
   Stack,
   Tab,
   Tabs,
@@ -23,11 +26,20 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import TranslateIcon from "@mui/icons-material/Translate";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
-import { changePassword, changeLanguage } from "./settings.api";
+import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
+import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
+import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import BlurOnOutlinedIcon from "@mui/icons-material/BlurOnOutlined";
+import Crop32OutlinedIcon from "@mui/icons-material/Crop32Outlined";
+import OpacityOutlinedIcon from "@mui/icons-material/OpacityOutlined";
+import { changePassword, changeLanguage, uploadMyAvatar, removeMyAvatar } from "./settings.api";
+import { AvatarCropDialog, ImageLightbox } from "../../shared/ui/AvatarEditor";
 import i18n from "../../app/i18n";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { useThemeMode } from "../../shared/hooks/useThemeMode";
+import { getAvatarUrl } from "../../shared/utils/avatar";
+import { getErrorMessage } from "../../shared/utils/errors";
 import { LANGUAGES, flagFrameSx } from "../../shared/ui/LanguageMenu";
 import { useTranslation } from "react-i18next";
 
@@ -97,9 +109,127 @@ function ChoiceCard({
   );
 }
 
+const AVATAR_ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
+
+export function ProfileTab() {
+  const { t } = useTranslation();
+  const { showToast } = useToast();
+  const { user, updateUser } = useAuth();
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+  const [cropFile, setCropFile] = React.useState<File | null>(null);
+  const [lightboxOpen, setLightboxOpen] = React.useState(false);
+
+  const avatarUrl = getAvatarUrl(user);
+  const fullName = [user?.surname, user?.name, user?.patronymic].filter(Boolean).join(" ") || user?.login || "";
+  const initials =
+    [user?.surname, user?.name]
+      .map((part) => part?.trim().charAt(0))
+      .filter(Boolean)
+      .join("")
+      .toUpperCase() || user?.login?.trim().charAt(0).toUpperCase() || "?";
+
+  const uploadMutation = useMutation({
+    mutationFn: uploadMyAvatar,
+    onSuccess: (data) => {
+      updateUser({ avatar: data?.avatar || null });
+      setCropFile(null);
+      showToast({ message: t("avatarUpdated"), severity: "success" });
+    },
+    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: removeMyAvatar,
+    onSuccess: () => {
+      updateUser({ avatar: null });
+      showToast({ message: t("avatarRemoved"), severity: "success" });
+    },
+    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
+  });
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) {
+      setCropFile(file);
+    }
+  };
+
+  return (
+    <Stack spacing={2}>
+      <SectionHeader title={t("avatar")} subtitle={t("avatarHint")} />
+      <input ref={inputRef} type="file" accept={AVATAR_ACCEPT} hidden onChange={handleFileChange} />
+      <Stack direction="row" spacing={2} alignItems="center">
+        <Box sx={{ position: "relative", flexShrink: 0 }}>
+          <ButtonBase
+            onClick={() => avatarUrl && setLightboxOpen(true)}
+            disabled={!avatarUrl}
+            aria-label={t("viewPhoto")}
+            sx={{ borderRadius: "50%", cursor: avatarUrl ? "zoom-in" : "default" }}
+          >
+            <Avatar
+              src={avatarUrl}
+              sx={{ width: 84, height: 84, fontSize: 30, fontWeight: 700, bgcolor: "primary.main", color: "#fff" }}
+            >
+              {initials}
+            </Avatar>
+          </ButtonBase>
+          {uploadMutation.isPending && (
+            <CircularProgress
+              size={84}
+              thickness={2}
+              sx={{ position: "absolute", top: 0, left: 0, color: "primary.main", pointerEvents: "none" }}
+            />
+          )}
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="body1" sx={{ fontWeight: 700 }} noWrap>
+            {fullName}
+          </Typography>
+          {user?.department && (
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
+              {user.department}
+            </Typography>
+          )}
+          <Stack direction="row" spacing={1} sx={{ mt: 1.25, flexWrap: "wrap" }}>
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={<PhotoCameraOutlinedIcon />}
+              disabled={uploadMutation.isPending}
+              onClick={() => inputRef.current?.click()}
+            >
+              {user?.avatar ? t("changeAvatar") : t("uploadAvatar")}
+            </Button>
+            {user?.avatar && (
+              <Button
+                size="small"
+                color="error"
+                startIcon={<DeleteOutlineOutlinedIcon />}
+                disabled={removeMutation.isPending}
+                onClick={() => removeMutation.mutate()}
+              >
+                {t("removeAvatar")}
+              </Button>
+            )}
+          </Stack>
+        </Box>
+      </Stack>
+      <AvatarCropDialog
+        open={Boolean(cropFile)}
+        file={cropFile}
+        saving={uploadMutation.isPending}
+        onClose={() => setCropFile(null)}
+        onSave={(blob) => uploadMutation.mutate(new File([blob], "avatar.png", { type: "image/png" }))}
+      />
+      <ImageLightbox open={lightboxOpen} src={avatarUrl} onClose={() => setLightboxOpen(false)} />
+    </Stack>
+  );
+}
+
 function AppearanceTab() {
   const { t } = useTranslation();
-  const { mode, setMode } = useThemeMode();
+  const { mode, setMode, style, setStyle, glassOpacity, setGlassOpacity } = useThemeMode();
 
   return (
     <Stack spacing={3}>
@@ -120,6 +250,45 @@ function AppearanceTab() {
           />
         </Stack>
       </Stack>
+      <Stack spacing={1.25}>
+        <SectionHeader title={t("themeStyle")} subtitle={t("themeStyleHint")} />
+        <Stack direction="row" spacing={1.5}>
+          <ChoiceCard
+            selected={style === "glass"}
+            onClick={() => setStyle("glass")}
+            icon={<BlurOnOutlinedIcon fontSize="small" />}
+            label={t("styleGlass")}
+          />
+          <ChoiceCard
+            selected={style === "standard"}
+            onClick={() => setStyle("standard")}
+            icon={<Crop32OutlinedIcon fontSize="small" />}
+            label={t("styleStandard")}
+          />
+        </Stack>
+      </Stack>
+      {style === "glass" && (
+        <Stack spacing={1.25}>
+          <SectionHeader title={t("glassOpacity")} subtitle={t("glassOpacityHint")} />
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ px: 0.5 }}>
+            <OpacityOutlinedIcon fontSize="small" sx={{ color: "text.secondary" }} />
+            <Slider
+              size="small"
+              min={10}
+              max={90}
+              step={5}
+              value={glassOpacity}
+              onChange={(_, value) => setGlassOpacity(Number(value))}
+              valueLabelDisplay="auto"
+              valueLabelFormat={(value) => `${value}%`}
+              aria-label={t("glassOpacity")}
+            />
+            <Typography variant="body2" color="text.secondary" sx={{ minWidth: 42, textAlign: "right", fontWeight: 600 }}>
+              {glassOpacity}%
+            </Typography>
+          </Stack>
+        </Stack>
+      )}
     </Stack>
   );
 }
@@ -270,7 +439,7 @@ function SecurityTab() {
 
 export function SettingsPanel() {
   const { t } = useTranslation();
-  const [tab, setTab] = React.useState("appearance");
+  const [tab, setTab] = React.useState("profile");
 
   return (
     <Box>
@@ -281,13 +450,15 @@ export function SettingsPanel() {
         sx={{
           mb: 2.5,
           minHeight: 44,
-          "& .MuiTab-root": { textTransform: "none", fontWeight: 600, minHeight: 44 }
+          "& .MuiTab-root": { textTransform: "none", fontWeight: 600, minHeight: 44, minWidth: 0 }
         }}
       >
+        <Tab value="profile" icon={<PersonOutlineOutlinedIcon fontSize="small" />} iconPosition="start" label={t("profile")} />
         <Tab value="appearance" icon={<PaletteOutlinedIcon fontSize="small" />} iconPosition="start" label={t("appearance")} />
         <Tab value="language" icon={<TranslateIcon fontSize="small" />} iconPosition="start" label={t("language")} />
         <Tab value="security" icon={<LockOutlinedIcon fontSize="small" />} iconPosition="start" label={t("password")} />
       </Tabs>
+      {tab === "profile" && <ProfileTab />}
       {tab === "appearance" && <AppearanceTab />}
       {tab === "language" && <LanguageTab />}
       {tab === "security" && <SecurityTab />}

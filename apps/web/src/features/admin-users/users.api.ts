@@ -39,3 +39,15 @@ export async function fetchUserOptions(params: { page: number; pageSize: number;
   const { data } = await api.get("/dashboard/users/options", { params });
   return data;
 }
+
+export async function uploadUserAvatar(id: number, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await api.post(`/dashboard/users/${id}/avatar`, form);
+  return data;
+}
+
+export async function removeUserAvatar(id: number) {
+  const { data } = await api.delete(`/dashboard/users/${id}/avatar`);
+  return data;
+}

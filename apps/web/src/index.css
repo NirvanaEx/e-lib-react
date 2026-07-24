@@ -1,6 +1,9 @@
 :root {
   --bg: #f5f7fb;
   --surface: #ffffff;
+  /* Always-opaque surface for spots where translucency breaks rendering
+     (e.g. browser autofill backgrounds). Stays solid in the glass style. */
+  --surface-solid: #ffffff;
   --surface-2: #f1f5fb;
   --ink: #16233d;
   --muted: #64748b;
@@ -19,6 +22,7 @@
 :root[data-theme="dark"] {
   --bg: #0b1424;
   --surface: #111f36;
+  --surface-solid: #111f36;
   --surface-2: #16233d;
   --ink: #e2e8f0;
   --muted: #94a3b8;
@@ -32,6 +36,27 @@
   --appbar: rgba(11, 20, 36, 0.88);
   --bg-glow-1: #12233f;
   --bg-glow-2: #0f2036;
+}
+
+/* Liquid glass style: translucent panel surfaces (page background unchanged).
+   --glass-alpha / --glass-alpha-2 are set by ThemeModeProvider from the
+   transparency slider; the fallbacks match its default (60%). The formula
+   lives in glassSurfaceAlpha() in shared/hooks/useThemeMode.tsx, and
+   app/theme.ts derives the MUI paper color from the same function. */
+:root[data-style="glass"] {
+  --surface: rgba(255, 255, 255, var(--glass-alpha, 0.475));
+  --surface-2: rgba(255, 255, 255, var(--glass-alpha-2, 0.356));
+  --border: rgba(126, 166, 224, 0.4);
+  --appbar: rgba(255, 255, 255, 0.5);
+  --shadow: 0 12px 32px rgba(15, 42, 90, 0.12);
+}
+
+:root[data-theme="dark"][data-style="glass"] {
+  --surface: rgba(120, 165, 225, var(--glass-alpha, 0.195));
+  --surface-2: rgba(130, 175, 235, var(--glass-alpha-2, 0.146));
+  --border: rgba(165, 200, 255, 0.26);
+  --appbar: rgba(9, 20, 38, 0.5);
+  --shadow: 0 16px 40px rgba(2, 8, 23, 0.45);
 }
 
 * {
@@ -49,6 +74,13 @@ body {
     var(--bg);
   color: var(--ink);
   min-height: 100vh;
+}
+
+/* Blur the page behind modals; skip the invisible backdrop used by menus. */
+:root[data-style="glass"] .MuiBackdrop-root:not(.MuiBackdrop-invisible) {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background-color: rgba(8, 15, 30, 0.35);
 }
 
 h1,

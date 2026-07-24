@@ -1,5 +1,20 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseInterceptors
+} from "@nestjs/common";
+import { ApiBearerAuth, ApiConsumes, ApiTags } from "@nestjs/swagger";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { avatarUploadOptions } from "./avatar-upload";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { Access } from "../../common/decorators/access.decorator";
 import { User } from "../../common/decorators/user.decorator";
@@ -69,5 +84,26 @@ export class UsersController {
   @Access("user.reset_password")
   async resetPassword(@Param("id", ParseIntPipe) id: number, @User() actor: any) {
     return this.usersService.resetPassword(id, actor.id);
+  }
+
+  @ApiConsumes("multipart/form-data")
+  @UseInterceptors(FileInterceptor("file", avatarUploadOptions))
+  @Post(":id/avatar")
+  @Access("user.update")
+  async uploadAvatar(
+    @Param("id", ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+    @User() actor: any
+  ) {
+    if (!file) {
+      throw new BadRequestException("File is required");
+    }
+    return this.usersService.setAvatarByAdmin(id, file, actor.id);
+  }
+
+  @Delete(":id/avatar")
+  @Access("user.update")
+  async removeAvatar(@Param("id", ParseIntPipe) id: number, @User() actor: any) {
+    return this.usersService.removeAvatarByAdmin(id, actor.id);
   }
 }

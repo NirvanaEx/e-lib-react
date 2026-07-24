@@ -52,6 +52,7 @@ export class AuthService {
         "users.token_version",
         "users.lang",
         "users.can_submit_files",
+        "users.avatar",
         "roles.name as role",
         "roles.level as role_level",
         "departments.name as department"
@@ -110,6 +111,7 @@ export class AuthService {
         patronymic: user.patronymic,
         lang: user.lang,
         canSubmitFiles: user.can_submit_files,
+        avatar: user.avatar || null,
         permissions
       }
     };
@@ -130,6 +132,7 @@ export class AuthService {
         "users.must_change_password",
         "users.lang",
         "users.can_submit_files",
+        "users.avatar",
         "roles.name as role",
         "roles.level as role_level",
         "departments.name as department"
@@ -164,6 +167,7 @@ export class AuthService {
         patronymic: user.patronymic,
         lang: user.lang,
         canSubmitFiles: user.can_submit_files,
+        avatar: user.avatar || null,
         permissions
       }
     };
@@ -209,6 +213,7 @@ export class AuthService {
         "users.must_change_password",
         "users.token_version",
         "users.can_submit_files",
+        "users.avatar",
         "roles.name as role",
         "roles.level as role_level",
         "departments.name as department"
@@ -259,6 +264,7 @@ export class AuthService {
         patronymic: refreshed.patronymic,
         lang: refreshed.lang,
         canSubmitFiles: refreshed.can_submit_files,
+        avatar: refreshed.avatar || null,
         permissions
       }
     };

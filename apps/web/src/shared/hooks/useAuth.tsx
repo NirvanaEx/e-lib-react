@@ -19,6 +19,7 @@ export type AuthUser = {
   lang?: string | null;
   permissions?: string[];
   canSubmitFiles?: boolean;
+  avatar?: string | null;
 };
 
 type AuthContextValue = {
