@@ -7,16 +7,20 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   IconButton,
   Slider,
   Stack,
+  Switch,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import CropOutlinedIcon from "@mui/icons-material/CropOutlined";
 import DesktopWindowsOutlinedIcon from "@mui/icons-material/DesktopWindowsOutlined";
 import LaptopMacOutlinedIcon from "@mui/icons-material/LaptopMacOutlined";
 import TabletMacOutlinedIcon from "@mui/icons-material/TabletMacOutlined";
@@ -27,18 +31,26 @@ import SwapHorizOutlinedIcon from "@mui/icons-material/SwapHorizOutlined";
 import SwapVertOutlinedIcon from "@mui/icons-material/SwapVertOutlined";
 import ZoomInOutlinedIcon from "@mui/icons-material/ZoomInOutlined";
 import { useTranslation } from "react-i18next";
-import type { BrandingFocus, BrandingHAlign, BrandingVAlign } from "../settings/app-settings.api";
+import type {
+  BrandingFocus,
+  BrandingFocusOverrides,
+  BrandingHAlign,
+  BrandingVAlign
+} from "../settings/app-settings.api";
 import {
   DEFAULT_HERO_FOCUS,
   HERO_MAX_ZOOM,
   HERO_MIN_ZOOM,
   HeroFormat,
   HeroFormatKey,
+  heroFocusForFormat,
   heroFormatRatio,
   heroVisibleRegion,
-  normalizeHeroFocus
+  normalizeHeroFocus,
+  normalizeHeroOverrides,
+  resolveHeroFormatKey
 } from "../../shared/ui/heroSlides";
-import { HeroPreview, useHeroFormats } from "../../shared/ui/HeroStage";
+import { HeroPreview, useHeroFormats, useViewportWidth } from "../../shared/ui/HeroStage";
 
 const CANVAS_MAX_HEIGHT = 340;
 // Travel below this (as a fraction of the image) means the frame already spans
@@ -129,6 +141,8 @@ function DevicePreviewCard({
   onSelect,
   imageUrl,
   focus,
+  ownFrame,
+  currentScreen,
   text
 }: {
   format: HeroFormat;
@@ -136,6 +150,10 @@ function DevicePreviewCard({
   onSelect: () => void;
   imageUrl: string;
   focus: BrandingFocus;
+  // This format carries its own framing instead of inheriting the base one.
+  ownFrame: boolean;
+  // The window the editor runs in falls into this format.
+  currentScreen: boolean;
   text: SlideText;
 }) {
   const { t } = useTranslation();
@@ -185,6 +203,20 @@ function DevicePreviewCard({
         <Typography variant="caption" sx={{ fontWeight: 700 }}>
           {t(format.labelKey)}
         </Typography>
+        {currentScreen && (
+          <Chip
+            size="small"
+            color="primary"
+            variant="outlined"
+            label={t("framingYourScreen")}
+            sx={{ height: 18, fontSize: 10, fontWeight: 700, "& .MuiChip-label": { px: 0.6 } }}
+          />
+        )}
+        {ownFrame && (
+          <Tooltip title={t("framingOwnFrame")}>
+            <CropOutlinedIcon sx={{ fontSize: 14, color: "primary.main" }} />
+          </Tooltip>
+        )}
         <Box sx={{ flex: 1 }} />
         <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11, whiteSpace: "nowrap" }}>
           ≈ {format.width}×{format.height}
@@ -229,14 +261,16 @@ export function HeroFramingDialog({
   slideIndex,
   imageUrl,
   focus,
+  focusByFormat,
   text
 }: {
   open: boolean;
   onClose: () => void;
-  onApply: (focus: BrandingFocus) => void;
+  onApply: (focus: BrandingFocus, focusByFormat: BrandingFocusOverrides) => void;
   slideIndex: number;
   imageUrl: string;
   focus: BrandingFocus;
+  focusByFormat: BrandingFocusOverrides;
   text: SlideText;
 }) {
   const { t } = useTranslation();
@@ -245,7 +279,10 @@ export function HeroFramingDialog({
   const canvasRef = React.useRef<HTMLDivElement | null>(null);
   const dragRef = React.useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null);
 
-  const [draft, setDraft] = React.useState<BrandingFocus>(() => normalizeHeroFocus(focus));
+  // "desktop" edits the base framing; the other formats edit their own copy and
+  // fall back to the base while they have none.
+  const [base, setBase] = React.useState<BrandingFocus>(() => normalizeHeroFocus(focus));
+  const [overrides, setOverrides] = React.useState<BrandingFocusOverrides>(() => normalizeHeroOverrides(focusByFormat));
   const [activeKey, setActiveKey] = React.useState<HeroFormatKey>("desktop");
   const [dragging, setDragging] = React.useState(false);
   const naturalRatio = useImageRatio(imageUrl);
@@ -254,25 +291,60 @@ export function HeroFramingDialog({
   // closing with Cancel leaves the slide untouched.
   React.useEffect(() => {
     if (open) {
-      setDraft(normalizeHeroFocus(focus));
+      setBase(normalizeHeroFocus(focus));
+      setOverrides(normalizeHeroOverrides(focusByFormat));
       setActiveKey("desktop");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const formats = useHeroFormats();
+  const viewportWidth = useViewportWidth();
+  const currentScreenKey = resolveHeroFormatKey(viewportWidth);
   const activeFormat = formats.find((format) => format.key === activeKey) ?? formats[0];
   const activeRatio = heroFormatRatio(activeFormat);
+  const focusOf = (key: HeroFormatKey) => heroFocusForFormat(base, overrides, key);
+  const activeFocus = focusOf(activeKey);
+  // Narrow formats without their own framing follow the base one and are read-only
+  // until the admin asks for a separate frame.
+  const inherited = activeKey !== "desktop" && !overrides[activeKey as keyof BrandingFocusOverrides];
+
   // Until the photo reports its own size, assume it fills the header exactly.
   const imageRatio = naturalRatio ?? activeRatio;
-  const activeRegion = heroVisibleRegion(imageRatio, activeRatio, draft);
+  const activeRegion = heroVisibleRegion(imageRatio, activeRatio, activeFocus);
   const freeX = 1 - activeRegion.width;
   const freeY = 1 - activeRegion.height;
 
+  const patchActive = (patch: (previous: BrandingFocus) => BrandingFocus) => {
+    if (activeKey === "desktop") {
+      setBase(patch);
+      return;
+    }
+    setOverrides((previous) => {
+      const key = activeKey as keyof BrandingFocusOverrides;
+      return { ...previous, [key]: patch(previous[key] ?? normalizeHeroFocus(base)) };
+    });
+  };
+
+  const toggleOwnFrame = (enabled: boolean) => {
+    const key = activeKey as keyof BrandingFocusOverrides;
+    setOverrides((previous) => {
+      const next = { ...previous };
+      if (enabled) {
+        // Start from what this format shows right now, so nothing jumps.
+        next[key] = focusOf(activeKey);
+      } else {
+        delete next[key];
+      }
+      return next;
+    });
+  };
+
   const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (inherited) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { pointerX: event.clientX, pointerY: event.clientY, x: draft.x, y: draft.y };
+    dragRef.current = { pointerX: event.clientX, pointerY: event.clientY, x: activeFocus.x, y: activeFocus.y };
     setDragging(true);
   };
 
@@ -284,7 +356,7 @@ export function HeroFramingDialog({
     // photo follows the cursor one-to-one.
     const nextX = freeX > NO_TRAVEL ? drag.x + ((event.clientX - drag.pointerX) / canvas.width / freeX) * 100 : drag.x;
     const nextY = freeY > NO_TRAVEL ? drag.y + ((event.clientY - drag.pointerY) / canvas.height / freeY) * 100 : drag.y;
-    setDraft((prev) => ({ ...prev, x: clampPercent(nextX), y: clampPercent(nextY) }));
+    patchActive((previous) => ({ ...previous, x: clampPercent(nextX), y: clampPercent(nextY) }));
   };
 
   const endDrag = () => {
@@ -301,9 +373,13 @@ export function HeroFramingDialog({
       ArrowDown: [0, step]
     };
     const delta = deltas[event.key];
-    if (!delta) return;
+    if (!delta || inherited) return;
     event.preventDefault();
-    setDraft((prev) => ({ ...prev, x: clampPercent(prev.x + delta[0]), y: clampPercent(prev.y + delta[1]) }));
+    patchActive((previous) => ({
+      ...previous,
+      x: clampPercent(previous.x + delta[0]),
+      y: clampPercent(previous.y + delta[1])
+    }));
   };
 
   return (
@@ -380,10 +456,11 @@ export function HeroFramingDialog({
                 }}
               />
 
-              {/* Frames of the formats that are not being edited — dashed, just
-                  to show where those screens cut the photo. */}
+              {/* Frames of the formats that are not being edited — dashed, each
+                  placed by its own framing, so it shows exactly what that screen
+                  cuts off. */}
               {formats.filter((format) => format.key !== activeKey).map((format) => {
-                const region = heroVisibleRegion(imageRatio, heroFormatRatio(format), draft);
+                const region = heroVisibleRegion(imageRatio, heroFormatRatio(format), focusOf(format.key));
                 return (
                   <Box
                     key={format.key}
@@ -422,7 +499,7 @@ export function HeroFramingDialog({
                   border: "2px solid #fff",
                   borderRadius: "4px",
                   boxShadow: "0 0 0 9999px rgba(5, 16, 34, 0.62)",
-                  cursor: dragging ? "grabbing" : "grab",
+                  cursor: inherited ? "default" : dragging ? "grabbing" : "grab",
                   outline: "none",
                   "&:focus-visible": { borderColor: "primary.light" }
                 }}
@@ -480,7 +557,38 @@ export function HeroFramingDialog({
               {t("heroFramingHint")}
             </Typography>
 
-            <Stack spacing={1.25}>
+            {/* Only the base format is always editable; a narrow format has to be
+                given its own frame first, otherwise it follows the base one. */}
+            {activeKey !== "desktop" && (
+              <Box
+                sx={{
+                  p: 1.25,
+                  borderRadius: "10px",
+                  border: "1px solid",
+                  borderColor: inherited ? "var(--border)" : "primary.main",
+                  backgroundColor: inherited ? "transparent" : "rgba(37, 99, 235, 0.06)"
+                }}
+              >
+                <FormControlLabel
+                  sx={{ m: 0 }}
+                  control={
+                    <Switch size="small" checked={!inherited} onChange={(event) => toggleOwnFrame(event.target.checked)} />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="caption" sx={{ fontWeight: 700, display: "block" }}>
+                        {t("framingOwnFrame")}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>
+                        {inherited ? t("framingInherits") : t("framingOwnFrameHint")}
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </Box>
+            )}
+
+            <Stack spacing={1.25} sx={{ opacity: inherited ? 0.5 : 1 }}>
               <Stack direction="row" spacing={1.5} alignItems="center">
                 <ZoomInOutlinedIcon fontSize="small" color="action" />
                 <Typography variant="caption" sx={{ width: 112, fontWeight: 600 }}>
@@ -491,14 +599,15 @@ export function HeroFramingDialog({
                   min={HERO_MIN_ZOOM}
                   max={HERO_MAX_ZOOM}
                   step={5}
-                  value={draft.zoom}
-                  onChange={(_event, value) => setDraft((prev) => ({ ...prev, zoom: value as number }))}
+                  disabled={inherited}
+                  value={activeFocus.zoom}
+                  onChange={(_event, value) => patchActive((prev) => ({ ...prev, zoom: value as number }))}
                   sx={{ flex: 1, minWidth: 90 }}
                   valueLabelDisplay="auto"
                   valueLabelFormat={(value) => `${value}%`}
                 />
                 <Typography variant="caption" color="text.secondary" sx={{ width: 44, textAlign: "right" }}>
-                  {draft.zoom}%
+                  {activeFocus.zoom}%
                 </Typography>
               </Stack>
               <Stack direction="row" spacing={1.5} alignItems="center">
@@ -510,14 +619,15 @@ export function HeroFramingDialog({
                   size="small"
                   min={0}
                   max={100}
-                  value={draft.x}
-                  onChange={(_event, value) => setDraft((prev) => ({ ...prev, x: value as number }))}
+                  disabled={inherited}
+                  value={activeFocus.x}
+                  onChange={(_event, value) => patchActive((prev) => ({ ...prev, x: value as number }))}
                   sx={{ flex: 1, minWidth: 90 }}
                   valueLabelDisplay="auto"
                   valueLabelFormat={(value) => `${value}%`}
                 />
                 <Typography variant="caption" color="text.secondary" sx={{ width: 44, textAlign: "right" }}>
-                  {draft.x}%
+                  {activeFocus.x}%
                 </Typography>
               </Stack>
               <Stack direction="row" spacing={1.5} alignItems="center">
@@ -529,14 +639,15 @@ export function HeroFramingDialog({
                   size="small"
                   min={0}
                   max={100}
-                  value={draft.y}
-                  onChange={(_event, value) => setDraft((prev) => ({ ...prev, y: value as number }))}
+                  disabled={inherited}
+                  value={activeFocus.y}
+                  onChange={(_event, value) => patchActive((prev) => ({ ...prev, y: value as number }))}
                   sx={{ flex: 1, minWidth: 90 }}
                   valueLabelDisplay="auto"
                   valueLabelFormat={(value) => `${value}%`}
                 />
                 <Typography variant="caption" color="text.secondary" sx={{ width: 44, textAlign: "right" }}>
-                  {draft.y}%
+                  {activeFocus.y}%
                 </Typography>
               </Stack>
             </Stack>
@@ -547,7 +658,11 @@ export function HeroFramingDialog({
               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                 {t("framingPreviews")}
               </Typography>
-              <Chip size="small" variant="outlined" label={`${draft.x}% · ${draft.y}% · ${draft.zoom}%`} />
+              <Chip
+                size="small"
+                variant="outlined"
+                label={`${activeFocus.x}% · ${activeFocus.y}% · ${activeFocus.zoom}%`}
+              />
             </Stack>
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11, lineHeight: 1.35 }}>
               {t("formatCardsNote")}
@@ -563,7 +678,9 @@ export function HeroFramingDialog({
                   active={format.key === activeKey}
                   onSelect={() => setActiveKey(format.key)}
                   imageUrl={imageUrl}
-                  focus={draft}
+                  focus={focusOf(format.key)}
+                  ownFrame={Boolean(overrides[format.key as keyof BrandingFocusOverrides])}
+                  currentScreen={format.key === currentScreenKey}
                   text={text}
                 />
               ))}
@@ -577,7 +694,9 @@ export function HeroFramingDialog({
                     active={format.key === activeKey}
                     onSelect={() => setActiveKey(format.key)}
                     imageUrl={imageUrl}
-                    focus={draft}
+                    focus={focusOf(format.key)}
+                    ownFrame={Boolean(overrides[format.key as keyof BrandingFocusOverrides])}
+                    currentScreen={format.key === currentScreenKey}
                     text={text}
                   />
                 ))}
@@ -587,14 +706,21 @@ export function HeroFramingDialog({
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 1.75 }}>
-        <Button color="inherit" startIcon={<RestartAltOutlinedIcon />} onClick={() => setDraft(DEFAULT_HERO_FOCUS)}>
+        <Button
+          color="inherit"
+          startIcon={<RestartAltOutlinedIcon />}
+          onClick={() => {
+            setBase(DEFAULT_HERO_FOCUS);
+            setOverrides({});
+          }}
+        >
           {t("framingReset")}
         </Button>
         <Box sx={{ flex: 1 }} />
         <Button color="inherit" onClick={onClose}>
           {t("cancel")}
         </Button>
-        <Button variant="contained" sx={{ boxShadow: "none" }} onClick={() => onApply(draft)}>
+        <Button variant="contained" sx={{ boxShadow: "none" }} onClick={() => onApply(base, overrides)}>
           {t("framingApply")}
         </Button>
       </DialogActions>

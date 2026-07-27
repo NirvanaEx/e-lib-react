@@ -4,8 +4,8 @@ import { useTranslation } from "react-i18next";
 import { useBranding } from "../../shared/hooks/useBranding";
 import { getBrandingImageUrl } from "../settings/app-settings.api";
 import type { BrandingFocus, BrandingHAlign, BrandingVAlign } from "../settings/app-settings.api";
-import { heroAlignItems, heroJustifyContent, resolveBrandingText } from "../../shared/ui/heroSlides";
-import { HeroStage } from "../../shared/ui/HeroStage";
+import { heroAlignItems, heroJustifyContent, resolveBrandingText, resolveHeroFocus } from "../../shared/ui/heroSlides";
+import { HeroStage, useViewportWidth } from "../../shared/ui/HeroStage";
 import heroImage from "../../assets/main-back3.png";
 
 const MIN_INTERVAL = 2;
@@ -97,6 +97,9 @@ function SlideLayer({
 export function HeroCarousel() {
   const { t, i18n } = useTranslation();
   const branding = useBranding();
+  // Slides can carry a separate framing per screen format; the window decides
+  // which one applies here.
+  const viewportWidth = useViewportWidth();
 
   const slides = branding?.heroSlides?.length ? branding.heroSlides : null;
   const count = slides?.length ?? 1;
@@ -134,7 +137,7 @@ export function HeroCarousel() {
                 key={slide.id}
                 active={i === index}
                 imageUrl={getBrandingImageUrl(slide.image) || heroImage}
-                focus={slide.focus}
+                focus={resolveHeroFocus(slide.focus, slide.focusByFormat, viewportWidth)}
                 hAlign={sharedText.hAlign}
                 vAlign={sharedText.vAlign}
                 title=""
@@ -170,7 +173,7 @@ export function HeroCarousel() {
                 key={slide.id}
                 active={i === index}
                 imageUrl={getBrandingImageUrl(slide.image) || heroImage}
-                focus={slide.focus}
+                focus={resolveHeroFocus(slide.focus, slide.focusByFormat, viewportWidth)}
                 hAlign={slide.hAlign}
                 vAlign={slide.vAlign}
                 title={title}

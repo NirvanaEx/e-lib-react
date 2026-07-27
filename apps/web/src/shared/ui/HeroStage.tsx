@@ -10,9 +10,7 @@ import {
   normalizeHeroFocus
 } from "./heroSlides";
 
-// The widest header format follows the window, so the editor previews match the
-// screen the admin is looking at instead of a guessed width.
-export function useHeroFormats() {
+export function useViewportWidth() {
   const [width, setWidth] = React.useState(() =>
     typeof document === "undefined" ? 1440 : document.documentElement.clientWidth
   );
@@ -23,6 +21,13 @@ export function useHeroFormats() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  return width;
+}
+
+// The format the editor sits on is measured from the window, so its preview
+// matches the screen the admin is looking at instead of a guessed width.
+export function useHeroFormats() {
+  const width = useViewportWidth();
   return React.useMemo(() => heroFormats(width), [width]);
 }
 
