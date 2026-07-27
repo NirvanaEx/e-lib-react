@@ -3,17 +3,16 @@ import { Box, ButtonBase, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { useBranding } from "../../shared/hooks/useBranding";
 import { getBrandingImageUrl } from "../settings/app-settings.api";
-import type { BrandingHAlign, BrandingVAlign } from "../settings/app-settings.api";
-import {
-  heroAlignItems,
-  heroJustifyContent,
-  heroOverlayGradient,
-  resolveBrandingText
-} from "../../shared/ui/heroSlides";
+import type { BrandingFocus, BrandingHAlign, BrandingVAlign } from "../settings/app-settings.api";
+import { heroAlignItems, heroJustifyContent, resolveBrandingText } from "../../shared/ui/heroSlides";
+import { HeroStage } from "../../shared/ui/HeroStage";
 import heroImage from "../../assets/main-back3.png";
 
 const MIN_INTERVAL = 2;
 const MAX_INTERVAL = 120;
+// Framing of the built-in header photo, kept as it looked before slides could be
+// framed by hand (the stock image reads best anchored to its top-right corner).
+const FALLBACK_FOCUS: BrandingFocus = { x: 100, y: 0, zoom: 100 };
 
 function HeroText({
   hAlign,
@@ -59,38 +58,39 @@ function HeroText({
 function SlideLayer({
   active,
   imageUrl,
-  overlay,
+  focus,
   hAlign,
   vAlign,
   title,
-  subtitle
+  subtitle,
+  // In the shared-text mode the text lives in one block above the slides, so the
+  // scrim has to be drawn even though this layer renders no text of its own.
+  showScrim
 }: {
   active: boolean;
   imageUrl: string;
-  overlay: string | null;
+  focus?: Partial<BrandingFocus> | null;
   hAlign: BrandingHAlign;
   vAlign: BrandingVAlign;
   title: string;
   subtitle: string;
+  showScrim?: boolean;
 }) {
   return (
-    <Box
+    <HeroStage
+      imageUrl={imageUrl}
+      focus={focus}
+      hAlign={hAlign}
+      vAlign={vAlign}
+      hasText={showScrim ?? Boolean(title || subtitle)}
       sx={{
-        position: "absolute",
-        inset: 0,
         opacity: active ? 1 : 0,
         transition: "opacity 0.7s ease",
-        pointerEvents: active ? "auto" : "none",
-        display: "flex",
-        justifyContent: heroJustifyContent[hAlign],
-        alignItems: heroAlignItems[vAlign],
-        backgroundImage: [overlay, `url(${imageUrl})`].filter(Boolean).join(", "),
-        backgroundSize: "cover",
-        backgroundPosition: "right top"
+        pointerEvents: active ? "auto" : "none"
       }}
     >
       <HeroText hAlign={hAlign} vAlign={vAlign} title={title} subtitle={subtitle} />
-    </Box>
+    </HeroStage>
   );
 }
 
@@ -134,11 +134,12 @@ export function HeroCarousel() {
                 key={slide.id}
                 active={i === index}
                 imageUrl={getBrandingImageUrl(slide.image) || heroImage}
-                overlay={heroOverlayGradient(sharedText.hAlign, sharedHasText)}
+                focus={slide.focus}
                 hAlign={sharedText.hAlign}
                 vAlign={sharedText.vAlign}
                 title=""
                 subtitle=""
+                showScrim={sharedHasText}
               />
             ))}
             {/* One fixed text block on top — only the images rotate underneath. */}
@@ -169,7 +170,7 @@ export function HeroCarousel() {
                 key={slide.id}
                 active={i === index}
                 imageUrl={getBrandingImageUrl(slide.image) || heroImage}
-                overlay={heroOverlayGradient(slide.hAlign, Boolean(title || subtitle))}
+                focus={slide.focus}
                 hAlign={slide.hAlign}
                 vAlign={slide.vAlign}
                 title={title}
@@ -182,7 +183,7 @@ export function HeroCarousel() {
         <SlideLayer
           active
           imageUrl={heroImage}
-          overlay={heroOverlayGradient("left", true)}
+          focus={FALLBACK_FOCUS}
           hAlign="left"
           vAlign="center"
           title={t("homeHeroTitle")}
