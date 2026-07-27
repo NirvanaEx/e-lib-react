@@ -19,6 +19,8 @@ const BRANDING_CONTENT_TYPES: Record<string, string> = {
 const LANGS = ["ru", "en", "uz"] as const;
 const H_ALIGNS = ["left", "center", "right"] as const;
 const V_ALIGNS = ["top", "center", "bottom"] as const;
+// Screen formats that may override the base framing (the base one is the desktop).
+const FOCUS_FORMATS = ["laptop", "tablet", "phone"] as const;
 const MAX_SLIDES = 12;
 const MIN_HERO_INTERVAL = 2;
 const MAX_HERO_INTERVAL = 120;
@@ -34,10 +36,15 @@ export type BrandingText = { ru?: string; en?: string; uz?: string };
 // focal point in percent of the image plus an optional zoom (100 = plain cover).
 export type BrandingFocus = { x: number; y: number; zoom: number };
 
+// Narrower screen formats may carry their own framing; without an entry they
+// inherit `focus`, which is the framing of a wide desktop.
+export type BrandingFocusOverrides = Partial<Record<(typeof FOCUS_FORMATS)[number], BrandingFocus>>;
+
 export type BrandingSlide = {
   id: string;
   image: string | null;
   focus: BrandingFocus;
+  focusByFormat: BrandingFocusOverrides;
   title: BrandingText;
   subtitle: BrandingText;
   hAlign: (typeof H_ALIGNS)[number];
@@ -101,6 +108,15 @@ function sanitizeFocus(value: unknown): BrandingFocus {
   };
 }
 
+function sanitizeFocusOverrides(value: unknown): BrandingFocusOverrides {
+  const source = (value || {}) as Record<string, unknown>;
+  const result: BrandingFocusOverrides = {};
+  for (const format of FOCUS_FORMATS) {
+    if (source[format]) result[format] = sanitizeFocus(source[format]);
+  }
+  return result;
+}
+
 function sanitizeText(value: unknown): BrandingText {
   const source = (value || {}) as Record<string, unknown>;
   const result: BrandingText = {};
@@ -131,6 +147,7 @@ function sanitizeBranding(value: unknown): SiteBranding {
         id: typeof raw.id === "string" && raw.id ? raw.id.slice(0, 64) : randomUUID(),
         image: sanitizeFileName(raw.image),
         focus: sanitizeFocus(raw.focus),
+        focusByFormat: sanitizeFocusOverrides(raw.focusByFormat),
         title: sanitizeText(raw.title),
         subtitle: sanitizeText(raw.subtitle),
         hAlign: sanitizeHAlign(raw.hAlign),

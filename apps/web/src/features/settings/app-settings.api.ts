@@ -9,10 +9,19 @@ export type BrandingVAlign = "top" | "center" | "bottom";
 // (0/0 = top-left corner) plus a zoom in percent (100 = plain `cover`).
 export type BrandingFocus = { x: number; y: number; zoom: number };
 
+// Per-screen-format framing. `focus` on the slide is the base (wide desktop);
+// these formats may override it and otherwise inherit it.
+export type BrandingFocusOverrides = {
+  laptop?: BrandingFocus;
+  tablet?: BrandingFocus;
+  phone?: BrandingFocus;
+};
+
 export type BrandingSlide = {
   id: string;
   image: string | null;
   focus: BrandingFocus;
+  focusByFormat: BrandingFocusOverrides;
   title: BrandingText;
   subtitle: BrandingText;
   hAlign: BrandingHAlign;

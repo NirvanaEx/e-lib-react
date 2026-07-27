@@ -46,12 +46,16 @@ import {
 } from "../settings/app-settings.api";
 import {
   DEFAULT_HERO_FOCUS,
+  heroFocusForFormat,
   heroFormatRatio,
+  heroOverrideCount,
   isDefaultHeroFocus,
   normalizeHeroFocus,
-  resolveBrandingText
+  normalizeHeroOverrides,
+  resolveBrandingText,
+  resolveHeroFormatKey
 } from "../../shared/ui/heroSlides";
-import { HeroPreview, useHeroFormats } from "../../shared/ui/HeroStage";
+import { HeroPreview, useHeroFormats, useViewportWidth } from "../../shared/ui/HeroStage";
 import { HeroFramingDialog } from "./HeroFramingDialog";
 import i18n from "../../app/i18n";
 import defaultHeroImage from "../../assets/main-back3.png";
@@ -70,7 +74,16 @@ const darkPreviewBackground = "linear-gradient(180deg, #123a6b 0%, #0c2a52 100%)
 
 function newSlide(): BrandingSlide {
   const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-  return { id, image: null, focus: DEFAULT_HERO_FOCUS, title: {}, subtitle: {}, hAlign: "left", vAlign: "center" };
+  return {
+    id,
+    image: null,
+    focus: DEFAULT_HERO_FOCUS,
+    focusByFormat: {},
+    title: {},
+    subtitle: {},
+    hAlign: "left",
+    vAlign: "center"
+  };
 }
 
 // When nothing is customized yet, the editor opens with the header the home
@@ -261,22 +274,25 @@ function slideText(slide: BrandingSlide, textOverride: HeroSharedText | null | u
   };
 }
 
-// Proportions of the header as it renders on this very screen, so the card is a
-// faithful preview instead of a fixed 5:2 box.
+// Proportions and framing of the header as a visitor with this very window sees
+// it, so the card is a faithful preview instead of a fixed 5:2 box.
 function SlidePreview({ slide, textOverride }: { slide: BrandingSlide; textOverride?: HeroSharedText | null }) {
   const { i18n: i18next } = useTranslation();
   const text = slideText(slide, textOverride, i18next.language);
-  const desktopFormat = useHeroFormats()[0];
+  const formats = useHeroFormats();
+  const viewportWidth = useViewportWidth();
+  const currentKey = resolveHeroFormatKey(viewportWidth);
+  const format = formats.find((entry) => entry.key === currentKey) ?? formats[0];
   return (
     <HeroPreview
       imageUrl={getBrandingImageUrl(slide.image) || defaultHeroImage}
-      focus={slide.focus}
+      focus={heroFocusForFormat(slide.focus, slide.focusByFormat, currentKey)}
       hAlign={text.hAlign}
       vAlign={text.vAlign}
       title={text.title}
       subtitle={text.subtitle}
-      ratio={heroFormatRatio(desktopFormat)}
-      statCards={desktopFormat.cardsOverlay}
+      ratio={heroFormatRatio(format)}
+      statCards={format.cardsOverlay}
     />
   );
 }
@@ -303,7 +319,9 @@ function SlideCard({
   const [framingOpen, setFramingOpen] = React.useState(false);
   const imageUrl = getBrandingImageUrl(slide.image) || defaultHeroImage;
   const focus = normalizeHeroFocus(slide.focus);
-  const customFraming = !isDefaultHeroFocus(slide.focus);
+  const overrides = normalizeHeroOverrides(slide.focusByFormat);
+  const ownFrames = heroOverrideCount(overrides);
+  const customFraming = !isDefaultHeroFocus(slide.focus) || ownFrames > 0;
 
   const editorValue = LANGS.map((lang) => ({
     lang,
@@ -393,8 +411,8 @@ function SlideCard({
                   size="small"
                   variant="outlined"
                   icon={<CropOutlinedIcon />}
-                  label={`${focus.x}% · ${focus.y}% · ${focus.zoom}%`}
-                  onDelete={() => onPatch({ focus: DEFAULT_HERO_FOCUS })}
+                  label={`${focus.x}% · ${focus.y}% · ${focus.zoom}%${ownFrames ? ` · +${ownFrames}` : ""}`}
+                  onDelete={() => onPatch({ focus: DEFAULT_HERO_FOCUS, focusByFormat: {} })}
                   sx={{ fontWeight: 600 }}
                 />
               </Tooltip>
@@ -417,13 +435,14 @@ function SlideCard({
             <HeroFramingDialog
               open
               onClose={() => setFramingOpen(false)}
-              onApply={(focus) => {
-                onPatch({ focus });
+              onApply={(nextFocus, nextOverrides) => {
+                onPatch({ focus: nextFocus, focusByFormat: nextOverrides });
                 setFramingOpen(false);
               }}
               slideIndex={index}
               imageUrl={imageUrl}
               focus={focus}
+              focusByFormat={overrides}
               text={slideText(slide, sharedText, i18next.language)}
             />
           )}
@@ -502,7 +521,11 @@ export default function AppearancePage() {
     const branding = data.branding;
     // Slides stored before the framing controls existed carry no focus.
     const nextSlides = branding?.heroSlides?.length
-      ? branding.heroSlides.map((slide) => ({ ...slide, focus: normalizeHeroFocus(slide.focus) }))
+      ? branding.heroSlides.map((slide) => ({
+          ...slide,
+          focus: normalizeHeroFocus(slide.focus),
+          focusByFormat: normalizeHeroOverrides(slide.focusByFormat)
+        }))
       : [currentDefaultSlide()];
     const nextSharedText = branding?.heroSharedText ?? DEFAULT_SHARED_TEXT;
     const nextMode = branding?.heroTextMode === "shared" ? "shared" : "perSlide";

@@ -1,5 +1,6 @@
 import type {
   BrandingFocus,
+  BrandingFocusOverrides,
   BrandingHAlign,
   BrandingText,
   BrandingVAlign
@@ -27,30 +28,53 @@ export type HeroFormat = {
 
 const HERO_HEIGHT_WIDE = 440;
 const HERO_HEIGHT_NARROW = 260;
-// BaseLayout content padding: p: { xs: 2, md: 4 } → 32px on each side.
-const HERO_CONTENT_PADDING = 64;
+// BaseLayout content padding: p: { xs: 2, md: 4 } → 32/16px on each side.
+const HERO_PADDING_WIDE = 64;
+const HERO_PADDING_NARROW = 32;
 // BaseLayout drawerWidth — the side menu is permanent from md up.
 const HERO_SIDEBAR_WIDTH = 260;
-// Reference desktop used when the editor itself sits on a small screen.
-const HERO_MIN_REFERENCE_WIDTH = 1366;
-// Same content column on a 1366px laptop (1366 − 260 − 64).
-const HERO_LAPTOP_WIDTH = 1040;
+
+// Which framing a visitor gets, by window width. The 900px edge is the MUI md
+// breakpoint where the header drops from 440 to 260 px tall and the side menu
+// turns into an off-canvas drawer.
+const HERO_FORMAT_BREAKPOINTS: { key: HeroFormatKey; maxWidth: number }[] = [
+  { key: "phone", maxWidth: 600 },
+  { key: "tablet", maxWidth: 900 },
+  { key: "laptop", maxWidth: 1440 },
+  { key: "desktop", maxWidth: Infinity }
+];
+
+// Reference window per format, used to draw a format the editor is not sitting on.
+const HERO_REFERENCE_VIEWPORT: Record<HeroFormatKey, number> = {
+  desktop: 1920,
+  laptop: 1366,
+  tablet: 768,
+  phone: 375
+};
+
+export function resolveHeroFormatKey(viewportWidth: number): HeroFormatKey {
+  return (HERO_FORMAT_BREAKPOINTS.find((entry) => viewportWidth < entry.maxWidth) ?? HERO_FORMAT_BREAKPOINTS[3]).key;
+}
 
 // Width of the home page content column — that is exactly the header width, since
-// the header fills it: viewport minus the side menu and the page padding.
+// the header fills it: window minus the side menu and the page padding.
 function heroContentWidth(viewportWidth: number): number {
-  const reference = Math.max(HERO_MIN_REFERENCE_WIDTH, viewportWidth);
-  return Math.round(Math.min(2400, reference) - HERO_SIDEBAR_WIDTH - HERO_CONTENT_PADDING);
+  return viewportWidth >= 900
+    ? Math.round(Math.min(2400, viewportWidth) - HERO_SIDEBAR_WIDTH - HERO_PADDING_WIDE)
+    : Math.round(viewportWidth - HERO_PADDING_NARROW);
 }
 
 // The header stretches with the window, so its proportions — and with them the
-// crop — differ per screen. The widest case is measured from the live viewport
-// instead of guessed; the rest are the standard narrow layouts.
+// crop — differ per screen. The format the editor itself sits on is measured from
+// the live window; the others use their reference window.
 export function heroFormats(viewportWidth: number): HeroFormat[] {
+  const current = resolveHeroFormatKey(viewportWidth);
+  const widthFor = (key: HeroFormatKey) =>
+    heroContentWidth(key === current ? viewportWidth : HERO_REFERENCE_VIEWPORT[key]);
   return [
     {
       key: "desktop",
-      width: heroContentWidth(viewportWidth),
+      width: widthFor("desktop"),
       height: HERO_HEIGHT_WIDE,
       labelKey: "formatDesktop",
       hintKey: "formatDesktopHint",
@@ -58,7 +82,7 @@ export function heroFormats(viewportWidth: number): HeroFormat[] {
     },
     {
       key: "laptop",
-      width: HERO_LAPTOP_WIDTH,
+      width: widthFor("laptop"),
       height: HERO_HEIGHT_WIDE,
       labelKey: "formatLaptop",
       hintKey: "formatLaptopHint",
@@ -66,7 +90,7 @@ export function heroFormats(viewportWidth: number): HeroFormat[] {
     },
     {
       key: "tablet",
-      width: 736,
+      width: widthFor("tablet"),
       height: HERO_HEIGHT_NARROW,
       labelKey: "formatTablet",
       hintKey: "formatTabletHint",
@@ -74,7 +98,7 @@ export function heroFormats(viewportWidth: number): HeroFormat[] {
     },
     {
       key: "phone",
-      width: 343,
+      width: widthFor("phone"),
       height: HERO_HEIGHT_NARROW,
       labelKey: "formatPhone",
       hintKey: "formatPhoneHint",
@@ -103,6 +127,41 @@ export function normalizeHeroFocus(focus?: Partial<BrandingFocus> | null): Brand
 export function isDefaultHeroFocus(focus?: Partial<BrandingFocus> | null): boolean {
   const value = normalizeHeroFocus(focus);
   return value.x === DEFAULT_HERO_FOCUS.x && value.y === DEFAULT_HERO_FOCUS.y && value.zoom === DEFAULT_HERO_FOCUS.zoom;
+}
+
+// "desktop" is the base framing stored in `focus`; the narrower formats may carry
+// their own and otherwise inherit it.
+export const HERO_OVERRIDE_KEYS = ["laptop", "tablet", "phone"] as const;
+
+export function normalizeHeroOverrides(value?: BrandingFocusOverrides | null): BrandingFocusOverrides {
+  const result: BrandingFocusOverrides = {};
+  for (const key of HERO_OVERRIDE_KEYS) {
+    const focus = value?.[key];
+    if (focus) result[key] = normalizeHeroFocus(focus);
+  }
+  return result;
+}
+
+export function heroOverrideCount(value?: BrandingFocusOverrides | null): number {
+  return HERO_OVERRIDE_KEYS.filter((key) => value?.[key]).length;
+}
+
+export function heroFocusForFormat(
+  base: Partial<BrandingFocus> | null | undefined,
+  overrides: BrandingFocusOverrides | null | undefined,
+  key: HeroFormatKey
+): BrandingFocus {
+  const own = key === "desktop" ? null : overrides?.[key];
+  return normalizeHeroFocus(own ?? base);
+}
+
+// Framing a visitor with this window gets.
+export function resolveHeroFocus(
+  base: Partial<BrandingFocus> | null | undefined,
+  overrides: BrandingFocusOverrides | null | undefined,
+  viewportWidth: number
+): BrandingFocus {
+  return heroFocusForFormat(base, overrides, resolveHeroFormatKey(viewportWidth));
 }
 
 // The part of the photo left visible by `object-fit: cover` + focal point + zoom,
