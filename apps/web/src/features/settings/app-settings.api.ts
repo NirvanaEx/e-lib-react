@@ -5,9 +5,14 @@ export type BrandingText = Partial<Record<BrandingLang, string>>;
 export type BrandingHAlign = "left" | "center" | "right";
 export type BrandingVAlign = "top" | "center" | "bottom";
 
+// Which part of the photo the visitor sees: focal point in percent of the image
+// (0/0 = top-left corner) plus a zoom in percent (100 = plain `cover`).
+export type BrandingFocus = { x: number; y: number; zoom: number };
+
 export type BrandingSlide = {
   id: string;
   image: string | null;
+  focus: BrandingFocus;
   title: BrandingText;
   subtitle: BrandingText;
   hAlign: BrandingHAlign;

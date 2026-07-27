@@ -19,6 +19,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import CropOutlinedIcon from "@mui/icons-material/CropOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
@@ -44,11 +45,14 @@ import {
   uploadBrandingImage
 } from "../settings/app-settings.api";
 import {
-  heroAlignItems,
-  heroJustifyContent,
-  heroOverlayGradient,
+  DEFAULT_HERO_FOCUS,
+  heroFormatRatio,
+  isDefaultHeroFocus,
+  normalizeHeroFocus,
   resolveBrandingText
 } from "../../shared/ui/heroSlides";
+import { HeroPreview, useHeroFormats } from "../../shared/ui/HeroStage";
+import { HeroFramingDialog } from "./HeroFramingDialog";
 import i18n from "../../app/i18n";
 import defaultHeroImage from "../../assets/main-back3.png";
 import defaultLoginImage from "../../assets/login-back3.png";
@@ -66,7 +70,7 @@ const darkPreviewBackground = "linear-gradient(180deg, #123a6b 0%, #0c2a52 100%)
 
 function newSlide(): BrandingSlide {
   const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-  return { id, image: null, title: {}, subtitle: {}, hAlign: "left", vAlign: "center" };
+  return { id, image: null, focus: DEFAULT_HERO_FOCUS, title: {}, subtitle: {}, hAlign: "left", vAlign: "center" };
 }
 
 // When nothing is customized yet, the editor opens with the header the home
@@ -74,6 +78,8 @@ function newSlide(): BrandingSlide {
 // the existing content can be edited in place instead of starting from scratch.
 function currentDefaultSlide(): BrandingSlide {
   const slide = newSlide();
+  // Framing of the untouched home page header: the stock photo sits top-right.
+  slide.focus = { x: 100, y: 0, zoom: 100 };
   LANGS.forEach((lang) => {
     const translate = i18n.getFixedT(lang);
     slide.title[lang] = translate("homeHeroTitle");
@@ -244,42 +250,34 @@ function ImageSlot({
   );
 }
 
+// Text shown over a slide: its own, or the shared block when one text is reused.
+function slideText(slide: BrandingSlide, textOverride: HeroSharedText | null | undefined, lang: string) {
+  const source = textOverride ?? slide;
+  return {
+    hAlign: source.hAlign,
+    vAlign: source.vAlign,
+    title: resolveBrandingText(source.title, lang),
+    subtitle: resolveBrandingText(source.subtitle, lang)
+  };
+}
+
+// Proportions of the header as it renders on this very screen, so the card is a
+// faithful preview instead of a fixed 5:2 box.
 function SlidePreview({ slide, textOverride }: { slide: BrandingSlide; textOverride?: HeroSharedText | null }) {
   const { i18n: i18next } = useTranslation();
-  const source = textOverride ?? slide;
-  const title = resolveBrandingText(source.title, i18next.language);
-  const subtitle = resolveBrandingText(source.subtitle, i18next.language);
-  const hasText = Boolean(title || subtitle);
-  const overlay = heroOverlayGradient(source.hAlign, hasText);
-  const imageUrl = getBrandingImageUrl(slide.image) || defaultHeroImage;
+  const text = slideText(slide, textOverride, i18next.language);
+  const desktopFormat = useHeroFormats()[0];
   return (
-    <Box
-      sx={{
-        borderRadius: "10px",
-        overflow: "hidden",
-        aspectRatio: "5 / 2",
-        minHeight: 150,
-        display: "flex",
-        justifyContent: heroJustifyContent[source.hAlign],
-        alignItems: heroAlignItems[source.vAlign],
-        backgroundImage: [overlay, `url(${imageUrl})`].filter(Boolean).join(", "),
-        backgroundSize: "cover",
-        backgroundPosition: "right top"
-      }}
-    >
-      {hasText && (
-        <Box sx={{ px: 2.5, py: 2, maxWidth: 420, textAlign: source.hAlign }}>
-          {title && (
-            <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: 17, letterSpacing: "-0.02em" }}>
-              {title}
-            </Typography>
-          )}
-          {subtitle && (
-            <Typography sx={{ color: "rgba(255,255,255,0.82)", fontSize: 12, mt: 0.5 }}>{subtitle}</Typography>
-          )}
-        </Box>
-      )}
-    </Box>
+    <HeroPreview
+      imageUrl={getBrandingImageUrl(slide.image) || defaultHeroImage}
+      focus={slide.focus}
+      hAlign={text.hAlign}
+      vAlign={text.vAlign}
+      title={text.title}
+      subtitle={text.subtitle}
+      ratio={heroFormatRatio(desktopFormat)}
+      statCards={desktopFormat.cardsOverlay}
+    />
   );
 }
 
@@ -301,7 +299,11 @@ function SlideCard({
   onMove: (delta: number) => void;
   onRemove: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n: i18next } = useTranslation();
+  const [framingOpen, setFramingOpen] = React.useState(false);
+  const imageUrl = getBrandingImageUrl(slide.image) || defaultHeroImage;
+  const focus = normalizeHeroFocus(slide.focus);
+  const customFraming = !isDefaultHeroFocus(slide.focus);
 
   const editorValue = LANGS.map((lang) => ({
     lang,
@@ -377,6 +379,26 @@ function SlideCard({
           <SlidePreview slide={slide} textOverride={sharedText} />
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
             <UploadImageButton label={t("uploadImage")} onUploaded={(file) => onPatch({ image: file })} />
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<CropOutlinedIcon />}
+              onClick={() => setFramingOpen(true)}
+            >
+              {t("heroFraming")}
+            </Button>
+            {customFraming && (
+              <Tooltip title={t("framingChipHint")}>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  icon={<CropOutlinedIcon />}
+                  label={`${focus.x}% · ${focus.y}% · ${focus.zoom}%`}
+                  onDelete={() => onPatch({ focus: DEFAULT_HERO_FOCUS })}
+                  sx={{ fontWeight: 600 }}
+                />
+              </Tooltip>
+            )}
             {slide.image && (
               <Button
                 size="small"
@@ -391,6 +413,20 @@ function SlideCard({
               {slide.image ? t("heroImageHint") : `${t("noCustomImage")} · ${t("heroImageHint")}`}
             </Typography>
           </Stack>
+          {framingOpen && (
+            <HeroFramingDialog
+              open
+              onClose={() => setFramingOpen(false)}
+              onApply={(focus) => {
+                onPatch({ focus });
+                setFramingOpen(false);
+              }}
+              slideIndex={index}
+              imageUrl={imageUrl}
+              focus={focus}
+              text={slideText(slide, sharedText, i18next.language)}
+            />
+          )}
           {!sharedText && (
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
               <TextField
@@ -464,7 +500,10 @@ export default function AppearancePage() {
     if (!data || hydratedRef.current) return;
     hydratedRef.current = true;
     const branding = data.branding;
-    const nextSlides = branding?.heroSlides?.length ? branding.heroSlides : [currentDefaultSlide()];
+    // Slides stored before the framing controls existed carry no focus.
+    const nextSlides = branding?.heroSlides?.length
+      ? branding.heroSlides.map((slide) => ({ ...slide, focus: normalizeHeroFocus(slide.focus) }))
+      : [currentDefaultSlide()];
     const nextSharedText = branding?.heroSharedText ?? DEFAULT_SHARED_TEXT;
     const nextMode = branding?.heroTextMode === "shared" ? "shared" : "perSlide";
     setTestRibbonEnabled(data.testRibbonEnabled);

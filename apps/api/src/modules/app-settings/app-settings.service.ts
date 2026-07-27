@@ -23,14 +23,21 @@ const MAX_SLIDES = 12;
 const MIN_HERO_INTERVAL = 2;
 const MAX_HERO_INTERVAL = 120;
 const MAX_TEXT_LENGTH = 400;
+const MIN_HERO_ZOOM = 100;
+const MAX_HERO_ZOOM = 300;
 // Grace period before an uploaded-but-never-saved image is swept from disk.
 const ORPHAN_MAX_AGE_MS = 60 * 60 * 1000;
 
 export type BrandingText = { ru?: string; en?: string; uz?: string };
 
+// Which part of the photo stays visible when it is cropped to the header box:
+// focal point in percent of the image plus an optional zoom (100 = plain cover).
+export type BrandingFocus = { x: number; y: number; zoom: number };
+
 export type BrandingSlide = {
   id: string;
   image: string | null;
+  focus: BrandingFocus;
   title: BrandingText;
   subtitle: BrandingText;
   hAlign: (typeof H_ALIGNS)[number];
@@ -79,6 +86,21 @@ function sanitizeVAlign(value: unknown): (typeof V_ALIGNS)[number] {
   return V_ALIGNS.includes(value as (typeof V_ALIGNS)[number]) ? (value as (typeof V_ALIGNS)[number]) : "center";
 }
 
+function clampNumber(value: unknown, fallback: number, min: number, max: number): number {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(num)));
+}
+
+function sanitizeFocus(value: unknown): BrandingFocus {
+  const raw = (value || {}) as Record<string, unknown>;
+  return {
+    x: clampNumber(raw.x, 50, 0, 100),
+    y: clampNumber(raw.y, 50, 0, 100),
+    zoom: clampNumber(raw.zoom, MIN_HERO_ZOOM, MIN_HERO_ZOOM, MAX_HERO_ZOOM)
+  };
+}
+
 function sanitizeText(value: unknown): BrandingText {
   const source = (value || {}) as Record<string, unknown>;
   const result: BrandingText = {};
@@ -108,6 +130,7 @@ function sanitizeBranding(value: unknown): SiteBranding {
       return {
         id: typeof raw.id === "string" && raw.id ? raw.id.slice(0, 64) : randomUUID(),
         image: sanitizeFileName(raw.image),
+        focus: sanitizeFocus(raw.focus),
         title: sanitizeText(raw.title),
         subtitle: sanitizeText(raw.subtitle),
         hAlign: sanitizeHAlign(raw.hAlign),
