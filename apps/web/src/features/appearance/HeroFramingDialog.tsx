@@ -195,7 +195,7 @@ function DevicePreviewCard({
         transition: "border-color 0.15s ease, background-color 0.15s ease"
       }}
     >
-      <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
+      <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 0.75 }}>
         {React.createElement(FORMAT_ICONS[format.key], {
           fontSize: "small",
           color: active ? "primary" : "action"
@@ -225,7 +225,10 @@ function DevicePreviewCard({
       {isPhone ? (
         <Box
           sx={{
-            width: 148,
+            // Fixed on wide screens; on a phone the card itself is already narrow,
+            // so the bezel has to shrink with it instead of overflowing the card.
+            width: "100%",
+            maxWidth: 148,
             mx: "auto",
             px: 0.75,
             pt: 0.75,
@@ -254,6 +257,79 @@ function DevicePreviewCard({
   );
 }
 
+// One focus control. Side by side the icon + label + slider + value row needs
+// ~300px, which overflows a phone; there the label and the value move above a
+// full-width slider instead.
+function FocusSlider({
+  icon,
+  label,
+  value,
+  min,
+  max,
+  step,
+  disabled,
+  narrow,
+  onChange
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  disabled: boolean;
+  narrow: boolean;
+  onChange: (value: number) => void;
+}) {
+  const slider = (
+    <Slider
+      size="small"
+      min={min}
+      max={max}
+      step={step}
+      disabled={disabled}
+      value={value}
+      onChange={(_event, next) => onChange(next as number)}
+      sx={{ flex: 1, minWidth: 90 }}
+      valueLabelDisplay="auto"
+      valueLabelFormat={(shown) => `${shown}%`}
+    />
+  );
+
+  if (narrow) {
+    return (
+      <Box>
+        <Stack direction="row" spacing={1} alignItems="center">
+          {icon}
+          <Typography variant="caption" sx={{ fontWeight: 600, flex: 1, minWidth: 0 }}>
+            {label}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+            {value}%
+          </Typography>
+        </Stack>
+        {/* Padded so the thumb at 0% / 100% is not clipped by the dialog edge. */}
+        <Stack direction="row" sx={{ px: 1 }}>
+          {slider}
+        </Stack>
+      </Box>
+    );
+  }
+
+  return (
+    <Stack direction="row" spacing={1.5} alignItems="center">
+      {icon}
+      <Typography variant="caption" sx={{ width: 112, fontWeight: 600 }}>
+        {label}
+      </Typography>
+      {slider}
+      <Typography variant="caption" color="text.secondary" sx={{ width: 44, textAlign: "right" }}>
+        {value}%
+      </Typography>
+    </Stack>
+  );
+}
+
 export function HeroFramingDialog({
   open,
   onClose,
@@ -276,6 +352,9 @@ export function HeroFramingDialog({
   const { t } = useTranslation();
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("md"));
+  // Phone-sized window: the rows that assume ~300px of horizontal room have to
+  // break into stacked ones instead of pushing a scrollbar through the dialog.
+  const narrow = useMediaQuery(theme.breakpoints.down("sm"));
   const canvasRef = React.useRef<HTMLDivElement | null>(null);
   const dragRef = React.useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null);
 
@@ -398,11 +477,11 @@ export function HeroFramingDialog({
         </IconButton>
       </DialogTitle>
 
-      <DialogContent dividers sx={{ pt: 2.5 }}>
+      <DialogContent dividers sx={{ pt: 2.5, px: { xs: 2, sm: 3 } }}>
         <Box
           sx={{
             display: "grid",
-            gap: 2.5,
+            gap: { xs: 2, md: 2.5 },
             gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1.45fr) minmax(320px, 1fr)" },
             alignItems: "start"
           }}
@@ -412,14 +491,35 @@ export function HeroFramingDialog({
               <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.75 }}>
                 {t("framingFormatLabel")}
               </Typography>
+              {/* Four labelled buttons need ~400px in a row, so on a phone they
+                  become a 2×2 grid of separate, full-width tiles. */}
               <ToggleButtonGroup
                 exclusive
                 size="small"
                 value={activeKey}
                 onChange={(_event, next) => next && setActiveKey(next as HeroFormatKey)}
+                sx={
+                  narrow
+                    ? {
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                        gap: 0.75,
+                        width: "100%",
+                        "& .MuiToggleButtonGroup-grouped": {
+                          m: 0,
+                          border: "1px solid var(--border)",
+                          borderRadius: "10px"
+                        }
+                      }
+                    : undefined
+                }
               >
                 {formats.map((format) => (
-                  <ToggleButton key={format.key} value={format.key} sx={{ textTransform: "none", fontWeight: 600 }}>
+                  <ToggleButton
+                    key={format.key}
+                    value={format.key}
+                    sx={{ textTransform: "none", fontWeight: 600, px: narrow ? 1 : undefined }}
+                  >
                     {React.createElement(FORMAT_ICONS[format.key], { fontSize: "small", sx: { mr: 0.75 } })}
                     {t(format.labelKey)}
                   </ToggleButton>
@@ -588,73 +688,43 @@ export function HeroFramingDialog({
               </Box>
             )}
 
-            <Stack spacing={1.25} sx={{ opacity: inherited ? 0.5 : 1 }}>
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <ZoomInOutlinedIcon fontSize="small" color="action" />
-                <Typography variant="caption" sx={{ width: 112, fontWeight: 600 }}>
-                  {t("framingZoom")}
-                </Typography>
-                <Slider
-                  size="small"
-                  min={HERO_MIN_ZOOM}
-                  max={HERO_MAX_ZOOM}
-                  step={5}
-                  disabled={inherited}
-                  value={activeFocus.zoom}
-                  onChange={(_event, value) => patchActive((prev) => ({ ...prev, zoom: value as number }))}
-                  sx={{ flex: 1, minWidth: 90 }}
-                  valueLabelDisplay="auto"
-                  valueLabelFormat={(value) => `${value}%`}
-                />
-                <Typography variant="caption" color="text.secondary" sx={{ width: 44, textAlign: "right" }}>
-                  {activeFocus.zoom}%
-                </Typography>
-              </Stack>
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <SwapHorizOutlinedIcon fontSize="small" color="action" />
-                <Typography variant="caption" sx={{ width: 112, fontWeight: 600 }}>
-                  {t("framingPosX")}
-                </Typography>
-                <Slider
-                  size="small"
-                  min={0}
-                  max={100}
-                  disabled={inherited}
-                  value={activeFocus.x}
-                  onChange={(_event, value) => patchActive((prev) => ({ ...prev, x: value as number }))}
-                  sx={{ flex: 1, minWidth: 90 }}
-                  valueLabelDisplay="auto"
-                  valueLabelFormat={(value) => `${value}%`}
-                />
-                <Typography variant="caption" color="text.secondary" sx={{ width: 44, textAlign: "right" }}>
-                  {activeFocus.x}%
-                </Typography>
-              </Stack>
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <SwapVertOutlinedIcon fontSize="small" color="action" />
-                <Typography variant="caption" sx={{ width: 112, fontWeight: 600 }}>
-                  {t("framingPosY")}
-                </Typography>
-                <Slider
-                  size="small"
-                  min={0}
-                  max={100}
-                  disabled={inherited}
-                  value={activeFocus.y}
-                  onChange={(_event, value) => patchActive((prev) => ({ ...prev, y: value as number }))}
-                  sx={{ flex: 1, minWidth: 90 }}
-                  valueLabelDisplay="auto"
-                  valueLabelFormat={(value) => `${value}%`}
-                />
-                <Typography variant="caption" color="text.secondary" sx={{ width: 44, textAlign: "right" }}>
-                  {activeFocus.y}%
-                </Typography>
-              </Stack>
+            <Stack spacing={narrow ? 0.75 : 1.25} sx={{ opacity: inherited ? 0.5 : 1 }}>
+              <FocusSlider
+                narrow={narrow}
+                icon={<ZoomInOutlinedIcon fontSize="small" color="action" />}
+                label={t("framingZoom")}
+                min={HERO_MIN_ZOOM}
+                max={HERO_MAX_ZOOM}
+                step={5}
+                disabled={inherited}
+                value={activeFocus.zoom}
+                onChange={(value) => patchActive((prev) => ({ ...prev, zoom: value }))}
+              />
+              <FocusSlider
+                narrow={narrow}
+                icon={<SwapHorizOutlinedIcon fontSize="small" color="action" />}
+                label={t("framingPosX")}
+                min={0}
+                max={100}
+                disabled={inherited}
+                value={activeFocus.x}
+                onChange={(value) => patchActive((prev) => ({ ...prev, x: value }))}
+              />
+              <FocusSlider
+                narrow={narrow}
+                icon={<SwapVertOutlinedIcon fontSize="small" color="action" />}
+                label={t("framingPosY")}
+                min={0}
+                max={100}
+                disabled={inherited}
+                value={activeFocus.y}
+                onChange={(value) => patchActive((prev) => ({ ...prev, y: value }))}
+              />
             </Stack>
           </Stack>
 
           <Stack spacing={1}>
-            <Stack direction="row" alignItems="center" spacing={1}>
+            <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                 {t("framingPreviews")}
               </Typography>
@@ -684,7 +754,15 @@ export function HeroFramingDialog({
                   text={text}
                 />
               ))}
-            <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
+            {/* Side by side these two would be ~150px wide on a phone — narrower
+                than the phone bezel inside them, so there they stack. */}
+            <Box
+              sx={{
+                display: "grid",
+                gap: 1,
+                gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "minmax(0, 1fr) minmax(0, 1fr)" }
+              }}
+            >
               {formats
                 .filter((format) => !format.cardsOverlay)
                 .map((format) => (
@@ -705,10 +783,23 @@ export function HeroFramingDialog({
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, py: 1.75 }}>
+      {/* Three buttons in one row overflow a phone, so they are allowed to wrap;
+          the gap replaces the margin MUI puts between them. */}
+      <DialogActions
+        sx={{
+          px: { xs: 2, sm: 3 },
+          py: 1.75,
+          gap: 1,
+          flexWrap: "wrap",
+          justifyContent: "flex-end",
+          "& > :not(style) ~ :not(style)": { ml: 0 }
+        }}
+      >
         <Button
           color="inherit"
+          size={narrow ? "small" : "medium"}
           startIcon={<RestartAltOutlinedIcon />}
+          sx={{ mr: "auto" }}
           onClick={() => {
             setBase(DEFAULT_HERO_FOCUS);
             setOverrides({});
@@ -716,11 +807,15 @@ export function HeroFramingDialog({
         >
           {t("framingReset")}
         </Button>
-        <Box sx={{ flex: 1 }} />
-        <Button color="inherit" onClick={onClose}>
+        <Button color="inherit" size={narrow ? "small" : "medium"} onClick={onClose}>
           {t("cancel")}
         </Button>
-        <Button variant="contained" sx={{ boxShadow: "none" }} onClick={() => onApply(base, overrides)}>
+        <Button
+          variant="contained"
+          size={narrow ? "small" : "medium"}
+          sx={{ boxShadow: "none" }}
+          onClick={() => onApply(base, overrides)}
+        >
           {t("framingApply")}
         </Button>
       </DialogActions>
