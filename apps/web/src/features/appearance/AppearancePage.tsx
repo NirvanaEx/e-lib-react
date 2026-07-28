@@ -617,9 +617,14 @@ export default function AppearancePage() {
         <LoadingState rows={4} />
       ) : (
         <>
+          {/* Three labelled tabs are wider than a phone — without scrolling the
+              last one is clipped and unreachable. */}
           <Tabs
             value={tab}
             onChange={(_, next) => setTab(next)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
             sx={{ mb: 2.5, "& .MuiTab-root": { textTransform: "none", fontWeight: 600, minHeight: 48 } }}
           >
             <Tab
