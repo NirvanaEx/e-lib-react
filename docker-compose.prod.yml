@@ -5,11 +5,11 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     env_file:
-      - /srv/apps/e-lib/.env
+      - .env
     ports:
       - "${APP_PORT:-3001}:${APP_PORT:-3001}"
     volumes:
-      - /srv/apps/e-lib/uploads:/app/uploads
+      - ./uploads:/app/uploads
     depends_on:
       - db
   web:
@@ -25,7 +25,7 @@ services:
   db:
     image: postgres:15-alpine
     env_file:
-      - /srv/apps/e-lib/.env
+      - .env
     environment:
       POSTGRES_USER: ${DB_USER:-elib}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-elib}
