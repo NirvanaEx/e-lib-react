@@ -15,6 +15,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Page } from "../../shared/ui/Page";
+import { SectionCard } from "../../shared/ui/SectionCard";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { LibraryIcon } from "../../shared/ui/iconLibrary";
 import { useToast } from "../../shared/ui/ToastProvider";
@@ -69,13 +70,6 @@ export default function SeedPage() {
   const demoPlan = status?.demo || {};
   const allExist = presets.length > 0 && presets.every((preset: any) => preset.exists);
 
-  const cardSx = {
-    p: 2.5,
-    borderRadius: "10px",
-    border: "1px solid var(--border)",
-    backgroundColor: "var(--surface)"
-  };
-
   const resultChips = (result: Record<string, SeedCounters>) => {
     const labels: Record<string, string> = {
       sections: t("sections"),
@@ -101,20 +95,11 @@ export default function SeedPage() {
 
   return (
     <Page title={t("seedData")} subtitle={t("seedSubtitle")}>
-      <Stack spacing={2.5}>
-        <Paper sx={cardSx}>
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            justifyContent="space-between"
-            alignItems={{ md: "center" }}
-            spacing={2}
-          >
-            <Box>
-              <Typography variant="h6">{t("presetSections")}</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                {t("presetSectionsHint")}
-              </Typography>
-            </Box>
+      <Box>
+        <SectionCard
+          title={t("presetSections")}
+          subtitle={t("presetSectionsHint")}
+          action={
             <Button
               variant="contained"
               startIcon={
@@ -130,11 +115,10 @@ export default function SeedPage() {
             >
               {allExist ? t("seedAllExist") : t("createSections")}
             </Button>
-          </Stack>
-
+          }
+        >
           <Box
             sx={{
-              mt: 2.5,
               display: "grid",
               gridTemplateColumns: {
                 xs: "1fr",
@@ -183,21 +167,12 @@ export default function SeedPage() {
               </Paper>
             ))}
           </Box>
-        </Paper>
+        </SectionCard>
 
-        <Paper sx={cardSx}>
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            justifyContent="space-between"
-            alignItems={{ md: "center" }}
-            spacing={2}
-          >
-            <Box>
-              <Typography variant="h6">{t("demoData")}</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                {t("demoDataHint")}
-              </Typography>
-            </Box>
+        <SectionCard
+          title={t("demoData")}
+          subtitle={t("demoDataHint")}
+          action={
             <Button
               variant="contained"
               color="secondary"
@@ -214,9 +189,9 @@ export default function SeedPage() {
             >
               {t("runDemoSeed")}
             </Button>
-          </Stack>
-
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 2 }}>
+          }
+        >
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <Chip size="small" label={`${t("departments")}: ${demoPlan.departments ?? "—"}`} />
             <Chip size="small" label={`${t("categories")}: ${demoPlan.categories ?? "—"}`} />
             <Chip size="small" label={`${t("documents")}: ${demoPlan.documents ?? "—"}`} />
@@ -243,8 +218,8 @@ export default function SeedPage() {
               <Box sx={{ mt: 1 }}>{resultChips(demoResult)}</Box>
             </Box>
           ) : null}
-        </Paper>
-      </Stack>
+        </SectionCard>
+      </Box>
 
       <ConfirmDialog
         open={confirmDemo}

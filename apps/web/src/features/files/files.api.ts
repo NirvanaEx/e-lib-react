@@ -114,8 +114,10 @@ export async function fetchUserStats() {
   return data;
 }
 
-export async function fetchUserFile(id: number) {
-  const { data } = await api.get(`/user/files/${id}`);
+// `source` tells the API whether the file was opened in the reader or as a
+// card, so the statistics page can tell the two apart.
+export async function fetchUserFile(id: number, source?: "details" | "viewer") {
+  const { data } = await api.get(`/user/files/${id}`, { params: source ? { source } : undefined });
   return data;
 }
 

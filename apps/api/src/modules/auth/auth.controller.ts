@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, Req, Res } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { Throttle } from "@nestjs/throttler";
+import { Throttle, seconds } from "@nestjs/throttler";
 import { Response } from "express";
 import { Public } from "../../common/decorators/public.decorator";
 import { User } from "../../common/decorators/user.decorator";
@@ -47,7 +47,9 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 5, ttl: 60 } })
+  // ttl is milliseconds in @nestjs/throttler v5; the per-account lockout in
+  // AuthService is what actually stops a slow brute force.
+  @Throttle({ default: { limit: 10, ttl: seconds(60) } })
   @Post("login")
   async login(@Body() body: LoginDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(
@@ -68,6 +70,7 @@ export class AuthController {
 
   @ApiBearerAuth()
   @AllowTempPassword()
+  @Throttle({ default: { limit: 10, ttl: seconds(60) } })
   @Post("change-temp-password")
   async changeTempPassword(
     @User() user: any,

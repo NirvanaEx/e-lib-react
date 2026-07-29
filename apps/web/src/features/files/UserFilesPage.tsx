@@ -236,6 +236,7 @@ export default function UserFilesPage() {
   const assets = detailsData?.assets || [];
   const accessDepartments = detailsData?.accessDepartments || [];
   const accessUsers = detailsData?.accessUsers || [];
+  const accessUsersCount = detailsData?.accessUsersCount ?? accessUsers.length;
   const showAccessLists = detailsData?.accessType && detailsData.accessType !== "public";
   const showAccessUsers = detailsData?.accessType === "restricted";
   const versions = versionsData?.data || [];
@@ -691,9 +692,15 @@ export default function UserFilesPage() {
                     </Typography>
                     <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 0.5, rowGap: 0.5 }}>
                       {accessUsers.length === 0 ? (
-                        <Typography variant="body2" color="text.secondary">
-                          -
-                        </Typography>
+                        // The API hides the names from users who cannot edit
+                        // access and returns only how many people are on the list.
+                        accessUsersCount > 0 ? (
+                          <Chip size="small" label={t("accessUsersCount", { count: accessUsersCount })} />
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            -
+                          </Typography>
+                        )
                       ) : (
                         accessUsers.map((item: any) => (
                           <Chip key={item.id} size="small" label={formatUserLabel(item)} />

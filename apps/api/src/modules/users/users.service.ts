@@ -9,7 +9,9 @@ import { buildPaginationMeta } from "../../common/utils/pagination";
 import { AuditService } from "../audit/audit.service";
 
 function generateTempPassword() {
-  return crypto.randomBytes(6).toString("base64url");
+  // 9 bytes -> 12 base64url chars (~72 bits); the digit keeps the generated
+  // value compliant with the password policy users must follow afterwards.
+  return `${crypto.randomBytes(9).toString("base64url")}${crypto.randomInt(10)}`;
 }
 
 export const AVATAR_CONTENT_TYPES: Record<string, string> = {
@@ -493,6 +495,11 @@ export class UsersService {
     const ok = await bcrypt.compare(currentPassword, user.password_hash);
     if (!ok) {
       throw new BadRequestException("Current password is invalid");
+    }
+
+    const sameAsCurrent = await bcrypt.compare(newPassword, user.password_hash);
+    if (sameAsCurrent) {
+      throw new BadRequestException("New password must differ from the current one");
     }
 
     const hash = await bcrypt.hash(newPassword, 10);

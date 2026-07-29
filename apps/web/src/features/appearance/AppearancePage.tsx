@@ -69,7 +69,15 @@ const MAX_SLIDES = 12;
 const MIN_INTERVAL = 2;
 const MAX_INTERVAL = 120;
 
-const cardSx = { p: 2, borderRadius: "12px", border: "1px solid var(--border)" } as const;
+// Matches SectionCard so this page reads like the rest of the dashboard
+// (it used a 12px radius and no surface/shadow of its own).
+const cardSx = {
+  p: 2,
+  borderRadius: "10px",
+  border: "1px solid var(--border)",
+  boxShadow: "var(--shadow)",
+  background: "var(--surface)"
+} as const;
 const darkPreviewBackground = "linear-gradient(180deg, #123a6b 0%, #0c2a52 100%)";
 
 function newSlide(): BrandingSlide {
@@ -340,7 +348,7 @@ function SlideCard({
   };
 
   return (
-    <Paper sx={{ borderRadius: "12px", border: "1px solid var(--border)", p: 2 }}>
+    <Paper sx={cardSx}>
       <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 1.5 }}>
         <Box
           sx={{

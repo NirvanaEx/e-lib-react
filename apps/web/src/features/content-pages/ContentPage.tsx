@@ -1,17 +1,8 @@
 import React from "react";
-import {
-  Box,
-  Button,
-  FormControlLabel,
-  MenuItem,
-  Paper,
-  Stack,
-  Switch,
-  TextField,
-  Typography
-} from "@mui/material";
+import { Box, Button, FormControlLabel, MenuItem, Stack, Switch, TextField } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Page } from "../../shared/ui/Page";
+import { SectionCard } from "../../shared/ui/SectionCard";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
 import { LoadingState } from "../../shared/ui/LoadingState";
@@ -86,8 +77,8 @@ function UserAgreementPanel() {
   return isLoading ? (
     <LoadingState rows={4} />
   ) : (
-    <Stack spacing={2}>
-      <Paper sx={{ p: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
+    <>
+      <SectionCard title={t("userAgreement")} subtitle={t("agreementSubtitle")}>
         <Stack spacing={2}>
           <TextField
             select
@@ -103,26 +94,25 @@ function UserAgreementPanel() {
             label={t("agreementActive")}
           />
         </Stack>
-      </Paper>
+      </SectionCard>
 
-      <Paper sx={{ p: 2, borderRadius: "10px", border: "1px solid var(--border)" }}>
+      <SectionCard title={t("agreementBody")} subtitle={t("agreementHint")}>
         <TranslationsEditor
           value={translations}
           onChange={setTranslations}
           showDescription
           titleLabel={t("title")}
           descriptionLabel={t("agreementBody")}
-          helperText={t("agreementHint")}
           requiredTitle
         />
-      </Paper>
+      </SectionCard>
 
       <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
         <Button variant="contained" onClick={handleSave} disabled={updateMutation.isPending}>
           {t("saveChanges")}
         </Button>
       </Box>
-    </Stack>
+    </>
   );
 }
 
@@ -131,12 +121,6 @@ export default function ContentPage() {
 
   return (
     <Page title={t("content")} subtitle={t("contentSubtitle")}>
-      <Typography variant="h6" sx={{ mb: 0.5 }}>
-        {t("userAgreement")}
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        {t("agreementSubtitle")}
-      </Typography>
       <UserAgreementPanel />
     </Page>
   );

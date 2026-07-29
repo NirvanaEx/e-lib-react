@@ -61,11 +61,13 @@ export class FileRequestsUserController {
   }
 
   @Post()
+  @Access("file.read")
   async create(@Body() body: CreateFileRequestDto, @User() user: any) {
     return this.fileRequestsService.createRequest(body, user);
   }
 
   @Post("update/:id")
+  @Access("file.read")
   async updateRequest(
     @Param("id", ParseIntPipe) id: number,
     @Body() body: UpdateFileRequestDto,
@@ -79,15 +81,17 @@ export class FileRequestsUserController {
     FileInterceptor("file", {
       storage: diskStorage({
         destination: uploadDir,
-        filename: (_req, file, cb) => {
-          const ext = path.extname(file.originalname);
-          cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+        // See FilesController: the temp file keeps a fixed extension until the
+        // allowlist in uploadRequestAsset has accepted the upload.
+        filename: (_req, _file, cb) => {
+          cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}.tmp`);
         }
       }),
       limits: { fileSize: maxSize }
     })
   )
   @Post(":id/assets")
+  @Access("file.read")
   async uploadAsset(
     @Param("id", ParseIntPipe) id: number,
     @Body() body: UploadAssetDto,
@@ -98,6 +102,7 @@ export class FileRequestsUserController {
   }
 
   @Post(":id/cancel")
+  @Access("file.read")
   async cancel(@Param("id", ParseIntPipe) id: number, @User() user: any) {
     return this.fileRequestsService.cancelRequest(id, user);
   }
