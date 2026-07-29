@@ -3,30 +3,38 @@
  *
  * Four states:
  *  - public            — visible and downloadable by everyone, no attachments
- *  - department_open   — attached to a department, readable by everyone
- *  - department_closed — attached to a department, readable only by it
- *  - restricted        — specific departments and specific people
+ *  - restricted        — attached to departments and named people, only they read it
+ *  - restricted_open   — same attachments, but the "open to everyone" switch is
+ *                        on: everybody reads and downloads it, and the per-user
+ *                        list no longer applies
+ *  - department_closed — belongs to one department and is hidden from the shared
+ *                        library entirely; it only shows in that department's tab
  *
  * The label/colour logic used to be copy-pasted across six pages, which is why
  * adding a state meant touching all of them.
  */
-export type AccessType = "public" | "department_open" | "department_closed" | "restricted";
+export type AccessType = "public" | "restricted" | "restricted_open" | "department_closed";
+
+/** The two states the "open to everyone" switch flips between. */
+export function isRestrictedFamily(accessType?: string | null) {
+  return accessType === "restricted" || accessType === "restricted_open";
+}
 
 export function isOpenAccess(accessType?: string | null) {
-  return accessType === "public" || accessType === "department_open";
+  return accessType === "public" || accessType === "restricted_open";
 }
 
 export function accessLabelKey(accessType?: string | null) {
   if (accessType === "restricted") return "accessRestricted";
   if (accessType === "department_closed") return "accessDepartmentClosed";
-  if (accessType === "department_open") return "accessDepartmentOpen";
+  if (accessType === "restricted_open") return "accessRestrictedOpen";
   return "accessPublic";
 }
 
 export function accessColor(accessType?: string | null) {
   if (accessType === "restricted") return "warning.main";
   if (accessType === "department_closed") return "info.main";
-  // department_open is readable by everyone, so it reads as open like public.
+  // restricted_open is readable by everyone, so it reads as open like public.
   return "success.main";
 }
 

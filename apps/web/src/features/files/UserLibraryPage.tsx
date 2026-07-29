@@ -59,7 +59,7 @@ import { getFilenameFromDisposition } from "../../shared/utils/download";
 import { buildPathMap, formatPath } from "../../shared/utils/tree";
 import { getErrorMessage } from "../../shared/utils/errors";
 import { formatUserLabel } from "../../shared/utils/userLabel";
-import { accessColor, accessLabelKey } from "../../shared/utils/accessType";
+import { accessColor, accessLabelKey, isRestrictedFamily } from "../../shared/utils/accessType";
 import { FileTypeBadge, accessChipSx, extOf } from "./fileVisuals";
 import {
   addUserFavorite,
@@ -82,7 +82,7 @@ import {
 const requestSchema = z.object({
   sectionId: z.number().min(1),
   categoryId: z.number().min(1),
-  accessType: z.enum(["public", "restricted", "department_closed", "department_open"]),
+  accessType: z.enum(["public", "restricted", "department_closed", "restricted_open"]),
   accessDepartmentIds: z.array(z.number()).default([]),
   accessUserIds: z.array(z.number()).default([]),
   comment: z.string().optional()
@@ -1676,7 +1676,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                     <TextField
                       select
                       label={t("access")}
-                      value={field.value === "department_open" ? "department_closed" : field.value}
+                      value={field.value === "restricted_open" ? "restricted" : field.value}
                       onChange={(event) => field.onChange(event.target.value)}
                     >
                       <MenuItem value="public">{t("accessPublic")}</MenuItem>
@@ -1689,13 +1689,13 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                   control={requestForm.control}
                   name="accessType"
                   render={({ field }) =>
-                    field.value === "department_closed" || field.value === "department_open" ? (
+                    isRestrictedFamily(field.value) ? (
                       <FormControlLabel
                         control={
                           <Switch
-                            checked={field.value === "department_open"}
+                            checked={field.value === "restricted_open"}
                             onChange={(event) =>
-                              field.onChange(event.target.checked ? "department_open" : "department_closed")
+                              field.onChange(event.target.checked ? "restricted_open" : "restricted")
                             }
                           />
                         }

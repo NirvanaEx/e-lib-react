@@ -51,7 +51,7 @@ import { formatBytes } from "../../shared/utils/format";
 import { getErrorMessage } from "../../shared/utils/errors";
 import { buildPathMap, formatPath } from "../../shared/utils/tree";
 import { formatUserLabel } from "../../shared/utils/userLabel";
-import { accessColor, accessLabelKey } from "../../shared/utils/accessType";
+import { accessColor, accessLabelKey, isRestrictedFamily } from "../../shared/utils/accessType";
 
 const metadataSchema = z.object({
   sectionId: z.number().min(1),
@@ -61,7 +61,7 @@ const metadataSchema = z.object({
 type MetadataForm = z.infer<typeof metadataSchema>;
 
 type AccessForm = {
-  accessType: "public" | "restricted" | "department_closed" | "department_open";
+  accessType: "public" | "restricted" | "department_closed" | "restricted_open";
   accessDepartmentIds: number[];
   accessUserIds: number[];
   allowVersionAccess: boolean;
@@ -198,7 +198,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
   );
 
   const currentAccessType = accessForm.watch("accessType");
-  const isDepartmentAccess = currentAccessType === "department_closed" || currentAccessType === "department_open";
+  const isRestricted = isRestrictedFamily(currentAccessType);
 
   const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
     <Stack direction="row" spacing={2} alignItems="flex-start">
@@ -504,9 +504,8 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                 <TextField
                   select
                   label={t("access")}
-                  // department_open is the same choice as department_closed
-                  // with the "open to everyone" switch below turned on.
-                  value={field.value === "department_open" ? "department_closed" : field.value}
+                  // restricted_open is "Ограниченный" with the switch below on.
+                  value={field.value === "restricted_open" ? "restricted" : field.value}
                   onChange={(event) => field.onChange(event.target.value)}
                 >
                   <MenuItem value="public">{t("accessPublic")}</MenuItem>
@@ -515,7 +514,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                 </TextField>
               )}
             />
-            {isDepartmentAccess && (
+            {isRestricted && (
               <Controller
                 control={accessForm.control}
                 name="accessType"
@@ -523,10 +522,8 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={field.value === "department_open"}
-                        onChange={(event) =>
-                          field.onChange(event.target.checked ? "department_open" : "department_closed")
-                        }
+                        checked={field.value === "restricted_open"}
+                        onChange={(event) => field.onChange(event.target.checked ? "restricted_open" : "restricted")}
                       />
                     }
                     label={
