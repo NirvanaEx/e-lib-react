@@ -13,7 +13,8 @@
   --accent: #0c2a52;
   --sidebar: #0c2a52;
   --sidebar-2: #123a6b;
-  --shadow: 0 8px 24px rgba(15, 42, 90, 0.06);
+  /* Flat by design: panels are separated by --border, not by drop shadows. */
+  --shadow: none;
   --appbar: rgba(255, 255, 255, 0.88);
   --bg-glow-1: #e7efff;
   --bg-glow-2: #e3f0fb;
@@ -32,7 +33,7 @@
   --accent: #38bdf8;
   --sidebar: #0a1220;
   --sidebar-2: #0f1b30;
-  --shadow: 0 8px 24px rgba(2, 8, 23, 0.45);
+  --shadow: none;
   --appbar: rgba(11, 20, 36, 0.88);
   --bg-glow-1: #12233f;
   --bg-glow-2: #0f2036;
@@ -48,7 +49,7 @@
   --surface-2: rgba(255, 255, 255, var(--glass-alpha-2, 0.356));
   --border: rgba(126, 166, 224, 0.4);
   --appbar: rgba(255, 255, 255, 0.5);
-  --shadow: 0 12px 32px rgba(15, 42, 90, 0.12);
+  --shadow: none;
 }
 
 :root[data-theme="dark"][data-style="glass"] {
@@ -56,7 +57,7 @@
   --surface-2: rgba(130, 175, 235, var(--glass-alpha-2, 0.146));
   --border: rgba(165, 200, 255, 0.26);
   --appbar: rgba(9, 20, 38, 0.5);
-  --shadow: 0 16px 40px rgba(2, 8, 23, 0.45);
+  --shadow: none;
 }
 
 * {

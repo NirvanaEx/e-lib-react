@@ -40,8 +40,7 @@ export function FileTypeBadge({ ext, small }: { ext?: string | null; small?: boo
         display: "grid",
         placeItems: "center",
         flexShrink: 0,
-        overflow: "hidden",
-        boxShadow: `0 6px 14px ${info.color}33`
+        overflow: "hidden"
       }}
     >
       <Box

@@ -188,8 +188,10 @@ function HomeContent() {
                 backgroundColor: "var(--surface)",
                 boxShadow: "var(--shadow)",
                 cursor: card.onClick ? "pointer" : "default",
-                transition: "transform 0.15s ease, border-color 0.15s ease",
-                "&:hover": card.onClick ? { transform: "translateY(-2px)", borderColor: "primary.main" } : undefined
+                transition: "border-color 0.15s ease, background-color 0.15s ease",
+                "&:hover": card.onClick
+                  ? { borderColor: "primary.main", backgroundColor: "rgba(37, 99, 235, 0.04)" }
+                  : undefined
               }}
             >
               <Stack direction="row" spacing={1.5} alignItems="flex-start">
@@ -202,7 +204,6 @@ function HomeContent() {
                     placeItems: "center",
                     backgroundColor: card.tone,
                     color: "#fff",
-                    boxShadow: `0 6px 16px ${card.tone}55`,
                     flexShrink: 0
                   }}
                 >
@@ -274,11 +275,10 @@ function HomeContent() {
                       display: "flex",
                       flexDirection: "column",
                       gap: 1,
-                      transition: "border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease",
+                      transition: "border-color 0.15s ease, background-color 0.15s ease",
                       "&:hover": {
                         borderColor: "primary.main",
-                        transform: "translateY(-2px)",
-                        boxShadow: "var(--shadow)"
+                        backgroundColor: "rgba(37, 99, 235, 0.04)"
                       }
                     }}
                   >

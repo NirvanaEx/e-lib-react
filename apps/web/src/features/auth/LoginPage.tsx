@@ -227,7 +227,7 @@ export default function LoginPage() {
                   type="submit"
                   disabled={isSubmitting}
                   startIcon={<LockOutlinedIcon />}
-                  sx={{ py: 1.4, borderRadius: "10px", fontSize: 16, boxShadow: "0 10px 20px rgba(37, 99, 235, 0.25)" }}
+                  sx={{ py: 1.4, borderRadius: "10px", fontSize: 16 }}
                 >
                   {t("signIn")}
                 </Button>

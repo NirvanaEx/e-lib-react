@@ -683,7 +683,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                         {file?.currentVersionId === version.id && (
                           <Chip icon={<CheckCircleIcon />} size="small" color="success" label={t("current")} />
                         )}
-                        {version.deleted_at && <Chip size="small" color="warning" label={t("deleted")} />}
+                        {version.deleted_at && <Chip size="small" variant="outlined" label={t("deleted")} />}
                       </Stack>
                       <Typography variant="body2">
                         {t("title")}: {pickTranslationTitle(version.translations || []) || file?.title || "-"}

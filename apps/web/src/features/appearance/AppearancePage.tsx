@@ -859,8 +859,7 @@ export default function AppearancePage() {
                 sx={{
                   pointerEvents: "auto",
                   borderRadius: "12px",
-                  px: 3,
-                  boxShadow: "0 12px 28px rgba(37, 99, 235, 0.45)"
+                  px: 3
                 }}
               >
                 {t("saveChanges")}

@@ -961,9 +961,10 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     gap: 2,
     flexWrap: "wrap" as const,
     cursor: clickable ? "pointer" : "default",
-    transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+    transition: "border-color 0.15s ease, background-color 0.15s ease",
+    // Flat hover: the border and a light tint mark the card, no lift.
     "&:hover": clickable
-      ? { borderColor: "primary.main", boxShadow: "0 10px 20px rgba(15, 42, 90, 0.08)" }
+      ? { borderColor: "primary.main", backgroundColor: "rgba(37, 99, 235, 0.04)" }
       : undefined
   });
 

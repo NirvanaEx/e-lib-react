@@ -1047,7 +1047,7 @@ export default function FilesPage() {
                               {infoFile?.currentVersionId === version.id && (
                                 <Chip size="small" color="success" label={t("current")} />
                               )}
-                              {version.deleted_at && <Chip size="small" color="warning" label={t("deleted")} />}
+                              {version.deleted_at && <Chip size="small" variant="outlined" label={t("deleted")} />}
                               <Typography variant="caption" color="text.secondary">
                                 {formatDateTime(version.created_at)}
                               </Typography>
