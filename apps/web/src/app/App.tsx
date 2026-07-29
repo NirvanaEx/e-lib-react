@@ -13,6 +13,7 @@ import UserLayout from "./layouts/UserLayout";
 import UsersPage from "../features/admin-users/UsersPage";
 import RolesPage from "../features/roles/RolesPage";
 import DepartmentsPage from "../features/departments/DepartmentsPage";
+import PositionsPage from "../features/positions/PositionsPage";
 import SessionsPage from "../features/sessions/SessionsPage";
 import AuditPage from "../features/audit/AuditPage";
 import ContentPage from "../features/content-pages/ContentPage";
@@ -146,6 +147,18 @@ export default function App() {
                     <RequireAccess permissions={["dashboard.access", "department.read"]}>
                       <DashboardLayout>
                         <DepartmentsPage />
+                      </DashboardLayout>
+                    </RequireAccess>
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/dashboard/positions"
+                element={
+                  <RequireAuth>
+                    <RequireAccess permissions={["dashboard.access", "position.read"]}>
+                      <DashboardLayout>
+                        <PositionsPage />
                       </DashboardLayout>
                     </RequireAccess>
                   </RequireAuth>

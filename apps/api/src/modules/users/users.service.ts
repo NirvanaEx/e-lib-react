@@ -168,6 +168,7 @@ export class UsersService {
     const query = this.dbService.db("users")
       .leftJoin("roles", "roles.id", "users.role_id")
       .leftJoin("departments", "departments.id", "users.department_id")
+      .leftJoin("positions", "positions.id", "users.position_id")
       .select(
         "users.id",
         "users.login",
@@ -179,6 +180,8 @@ export class UsersService {
         "roles.level as role_level",
         "users.department_id",
         "departments.name as department",
+        "users.position_id",
+        "positions.name as position",
         "users.must_change_password",
         "users.deleted_at",
         "users.lang",
@@ -283,6 +286,14 @@ export class UsersService {
       }
     }
 
+    const positionId = dto.positionId || null;
+    if (positionId) {
+      const position = await this.dbService.db("positions").where({ id: positionId }).first();
+      if (!position) {
+        throw new BadRequestException("Position not found");
+      }
+    }
+
     const tempPassword = generateTempPassword();
     const hash = await bcrypt.hash(tempPassword, 10);
 
@@ -296,6 +307,7 @@ export class UsersService {
         patronymic: dto.patronymic || null,
         role_id: targetRole.id,
         department_id: departmentId,
+        position_id: positionId,
         must_change_password: true,
         lang: dto.lang || "ru",
         created_at: this.dbService.db.fn.now(),
@@ -308,7 +320,14 @@ export class UsersService {
       action: "USER_CREATED",
       entityType: "USER",
       entityId: id.id || id,
-      diff: { after: { login: dto.login, roleId: targetRole.id, departmentId: dto.departmentId || null } }
+      diff: {
+        after: {
+          login: dto.login,
+          roleId: targetRole.id,
+          departmentId: dto.departmentId || null,
+          positionId
+        }
+      }
     });
 
     return { id: id.id || id, tempPassword };
@@ -370,6 +389,16 @@ export class UsersService {
       }
     }
 
+    if (dto.positionId !== undefined) {
+      const positionId = dto.positionId || null;
+      if (positionId) {
+        const position = await this.dbService.db("positions").where({ id: positionId }).first();
+        if (!position) {
+          throw new BadRequestException("Position not found");
+        }
+      }
+    }
+
     const updatePayload: Record<string, any> = {
       login: dto.login ?? user.login,
       surname: dto.surname ?? user.surname,
@@ -377,6 +406,7 @@ export class UsersService {
       patronymic: dto.patronymic ?? user.patronymic,
       role_id: targetRoleId,
       department_id: dto.departmentId !== undefined ? dto.departmentId || null : user.department_id,
+      position_id: dto.positionId !== undefined ? dto.positionId || null : user.position_id,
       lang: dto.lang ?? user.lang,
       updated_at: this.dbService.db.fn.now()
     };

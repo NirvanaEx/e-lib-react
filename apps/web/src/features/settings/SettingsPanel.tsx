@@ -186,6 +186,11 @@ export function ProfileTab() {
           <Typography variant="body1" sx={{ fontWeight: 700 }} noWrap>
             {fullName}
           </Typography>
+          {user?.position && (
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
+              {user.position}
+            </Typography>
+          )}
           {user?.department && (
             <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
               {user.department}

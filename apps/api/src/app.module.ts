@@ -11,6 +11,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { UsersModule } from "./modules/users/users.module";
 import { RolesModule } from "./modules/roles/roles.module";
 import { DepartmentsModule } from "./modules/departments/departments.module";
+import { PositionsModule } from "./modules/positions/positions.module";
 import { SectionsModule } from "./modules/sections/sections.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { FilesModule } from "./modules/files/files.module";
@@ -54,6 +55,7 @@ import { LoggerModule } from "nestjs-pino";
     UsersModule,
     RolesModule,
     DepartmentsModule,
+    PositionsModule,
     SectionsModule,
     CategoriesModule,
     FilesModule,

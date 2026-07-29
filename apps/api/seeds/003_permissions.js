@@ -13,6 +13,10 @@ const permissions = [
   "department.add",
   "department.update",
   "department.delete",
+  "position.read",
+  "position.add",
+  "position.update",
+  "position.delete",
   "session.read",
   "audit.read",
   "section.read",
@@ -116,6 +120,26 @@ const descriptions = {
     en: "Delete departments",
     ru: "Удаление отделов",
     uz: "Bo'limlarni o'chirish"
+  },
+  "position.read": {
+    en: "View positions",
+    ru: "Просмотр должностей",
+    uz: "Lavozimlarni ko'rish"
+  },
+  "position.add": {
+    en: "Create positions",
+    ru: "Создание должностей",
+    uz: "Lavozimlarni yaratish"
+  },
+  "position.update": {
+    en: "Update positions",
+    ru: "Изменение должностей",
+    uz: "Lavozimlarni yangilash"
+  },
+  "position.delete": {
+    en: "Delete positions",
+    ru: "Удаление должностей",
+    uz: "Lavozimlarni o'chirish"
   },
   "session.read": {
     en: "View sessions",

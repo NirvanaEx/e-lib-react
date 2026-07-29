@@ -157,6 +157,7 @@ export class AuthService {
     const user = await this.dbService.db("users")
       .leftJoin("roles", "roles.id", "users.role_id")
       .leftJoin("departments", "departments.id", "users.department_id")
+      .leftJoin("positions", "positions.id", "users.position_id")
       .select(
         "users.id",
         "users.login",
@@ -166,6 +167,7 @@ export class AuthService {
         "users.patronymic",
         "users.role_id",
         "users.department_id",
+        "users.position_id",
         "users.must_change_password",
         "users.token_version",
         "users.lang",
@@ -173,7 +175,8 @@ export class AuthService {
         "users.avatar",
         "roles.name as role",
         "roles.level as role_level",
-        "departments.name as department"
+        "departments.name as department",
+        "positions.name as position"
       )
       .where("users.login", login)
       .whereNull("users.deleted_at")
@@ -248,6 +251,8 @@ export class AuthService {
         roleLevel: user.role_level,
         departmentId: user.department_id,
         department: departmentPath || user.department,
+        positionId: user.position_id,
+        position: user.position || null,
         mustChangePassword: user.must_change_password,
         surname: user.surname,
         name: user.name,
@@ -264,6 +269,7 @@ export class AuthService {
     const user = await this.dbService.db("users")
       .leftJoin("roles", "roles.id", "users.role_id")
       .leftJoin("departments", "departments.id", "users.department_id")
+      .leftJoin("positions", "positions.id", "users.position_id")
       .select(
         "users.id",
         "users.login",
@@ -272,13 +278,15 @@ export class AuthService {
         "users.patronymic",
         "users.role_id",
         "users.department_id",
+        "users.position_id",
         "users.must_change_password",
         "users.lang",
         "users.can_submit_files",
         "users.avatar",
         "roles.name as role",
         "roles.level as role_level",
-        "departments.name as department"
+        "departments.name as department",
+        "positions.name as position"
       )
       .where("users.id", userId)
       .whereNull("users.deleted_at")
@@ -304,6 +312,8 @@ export class AuthService {
         roleLevel: user.role_level,
         departmentId: user.department_id,
         department: departmentPath || user.department,
+        positionId: user.position_id,
+        position: user.position || null,
         mustChangePassword: user.must_change_password,
         surname: user.surname,
         name: user.name,
@@ -351,6 +361,7 @@ export class AuthService {
     const refreshed = await this.dbService.db("users")
       .leftJoin("roles", "roles.id", "users.role_id")
       .leftJoin("departments", "departments.id", "users.department_id")
+      .leftJoin("positions", "positions.id", "users.position_id")
       .select(
         "users.id",
         "users.login",
@@ -359,6 +370,7 @@ export class AuthService {
         "users.patronymic",
         "users.role_id",
         "users.department_id",
+        "users.position_id",
         "users.lang",
         "users.must_change_password",
         "users.token_version",
@@ -366,7 +378,8 @@ export class AuthService {
         "users.avatar",
         "roles.name as role",
         "roles.level as role_level",
-        "departments.name as department"
+        "departments.name as department",
+        "positions.name as position"
       )
       .where("users.id", userId)
       .first();
@@ -408,6 +421,8 @@ export class AuthService {
         roleLevel: refreshed.role_level,
         departmentId: refreshed.department_id,
         department: departmentPath || refreshed.department,
+        positionId: refreshed.position_id,
+        position: refreshed.position || null,
         mustChangePassword: false,
         surname: refreshed.surname,
         name: refreshed.name,
