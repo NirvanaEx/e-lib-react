@@ -2,7 +2,7 @@ import { IsArray, IsBoolean, IsIn, IsInt, IsOptional } from "class-validator";
 import { Type } from "class-transformer";
 
 export class UpdateAccessDto {
-  @IsIn(["public", "restricted", "department_closed", "department_open"])
+  @IsIn(["public", "restricted", "department_closed", "restricted_open"])
   accessType!: string;
 
   @IsOptional()

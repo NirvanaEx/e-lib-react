@@ -16,14 +16,18 @@ type FileTranslation = { lang: Lang; title: string; description?: string | null 
 /**
  * Access types that let anyone read and download the file.
  *
- * "department_open" keeps the file attached to its department — it still shows
- * up in that department's tab and they can submit updates for it — but the
- * attachment no longer restricts who may read it.
+ * "restricted_open" is a restricted file with the "open to everyone" switch on:
+ * it keeps its department attachments (so it stays in those departments' views
+ * and they can submit updates for it), but the attachment no longer limits who
+ * may read it. The per-user allow list does not apply in this state.
+ *
+ * "department_closed" stays out of this list on purpose — it is never shown on
+ * the shared library page, only inside its own department's tab.
  */
-export const OPEN_ACCESS_TYPES = ["public", "department_open"];
+export const OPEN_ACCESS_TYPES = ["public", "restricted_open"];
 
 export function isOpenAccess(accessType?: string | null) {
-  return accessType === "public" || accessType === "department_open";
+  return accessType === "public" || accessType === "restricted_open";
 }
 
 @Injectable()

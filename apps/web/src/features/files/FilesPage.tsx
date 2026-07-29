@@ -58,12 +58,12 @@ import { formatBytes } from "../../shared/utils/format";
 import { FileDetailsPanel } from "./FileDetailsPanel";
 import { formatDateTime } from "../../shared/utils/date";
 import { formatUserLabel } from "../../shared/utils/userLabel";
-import { accessColor, accessLabelKey } from "../../shared/utils/accessType";
+import { accessColor, accessLabelKey, isRestrictedFamily } from "../../shared/utils/accessType";
 
 const schema = z.object({
   sectionId: z.number().min(1),
   categoryId: z.number().min(1),
-  accessType: z.enum(["public", "restricted", "department_closed", "department_open"]),
+  accessType: z.enum(["public", "restricted", "department_closed", "restricted_open"]),
   accessDepartmentIds: z.array(z.number()).optional(),
   accessUserIds: z.array(z.number()).optional()
 });
@@ -709,7 +709,7 @@ export default function FilesPage() {
                     <TextField
                       select
                       label={t("access")}
-                      value={field.value === "department_open" ? "department_closed" : field.value}
+                      value={field.value === "restricted_open" ? "restricted" : field.value}
                       onChange={(event) => field.onChange(event.target.value)}
                     >
                       <MenuItem value="public">{t("accessPublic")}</MenuItem>
@@ -718,7 +718,7 @@ export default function FilesPage() {
                     </TextField>
                   )}
                 />
-              {(accessType === "department_closed" || accessType === "department_open") && (
+              {isRestrictedFamily(accessType) && (
                 <Controller
                   control={control}
                   name="accessType"
@@ -726,10 +726,8 @@ export default function FilesPage() {
                     <FormControlLabel
                       control={
                         <Switch
-                          checked={field.value === "department_open"}
-                          onChange={(event) =>
-                            field.onChange(event.target.checked ? "department_open" : "department_closed")
-                          }
+                          checked={field.value === "restricted_open"}
+                          onChange={(event) => field.onChange(event.target.checked ? "restricted_open" : "restricted")}
                         />
                       }
                       label={
