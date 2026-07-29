@@ -104,8 +104,17 @@ export class FileRequestsService {
   }
 
   private async normalizeAccess(dto: { accessType: string; accessDepartmentIds?: number[]; accessUserIds?: number[] }, user: any) {
+    // "department_open" behaves like department_closed here: the request still
+    // has to name a department the submitter belongs to; the difference is only
+    // who may read the published file.
     const accessType =
-      dto.accessType === "public" ? "public" : dto.accessType === "department_closed" ? "department_closed" : "restricted";
+      dto.accessType === "public"
+        ? "public"
+        : dto.accessType === "department_closed"
+          ? "department_closed"
+          : dto.accessType === "department_open"
+            ? "department_open"
+            : "restricted";
     let accessDepartmentIds = (dto.accessDepartmentIds || []).map(Number).filter((id) => Number.isFinite(id));
     let accessUserIds = (dto.accessUserIds || []).map(Number).filter((id) => Number.isFinite(id));
 
@@ -142,7 +151,7 @@ export class FileRequestsService {
           accessDepartmentIds = [user.departmentId];
         } else if (accessType === "restricted" && user?.id) {
           accessUserIds = [user.id];
-        } else if (accessType === "department_closed") {
+        } else if (accessType === "department_closed" || accessType === "department_open") {
           throw new BadRequestException("Department access required");
         }
       }

@@ -18,7 +18,7 @@ import { IconColorPicker } from "../../shared/ui/IconColorPicker";
 import { LibraryIcon } from "../../shared/ui/iconLibrary";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
-import { getErrorMessage } from "../../shared/utils/errors";
+import { getDeleteBlockedMessage, getErrorMessage } from "../../shared/utils/errors";
 import { formatDateTime } from "../../shared/utils/date";
 
 export default function SectionsPage() {
@@ -92,7 +92,8 @@ export default function SectionsPage() {
       queryClient.invalidateQueries({ queryKey: ["sections"] });
       showToast({ message: t("sectionDeleted"), severity: "success" });
     },
-    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
+    onError: (error) =>
+      showToast({ message: getDeleteBlockedMessage(error, t, t("actionFailed")), severity: "error" })
   });
 
   const rows = data?.data || [];

@@ -70,6 +70,7 @@ import { useToast } from "../../shared/ui/ToastProvider";
 import { formatUserLabel } from "../../shared/utils/userLabel";
 import { sharedLibraryTableLayout } from "./fileTableLayout";
 import { formatPath } from "../../shared/utils/tree";
+import { accessColor, accessLabelKey } from "../../shared/utils/accessType";
 import { LibraryIcon } from "../../shared/ui/iconLibrary";
 import { FileTypeBadge, accessChipSx, extOf } from "./fileVisuals";
 
@@ -417,12 +418,7 @@ export default function UserFilesPage() {
     return row.currentAssetSize ?? null;
   };
 
-  const getAccessLabel = (accessType: string) =>
-    accessType === "restricted"
-      ? t("accessRestricted")
-      : accessType === "department_closed"
-      ? t("accessDepartmentClosed")
-      : t("accessPublic");
+  const getAccessLabel = (accessType: string) => t(accessLabelKey(accessType));
   const accessIcon = (accessType: string, align: "center" | "start" = "center") => (
     <Tooltip title={getAccessLabel(accessType)}>
       <Box

@@ -87,6 +87,10 @@
 - UI: `success`/`warning`/`error`/`info` added to the palette; without them MUI fell back to its stock burnt orange (#ed6c02). Pending counters now use the theme colour in both the tab and the sidebar, and "deleted" chips are neutral outlines.
 - UI: the "Наполнение данных" (seed) page is gone from the dashboard — menu entry, route and page removed. `/api/dashboard/seed` still exists behind `section.add` for bootstrapping a fresh install.
 
+- Fix: deleting a section counted only live files, so a section whose documents were all in the trash deleted fine and left them orphaned (`file_items.section_id` is ON DELETE SET NULL) — restoring one gave back a broken file. Trashed files now block the delete too, and both sections and categories answer with a structured code plus counts that the UI turns into "what exactly is in the way".
+- Icon library grown from 166 to 355 icons, every entry tagged with Russian keywords so the picker can be searched in the interface language.
+- New access type `department_open`: the file stays attached to its department (it still shows in that department's tab and can be updated by it) but everyone may read and download it. Exposed as an "Доступ всем" switch under the department choice; turning it on hides the per-user list, which no longer applies. Access labels/colours moved into `shared/utils/accessType.ts` — they used to be copy-pasted across six pages.
+
 ## Next
 
 - Run the new migration for rejection reasons if not done yet.

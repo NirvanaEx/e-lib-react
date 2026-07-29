@@ -51,6 +51,7 @@ import { formatBytes } from "../../shared/utils/format";
 import { getErrorMessage } from "../../shared/utils/errors";
 import { buildPathMap, formatPath } from "../../shared/utils/tree";
 import { formatUserLabel } from "../../shared/utils/userLabel";
+import { accessColor, accessLabelKey } from "../../shared/utils/accessType";
 
 const metadataSchema = z.object({
   sectionId: z.number().min(1),
@@ -60,7 +61,7 @@ const metadataSchema = z.object({
 type MetadataForm = z.infer<typeof metadataSchema>;
 
 type AccessForm = {
-  accessType: "public" | "restricted" | "department_closed";
+  accessType: "public" | "restricted" | "department_closed" | "department_open";
   accessDepartmentIds: number[];
   accessUserIds: number[];
   allowVersionAccess: boolean;
@@ -182,15 +183,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
     </Stack>
   );
 
-  const getAccessLabel = (accessType: string) =>
-    accessType === "restricted"
-      ? t("accessRestricted")
-      : accessType === "department_closed"
-      ? t("accessDepartmentClosed")
-      : t("accessPublic");
-
-  const getAccessColor = (accessType: string) =>
-    accessType === "restricted" ? "warning.main" : accessType === "department_closed" ? "info.main" : "success.main";
+  const getAccessLabel = (accessType: string) => t(accessLabelKey(accessType));
 
   const accessIcon = (accessType: string) => (
     <Tooltip title={getAccessLabel(accessType)}>
@@ -198,11 +191,14 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
         {accessType === "public" ? (
           <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
         ) : (
-          <GroupOutlinedIcon fontSize="small" sx={{ color: getAccessColor(accessType) }} />
+          <GroupOutlinedIcon fontSize="small" sx={{ color: accessColor(accessType) }} />
         )}
       </Box>
     </Tooltip>
   );
+
+  const currentAccessType = accessForm.watch("accessType");
+  const isDepartmentAccess = currentAccessType === "department_closed" || currentAccessType === "department_open";
 
   const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
     <Stack direction="row" spacing={2} alignItems="flex-start">
@@ -508,7 +504,9 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                 <TextField
                   select
                   label={t("access")}
-                  value={field.value}
+                  // department_open is the same choice as department_closed
+                  // with the "open to everyone" switch below turned on.
+                  value={field.value === "department_open" ? "department_closed" : field.value}
                   onChange={(event) => field.onChange(event.target.value)}
                 >
                   <MenuItem value="public">{t("accessPublic")}</MenuItem>
@@ -517,6 +515,32 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                 </TextField>
               )}
             />
+            {isDepartmentAccess && (
+              <Controller
+                control={accessForm.control}
+                name="accessType"
+                render={({ field }) => (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={field.value === "department_open"}
+                        onChange={(event) =>
+                          field.onChange(event.target.checked ? "department_open" : "department_closed")
+                        }
+                      />
+                    }
+                    label={
+                      <Stack spacing={0.25}>
+                        <span>{t("accessOpenToEveryone")}</span>
+                        <Typography variant="caption" color="text.secondary">
+                          {t("accessOpenToEveryoneHint")}
+                        </Typography>
+                      </Stack>
+                    }
+                  />
+                )}
+              />
+            )}
             {accessForm.watch("accessType") !== "public" && (
               <Stack spacing={2}>
                 <Controller
@@ -542,6 +566,7 @@ export function FileDetailsPanel({ fileId, variant = "page" }: FileDetailsPanelP
                     />
                   )}
                 />
+                {/* Открытый доступ снимает смысл с точечного списка людей. */}
                 {accessForm.watch("accessType") === "restricted" && (
                   <Controller
                     control={accessForm.control}

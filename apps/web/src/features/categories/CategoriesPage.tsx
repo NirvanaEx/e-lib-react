@@ -36,7 +36,7 @@ import { IconColorPicker } from "../../shared/ui/IconColorPicker";
 import { LibraryIcon } from "../../shared/ui/iconLibrary";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
-import { getErrorMessage } from "../../shared/utils/errors";
+import { getDeleteBlockedMessage, getErrorMessage } from "../../shared/utils/errors";
 import { formatDateTime } from "../../shared/utils/date";
 
 const schema = z.object({
@@ -157,7 +157,8 @@ export default function CategoriesPage() {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       showToast({ message: t("categoryDeleted"), severity: "success" });
     },
-    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
+    onError: (error) =>
+      showToast({ message: getDeleteBlockedMessage(error, t, t("actionFailed")), severity: "error" })
   });
 
   const rows: CategoryRow[] = data?.data || [];

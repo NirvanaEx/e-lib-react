@@ -227,12 +227,28 @@ export class SectionsService {
     const exists = await this.dbService.db("sections").where({ id }).first();
     if (!exists) throw new NotFoundException();
 
-    const hasFiles = await this.dbService.db("file_items")
+    // Trashed files count too: file_items.section_id is ON DELETE SET NULL, so
+    // dropping the section would silently orphan everything still in the trash
+    // and those documents would come back broken after a restore.
+    const counts = await this.dbService.db("file_items")
       .where({ section_id: id })
-      .whereNull("deleted_at")
+      .select(
+        this.dbService.db.raw("count(*) filter (where deleted_at is null)::int as active_count"),
+        this.dbService.db.raw("count(*) filter (where deleted_at is not null)::int as trashed_count")
+      )
       .first();
-    if (hasFiles) {
-      throw new BadRequestException("Section has files");
+
+    const activeFiles = Number((counts as any)?.active_count || 0);
+    const trashedFiles = Number((counts as any)?.trashed_count || 0);
+    if (activeFiles > 0 || trashedFiles > 0) {
+      // Structured so the UI can explain what exactly blocks the deletion
+      // instead of showing an opaque English string.
+      throw new BadRequestException({
+        code: "SECTION_HAS_FILES",
+        message: "Section still holds files",
+        activeFiles,
+        trashedFiles
+      });
     }
 
     await this.dbService.db("sections").where({ id }).delete();

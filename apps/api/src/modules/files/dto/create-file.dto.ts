@@ -11,7 +11,7 @@ export class CreateFileDto {
   @IsInt()
   categoryId!: number;
 
-  @IsIn(["public", "restricted", "department_closed"])
+  @IsIn(["public", "restricted", "department_closed", "department_open"])
   accessType!: string;
 
   @IsArray()

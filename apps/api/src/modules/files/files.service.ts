@@ -13,6 +13,19 @@ import { decodeUploadFilename } from "../../common/utils/filename";
 
 type FileTranslation = { lang: Lang; title: string; description?: string | null };
 
+/**
+ * Access types that let anyone read and download the file.
+ *
+ * "department_open" keeps the file attached to its department — it still shows
+ * up in that department's tab and they can submit updates for it — but the
+ * attachment no longer restricts who may read it.
+ */
+export const OPEN_ACCESS_TYPES = ["public", "department_open"];
+
+export function isOpenAccess(accessType?: string | null) {
+  return accessType === "public" || accessType === "department_open";
+}
+
 @Injectable()
 export class FilesService {
   constructor(
@@ -226,7 +239,7 @@ export class FilesService {
       .whereNull("deleted_at")
       .first();
     if (!file) throw new NotFoundException();
-    if (file.access_type === "public") return;
+    if (isOpenAccess(file.access_type)) return;
     if (user?.permissions?.includes("file.download.restricted")) return;
 
     const departmentIds = await this.getDepartmentScopeIds(user.departmentId);
@@ -1161,7 +1174,7 @@ export class FilesService {
         const canDownload =
           Boolean(item.ownVersionId) &&
           !item.ownVersionDeletedAt &&
-          (item.accessType === "public" ||
+          (isOpenAccess(item.accessType) ||
             canDownloadRestricted ||
             accessDepartmentSet.has(item.id) ||
             (item.accessType === "restricted" && accessUserSet.has(item.id)));
@@ -1412,7 +1425,7 @@ export class FilesService {
             }))
           : [];
       const canDownload =
-        item.accessType === "public" ||
+        isOpenAccess(item.accessType) ||
         canDownloadRestricted ||
         accessDepartmentSet.has(item.id) ||
         (item.accessType === "restricted" && accessUserSet.has(item.id));
@@ -2238,7 +2251,7 @@ export class FilesService {
             }))
           : [];
       const canDownload =
-        item.accessType === "public" ||
+        isOpenAccess(item.accessType) ||
         canDownloadRestricted ||
         accessDepartmentSet.has(item.id) ||
         (item.accessType === "restricted" && accessUserSet.has(item.id));
@@ -2591,7 +2604,7 @@ export class FilesService {
       .select("file_items.id", "file_items.section_id", "file_items.category_id")
       .whereNull("file_items.deleted_at")
       .where((builder) => {
-        builder.where("file_items.access_type", "public");
+        builder.whereIn("file_items.access_type", OPEN_ACCESS_TYPES);
         if (departmentIds.length) {
           builder.orWhereIn("file_items.id", function () {
             this.select("file_item_id")
