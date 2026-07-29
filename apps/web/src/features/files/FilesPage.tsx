@@ -11,11 +11,13 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   IconButton,
   MenuItem,
   Paper,
   Select,
   Stack,
+  Switch,
   TextField,
   Tooltip,
   Typography
@@ -56,11 +58,12 @@ import { formatBytes } from "../../shared/utils/format";
 import { FileDetailsPanel } from "./FileDetailsPanel";
 import { formatDateTime } from "../../shared/utils/date";
 import { formatUserLabel } from "../../shared/utils/userLabel";
+import { accessColor, accessLabelKey } from "../../shared/utils/accessType";
 
 const schema = z.object({
   sectionId: z.number().min(1),
   categoryId: z.number().min(1),
-  accessType: z.enum(["public", "restricted", "department_closed"]),
+  accessType: z.enum(["public", "restricted", "department_closed", "department_open"]),
   accessDepartmentIds: z.array(z.number()).optional(),
   accessUserIds: z.array(z.number()).optional()
 });
@@ -306,22 +309,14 @@ export default function FilesPage() {
     return row.currentAssetSize ?? null;
   };
 
-  const getAccessLabel = (accessType: string) =>
-    accessType === "restricted"
-      ? t("accessRestricted")
-      : accessType === "department_closed"
-      ? t("accessDepartmentClosed")
-      : t("accessPublic");
+  const getAccessLabel = (accessType: string) => t(accessLabelKey(accessType));
   const accessIcon = (accessType: string) => (
     <Tooltip title={getAccessLabel(accessType)}>
       <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
         {accessType === "public" ? (
           <PublicIcon fontSize="small" sx={{ color: "success.main" }} />
         ) : (
-          <GroupOutlinedIcon
-            fontSize="small"
-            sx={{ color: accessType === "department_closed" ? "info.main" : "warning.main" }}
-          />
+          <GroupOutlinedIcon fontSize="small" sx={{ color: accessColor(accessType) }} />
         )}
       </Box>
     </Tooltip>
@@ -714,7 +709,7 @@ export default function FilesPage() {
                     <TextField
                       select
                       label={t("access")}
-                      value={field.value}
+                      value={field.value === "department_open" ? "department_closed" : field.value}
                       onChange={(event) => field.onChange(event.target.value)}
                     >
                       <MenuItem value="public">{t("accessPublic")}</MenuItem>
@@ -723,6 +718,32 @@ export default function FilesPage() {
                     </TextField>
                   )}
                 />
+              {(accessType === "department_closed" || accessType === "department_open") && (
+                <Controller
+                  control={control}
+                  name="accessType"
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={field.value === "department_open"}
+                          onChange={(event) =>
+                            field.onChange(event.target.checked ? "department_open" : "department_closed")
+                          }
+                        />
+                      }
+                      label={
+                        <Stack spacing={0.25}>
+                          <span>{t("accessOpenToEveryone")}</span>
+                          <Typography variant="caption" color="text.secondary">
+                            {t("accessOpenToEveryoneHint")}
+                          </Typography>
+                        </Stack>
+                      }
+                    />
+                  )}
+                />
+              )}
               {accessType !== "public" && (
                 <Stack spacing={2}>
                   <Controller

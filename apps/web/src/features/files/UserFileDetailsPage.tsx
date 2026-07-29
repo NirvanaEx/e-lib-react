@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { formatBytes } from "../../shared/utils/format";
 import { getFilenameFromDisposition } from "../../shared/utils/download";
 import { formatUserLabel } from "../../shared/utils/userLabel";
+import { accessColor, accessLabelKey } from "../../shared/utils/accessType";
 
 export default function UserFileDetailsPage() {
   const params = useParams();
@@ -78,15 +79,9 @@ export default function UserFileDetailsPage() {
     setDownloadTarget(availableLangsSorted);
   };
 
-  const getAccessLabel = (accessType: string) =>
-    accessType === "restricted"
-      ? t("accessRestricted")
-      : accessType === "department_closed"
-      ? t("accessDepartmentClosed")
-      : t("accessPublic");
+  const getAccessLabel = (accessType: string) => t(accessLabelKey(accessType));
 
-  const getAccessColor = (accessType: string) =>
-    accessType === "restricted" ? "warning.main" : accessType === "department_closed" ? "info.main" : "success.main";
+  const getAccessColor = (accessType: string) => accessColor(accessType);
 
   const accessIcon = (accessType: string) => (
     <Tooltip title={getAccessLabel(accessType)}>

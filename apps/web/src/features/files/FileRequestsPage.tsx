@@ -39,6 +39,7 @@ import { formatDateTime } from "../../shared/utils/date";
 import { formatBytes } from "../../shared/utils/format";
 import { getErrorMessage } from "../../shared/utils/errors";
 import { getFilenameFromDisposition } from "../../shared/utils/download";
+import { accessColor, accessLabelKey } from "../../shared/utils/accessType";
 import { fetchSections } from "../sections/sections.api";
 import { fetchCategories } from "../categories/categories.api";
 import {
@@ -178,15 +179,9 @@ export default function FileRequestsPage() {
 
   const formatBadge = (count: number) => (count > 9 ? "9+" : String(count));
 
-  const getAccessLabel = (accessType: string) =>
-    accessType === "restricted"
-      ? t("accessRestricted")
-      : accessType === "department_closed"
-      ? t("accessDepartmentClosed")
-      : t("accessPublic");
+  const getAccessLabel = (accessType: string) => t(accessLabelKey(accessType));
 
-  const getAccessColor = (accessType: string) =>
-    accessType === "restricted" ? "warning.main" : accessType === "department_closed" ? "info.main" : "success.main";
+  const getAccessColor = (accessType: string) => accessColor(accessType);
 
   const accessChip = (accessType: string) => (
     <Chip

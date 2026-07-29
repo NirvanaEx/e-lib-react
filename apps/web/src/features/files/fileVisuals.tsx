@@ -1,12 +1,8 @@
 import React from "react";
 import { Box, Typography } from "@mui/material";
 
-export const accessChipSx = (accessType: string) =>
-  accessType === "public"
-    ? { backgroundColor: "rgba(22, 163, 74, 0.12)", color: "#15803d" }
-    : accessType === "department_closed"
-    ? { backgroundColor: "rgba(2, 132, 199, 0.12)", color: "#0369a1" }
-    : { backgroundColor: "rgba(217, 119, 6, 0.14)", color: "#b45309" };
+// Re-exported so existing imports keep working; the logic lives in one place.
+export { accessChipSx } from "../../shared/utils/accessType";
 
 export const fileTypeInfo = (ext?: string | null) => {
   const value = (ext || "").toLowerCase();

@@ -9,11 +9,13 @@ import {
   DialogContent,
   DialogTitle,
   Drawer,
+  FormControlLabel,
   IconButton,
   MenuItem,
   Paper,
   Select,
   Stack,
+  Switch,
   Tab,
   Tabs,
   TextField,
@@ -57,6 +59,7 @@ import { getFilenameFromDisposition } from "../../shared/utils/download";
 import { buildPathMap, formatPath } from "../../shared/utils/tree";
 import { getErrorMessage } from "../../shared/utils/errors";
 import { formatUserLabel } from "../../shared/utils/userLabel";
+import { accessColor, accessLabelKey } from "../../shared/utils/accessType";
 import { FileTypeBadge, accessChipSx, extOf } from "./fileVisuals";
 import {
   addUserFavorite,
@@ -79,7 +82,7 @@ import {
 const requestSchema = z.object({
   sectionId: z.number().min(1),
   categoryId: z.number().min(1),
-  accessType: z.enum(["public", "restricted", "department_closed"]),
+  accessType: z.enum(["public", "restricted", "department_closed", "department_open"]),
   accessDepartmentIds: z.array(z.number()).default([]),
   accessUserIds: z.array(z.number()).default([]),
   comment: z.string().optional()
@@ -701,12 +704,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
     </Stack>
   );
 
-  const getAccessLabel = (accessType: string) =>
-    accessType === "restricted"
-      ? t("accessRestricted")
-      : accessType === "department_closed"
-      ? t("accessDepartmentClosed")
-      : t("accessPublic");
+  const getAccessLabel = (accessType: string) => t(accessLabelKey(accessType));
   const accessChip = (accessType: string) => (
     <Chip
       size="small"
@@ -1675,12 +1673,45 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                   control={requestForm.control}
                   name="accessType"
                   render={({ field }) => (
-                    <TextField select label={t("access")} value={field.value} onChange={(event) => field.onChange(event.target.value)}>
+                    <TextField
+                      select
+                      label={t("access")}
+                      value={field.value === "department_open" ? "department_closed" : field.value}
+                      onChange={(event) => field.onChange(event.target.value)}
+                    >
                       <MenuItem value="public">{t("accessPublic")}</MenuItem>
                       <MenuItem value="restricted">{t("accessRestricted")}</MenuItem>
                       <MenuItem value="department_closed">{t("accessDepartmentClosed")}</MenuItem>
                     </TextField>
                   )}
+                />
+                <Controller
+                  control={requestForm.control}
+                  name="accessType"
+                  render={({ field }) =>
+                    field.value === "department_closed" || field.value === "department_open" ? (
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={field.value === "department_open"}
+                            onChange={(event) =>
+                              field.onChange(event.target.checked ? "department_open" : "department_closed")
+                            }
+                          />
+                        }
+                        label={
+                          <Stack spacing={0.25}>
+                            <span>{t("accessOpenToEveryone")}</span>
+                            <Typography variant="caption" color="text.secondary">
+                              {t("accessOpenToEveryoneHint")}
+                            </Typography>
+                          </Stack>
+                        }
+                      />
+                    ) : (
+                      <span />
+                    )
+                  }
                 />
               </>
             )}

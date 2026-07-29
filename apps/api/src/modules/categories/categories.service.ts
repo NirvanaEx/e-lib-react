@@ -305,9 +305,16 @@ export class CategoriesService {
   }
 
   async remove(id: number, actorId: number) {
-    const hasChildren = await this.dbService.db("categories").where({ parent_id: id }).first();
-    if (hasChildren) {
-      throw new BadRequestException("Category has children");
+    const childCount = await this.dbService.db("categories")
+      .where({ parent_id: id })
+      .count<{ count: string }>("id as count")
+      .first();
+    if (Number(childCount?.count || 0) > 0) {
+      throw new BadRequestException({
+        code: "CATEGORY_HAS_CHILDREN",
+        message: "Category still holds subcategories",
+        childCount: Number(childCount?.count || 0)
+      });
     }
 
     const dataResult = await this.dbService.db.raw(
@@ -317,14 +324,22 @@ export class CategoriesService {
         SELECT c.id FROM categories c
         JOIN tree t ON c.parent_id = t.id
       )
-      SELECT COUNT(fi.id)::int AS data_count
+      SELECT
+        COUNT(fi.id) FILTER (WHERE fi.deleted_at IS NULL)::int AS active_count,
+        COUNT(fi.id) FILTER (WHERE fi.deleted_at IS NOT NULL)::int AS trashed_count
       FROM tree t
       LEFT JOIN file_items fi ON fi.category_id = t.id`,
       [id]
     );
-    const dataCount = Number(dataResult?.rows?.[0]?.data_count || 0);
-    if (dataCount > 0) {
-      throw new BadRequestException("Category has data");
+    const activeFiles = Number(dataResult?.rows?.[0]?.active_count || 0);
+    const trashedFiles = Number(dataResult?.rows?.[0]?.trashed_count || 0);
+    if (activeFiles > 0 || trashedFiles > 0) {
+      throw new BadRequestException({
+        code: "CATEGORY_HAS_FILES",
+        message: "Category still holds files",
+        activeFiles,
+        trashedFiles
+      });
     }
 
     await this.dbService.db("categories_translations").where({ category_id: id }).delete();

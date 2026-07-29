@@ -22,7 +22,11 @@ export function IconColorPicker({
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return ICON_LIBRARY;
-    return ICON_LIBRARY.filter((item) => item.name.includes(q));
+    // Matches the English slug and the Russian keywords, so "договор" and
+    // "handshake" both find the same icon.
+    return ICON_LIBRARY.filter(
+      (item) => item.name.includes(q) || (item.keywords ? item.keywords.includes(q) : false)
+    );
   }, [query]);
   const activeColor = color || "#2563eb";
 
@@ -89,7 +93,8 @@ export function IconColorPicker({
           display: "grid",
           gridTemplateColumns: "repeat(auto-fill, minmax(40px, 1fr))",
           gap: 0.5,
-          maxHeight: 216,
+          // Taller viewport: the library grew past 350 icons.
+          maxHeight: 300,
           overflow: "auto",
           border: "1px solid var(--border)",
           borderRadius: "10px",
