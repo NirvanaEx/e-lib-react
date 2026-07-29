@@ -150,9 +150,12 @@ export class FilesController {
     FileInterceptor("file", {
       storage: diskStorage({
         destination: uploadDir,
-        filename: (_req, file, cb) => {
-          const ext = path.extname(file.originalname);
-          cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+        // Fixed ".tmp" extension: multer writes to disk before the extension
+        // allowlist runs in uploadAsset, so an attacker-chosen extension would
+        // briefly exist under the uploads dir. The final name is rebuilt from
+        // the original name once validation passes.
+        filename: (_req, _file, cb) => {
+          cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}.tmp`);
         }
       }),
       limits: { fileSize: maxSize }

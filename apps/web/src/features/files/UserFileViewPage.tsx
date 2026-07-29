@@ -18,7 +18,7 @@ export default function UserFileViewPage() {
 
   const { data: details, isLoading, isError } = useQuery({
     queryKey: ["user-file-details", fileId],
-    queryFn: () => fetchUserFile(fileId),
+    queryFn: () => fetchUserFile(fileId, "viewer"),
     enabled: Number.isInteger(fileId) && fileId > 0,
     retry: false
   });

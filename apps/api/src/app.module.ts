@@ -23,7 +23,7 @@ import { ContentPagesModule } from "./modules/content-pages/content-pages.module
 import { AppSettingsModule } from "./modules/app-settings/app-settings.module";
 import { SeedModule } from "./modules/seed/seed.module";
 import { ScheduleModule } from "@nestjs/schedule";
-import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
+import { ThrottlerModule, ThrottlerGuard, seconds } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 
 @Module({
@@ -40,8 +40,13 @@ import { LoggerModule } from "nestjs-pino";
         transport: process.env.NODE_ENV !== "production" ? { target: "pino-pretty" } : undefined
       }
     }),
+    // @nestjs/throttler v5 counts `ttl` in MILLISECONDS. The previous
+    // `{ ttl: 60 }` meant a 60 ms window, which let brute-force traffic
+    // through unthrottled. The global bucket is generous because the SPA
+    // fires many parallel queries per screen (and offices share one NAT IP);
+    // login has its own strict bucket in AuthController.
     ThrottlerModule.forRoot({
-      throttlers: [{ ttl: 60, limit: 30 }]
+      throttlers: [{ name: "default", ttl: seconds(60), limit: 300 }]
     }),
     ScheduleModule.forRoot(),
     DatabaseModule,

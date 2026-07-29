@@ -15,8 +15,10 @@ import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
-import { Box, ButtonBase, Chip, Stack, Tooltip, Typography } from "@mui/material";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { Box, ButtonBase, Chip, LinearProgress, Skeleton, Stack, Tooltip, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { BaseLayout, NavItem } from "./BaseLayout";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../shared/hooks/useAuth";
@@ -36,6 +38,7 @@ type DashboardItem = {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const canViewRequests = hasAccess(user, ["dashboard.access", "file.read"]);
   const sidebarTop = ({ collapsed }: { collapsed: boolean }) => (
@@ -95,7 +98,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ].filter((section) => section.items.length > 0);
 
   const canViewStorage = hasAccess(user, ["dashboard.access", "storage.read"]);
-  const { data: storageData } = useQuery({
+  const { data: storageData, isLoading: storageIsLoading } = useQuery({
     queryKey: ["storage-usage"],
     queryFn: fetchStorageUsage,
     enabled: canViewStorage
@@ -121,55 +124,132 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }));
   }, [canViewRequests, pendingRequestsCount, sections]);
 
-  const StorageSummary = () => (
-    <Stack spacing={1.5}>
-      <Stack direction="row" spacing={1} alignItems="center">
-        <StorageIcon fontSize="small" color="action" />
-        <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.16em" }}>
-          {t("storageUsage")}
-        </Typography>
+  // Used space against the configured quota, or against the uploads volume
+  // when no quota is set. Without a denominator the bar would be meaningless,
+  // so it is hidden instead of showing a fake value.
+  const usedBytes = storageData?.totalBytes || 0;
+  const capacityBytes = storageData?.quotaBytes || storageData?.diskTotalBytes || 0;
+  const usedPercent = capacityBytes > 0 ? Math.min(100, (usedBytes / capacityBytes) * 100) : null;
+  const storageColor = usedPercent === null ? "primary" : usedPercent > 90 ? "error" : usedPercent > 75 ? "warning" : "primary";
+  const storageLoading = canViewStorage && storageIsLoading;
+
+  // The widget used to be inert text; it now opens the storage tab of the
+  // statistics page and reacts to hover/focus like the nav items above it.
+  const openStorage = () => navigate("/dashboard/stats?tab=storage");
+  const canOpenStorage = hasAccess(user, ["dashboard.access", "stats.read"]);
+
+  const StorageSummary = ({ inTooltip = false }: { inTooltip?: boolean }) => (
+    <Stack spacing={1.25} sx={{ minWidth: inTooltip ? 200 : 0 }}>
+      <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+        <Stack direction="row" spacing={1} alignItems="center">
+          <StorageIcon fontSize="small" color="action" />
+          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.16em", lineHeight: 1.2 }}>
+            {t("storageUsage")}
+          </Typography>
+        </Stack>
+        {!inTooltip && canOpenStorage && <ChevronRightIcon fontSize="small" sx={{ color: "text.secondary" }} />}
       </Stack>
-      <Stack spacing={0.5}>
-        <Typography variant="h6">{formatBytes(storageData?.totalBytes || 0)}</Typography>
-        <Typography variant="caption" color="text.secondary">
-          {t("storageUsed")}
-        </Typography>
-      </Stack>
-      <Stack direction="row" spacing={1} flexWrap="wrap">
-        <Chip size="small" label={`${t("files")}: ${storageData?.fileCount ?? 0}`} />
-        <Chip size="small" label={`${t("assets")}: ${storageData?.assetCount ?? 0}`} />
-      </Stack>
-      {storageData?.currentBytes ? (
-        <Typography variant="caption" color="text.secondary">
-          {t("currentVersions")}: {formatBytes(storageData.currentBytes)}
-        </Typography>
-      ) : null}
+
+      {storageLoading ? (
+        <Skeleton variant="rounded" height={44} />
+      ) : (
+        <>
+          <Stack direction="row" spacing={0.75} alignItems="baseline">
+            <Typography variant="h6" sx={{ lineHeight: 1.1 }}>
+              {formatBytes(usedBytes)}
+            </Typography>
+            {capacityBytes > 0 && (
+              <Typography variant="caption" color="text.secondary">
+                / {formatBytes(capacityBytes)}
+              </Typography>
+            )}
+          </Stack>
+          {usedPercent !== null && (
+            <Box>
+              <LinearProgress
+                variant="determinate"
+                value={usedPercent}
+                color={storageColor}
+                sx={{ height: 6, borderRadius: 999 }}
+              />
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                {t("storageFreeHint", { value: formatBytes(storageData?.diskFreeBytes || 0) })}
+              </Typography>
+            </Box>
+          )}
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" sx={{ rowGap: 0.75 }}>
+            <Chip size="small" label={`${t("files")}: ${storageData?.fileCount ?? 0}`} />
+            <Chip size="small" label={`${t("assets")}: ${storageData?.assetCount ?? 0}`} />
+          </Stack>
+          {storageData?.currentBytes ? (
+            <Typography variant="caption" color="text.secondary">
+              {t("currentVersions")}: {formatBytes(storageData.currentBytes)}
+            </Typography>
+          ) : null}
+        </>
+      )}
     </Stack>
   );
 
   const sidebarContent = canViewStorage
-    ? ({ collapsed }: { collapsed: boolean }) =>
-        collapsed ? (
-          <Tooltip
-            placement="right"
-            title={
-              <Box sx={{ p: 1 }}>
-                <StorageSummary />
+    ? ({ collapsed }: { collapsed: boolean }) => (
+        <Tooltip
+          placement="right"
+          title={
+            collapsed ? (
+              <Box sx={{ p: 0.5 }}>
+                <StorageSummary inTooltip />
               </Box>
-            }
+            ) : (
+              ""
+            )
+          }
+        >
+          <ButtonBase
+            // Not `disabled`: a disabled child swallows the hover events the
+            // collapsed tooltip needs. Managers hold storage.read without
+            // stats.read, so for them the card is informational only.
+            component={canOpenStorage ? "button" : "div"}
+            onClick={canOpenStorage ? openStorage : undefined}
+            disableRipple={!canOpenStorage}
+            tabIndex={canOpenStorage ? 0 : -1}
+            aria-label={t("storageUsage")}
+            sx={{
+              width: "100%",
+              display: "block",
+              textAlign: "left",
+              borderRadius: "10px",
+              p: collapsed ? 1 : 1.5,
+              border: "1px solid var(--border)",
+              backgroundColor: "var(--surface-2)",
+              transition: "border-color 0.2s ease, background-color 0.2s ease",
+              cursor: canOpenStorage ? "pointer" : "default",
+              "&:hover": canOpenStorage
+                ? { borderColor: "primary.main", backgroundColor: "rgba(37, 99, 235, 0.08)" }
+                : undefined
+            }}
           >
-            <Stack spacing={0.5} alignItems="center">
-              <StorageIcon fontSize="small" color="action" />
-              <Typography variant="caption" color="text.secondary">
-                {formatBytes(storageData?.totalBytes || 0)}
-              </Typography>
-            </Stack>
-          </Tooltip>
-        ) : (
-          <Box>
-            <StorageSummary />
-          </Box>
-        )
+            {collapsed ? (
+              <Stack spacing={0.5} alignItems="center">
+                <StorageIcon fontSize="small" color="action" />
+                <Typography variant="caption" color="text.secondary">
+                  {formatBytes(usedBytes)}
+                </Typography>
+                {usedPercent !== null && (
+                  <LinearProgress
+                    variant="determinate"
+                    value={usedPercent}
+                    color={storageColor}
+                    sx={{ width: "100%", height: 4, borderRadius: 999 }}
+                  />
+                )}
+              </Stack>
+            ) : (
+              <StorageSummary />
+            )}
+          </ButtonBase>
+        </Tooltip>
+      )
     : undefined;
 
   return (

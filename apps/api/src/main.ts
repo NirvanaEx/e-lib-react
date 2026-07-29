@@ -1,5 +1,6 @@
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import helmet from "helmet";
 import { AppModule } from "./app.module";
 import { ConfigService } from "@nestjs/config";
@@ -8,10 +9,20 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { requestContextMiddleware } from "./common/request-context";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
   const configService = app.get(ConfigService);
   const isProd = configService.get<string>("NODE_ENV") === "production";
   app.useLogger(app.get(Logger));
+  // Client IPs drive the login lockout, the throttler and the audit trail.
+  // Only honour X-Forwarded-For when a proxy is actually in front of us —
+  // otherwise the header is attacker-controlled and defeats all three.
+  // Value: "false" (default), "true", a hop count, or an express trust-proxy
+  // expression such as "loopback, 10.0.0.0/8".
+  const trustProxy = (configService.get<string>("TRUST_PROXY", "") || "").trim();
+  if (trustProxy && trustProxy !== "false") {
+    const hops = Number(trustProxy);
+    app.set("trust proxy", trustProxy === "true" ? 1 : Number.isFinite(hops) ? hops : trustProxy);
+  }
   app.use(requestContextMiddleware);
   app.use(helmet());
   const corsOrigins = (configService.get<string>("CORS_ORIGINS", "") || "")

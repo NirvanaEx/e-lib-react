@@ -71,6 +71,17 @@
 - Added department_closed access type handling: UI labels/icons updated, access lists now show departments for non-public types, and access checks only honor user lists for restricted.
 - Shared library status column widened with tighter padding so favorite/lock icons no longer overlap.
 
+- Security: throttler TTL fixed (v5 counts milliseconds, so `ttl: 60` was a 60 ms window and left login brute force unthrottled); global bucket raised to 300/min, login 10/min.
+- Security: per-account and per-IP login lockout backed by a new `login_attempts` table (`LOGIN_MAX_ATTEMPTS`, `LOGIN_LOCKOUT_MINUTES`), with a neutral 429 that does not reveal whether the login exists.
+- Security: password policy centralised in `IsPassword()` (8+ chars, letter + digit, 128 max) and reusing the current password is rejected; temp passwords widened to 12 chars + digit.
+- Security: on-disk asset paths removed from version payloads; per-user access lists returned only to holders of `file.access.update` (others get `accessUsersCount`).
+- Security: uploads land under a fixed `.tmp` name until the extension allowlist accepts them; `TRUST_PROXY` gates X-Forwarded-For (off by default); missing `@Access` added to user request endpoints.
+- Statistics: file views are now recorded (`file_views`, 15-minute dedupe per user/file), downloads and views both store IP and user agent.
+- Statistics: new endpoints — overview with previous-period deltas, activity feed (who/when/what, filters + CSV export), top files, top users, by department, by period, per-file activity, login activity, extended storage (trash size, disk free, breakdown by extension, largest files).
+- Statistics page rebuilt with tabs (overview / activity / files / users / storage / security), area chart of downloads vs views, filterable activity log and CSV export.
+- UI: shared `SectionCard` replaces hand-rolled panels; `StatCard` no longer forces a white gradient in dark mode and supports icon/hint/trend; content, seed and appearance pages aligned to the same surface.
+- UI: sidebar storage widget is now an interactive card — progress against quota or real disk space, loading skeleton, collapsed tooltip, and it opens the storage tab of the statistics page.
+
 ## Next
 
 - Run the new migration for rejection reasons if not done yet.
@@ -80,3 +91,6 @@
 - Verify shared library favorites stay highlighted after refresh.
 - Verify the Department files tab loads for users with a department and shows department-scoped files.
 - Run the new request type migration and verify update requests flow from Department files into Requests.
+- Run `npm run migrate` for `20260729000000_activity_tracking` (file_views, downloads.ip/user_agent, login_attempts).
+- Optionally set `STORAGE_QUOTA_GB` so the sidebar widget fills against a quota instead of free disk space.
+- Set `TRUST_PROXY` only if a reverse proxy is put in front of the API; leaving it off keeps X-Forwarded-For unspoofable.

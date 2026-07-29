@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { DatabaseService } from "../../db/database.service";
 import { AuditService } from "../audit/audit.service";
 import { DownloadsService } from "../downloads/downloads.service";
+import { ViewsService } from "../views/views.service";
 import { buildPaginationMeta } from "../../common/utils/pagination";
 import { getAvailableLangs, normalizeLang, selectTranslation, Lang } from "../../common/utils/lang";
 import { decodeUploadFilename } from "../../common/utils/filename";
@@ -18,7 +19,8 @@ export class FilesService {
     private readonly dbService: DatabaseService,
     private readonly config: ConfigService,
     private readonly auditService: AuditService,
-    private readonly downloadsService: DownloadsService
+    private readonly downloadsService: DownloadsService,
+    private readonly viewsService: ViewsService
   ) {}
 
   private getDefaultLang(): Lang {
@@ -1523,7 +1525,6 @@ export class FilesService {
             "original_name",
             "mime",
             "size",
-            "path",
             "created_at"
           )
       : [];
@@ -1556,7 +1557,6 @@ export class FilesService {
         originalName: asset.original_name,
         mime: asset.mime,
         size: asset.size,
-        path: asset.path,
         createdAt: asset.created_at
       });
     });
@@ -2257,7 +2257,12 @@ export class FilesService {
     return { data, meta: buildPaginationMeta(page, pageSize, Number(countResult?.count || 0)) };
   }
 
-  async getUserFile(fileItemId: number, user: any, preferredLang: string | null) {
+  async getUserFile(
+    fileItemId: number,
+    user: any,
+    preferredLang: string | null,
+    source?: "details" | "viewer"
+  ) {
     await this.validateAccess(user, fileItemId);
 
     const rows = await this.dbService.db("file_items")
@@ -2314,6 +2319,16 @@ export class FilesService {
 
     const availableAssetLangs = assets.map((asset: any) => asset.lang).filter(Boolean);
 
+    // Opening the file card is the "view" event the statistics page reports;
+    // ViewsService collapses repeats within a short window.
+    await this.viewsService.log({
+      userId: user.id,
+      fileItemId,
+      fileVersionId: rows[0].current_version_id || null,
+      lang: lang || defaultLang,
+      source
+    });
+
     const accessDepartments = await this.dbService.db("file_access_departments")
       .leftJoin("departments", "departments.id", "file_access_departments.department_id")
       .select("departments.id", "departments.name")
@@ -2324,19 +2339,25 @@ export class FilesService {
       ...dept,
       path: departmentPaths.get(dept.id) || dept.name
     }));
+    // The per-user access list is personal data: it lets any reader of a
+    // restricted file harvest the logins and names of everyone else on it.
+    // Only people who may edit access see the names; others get the count.
+    const canSeeAccessUsers = Boolean(user?.permissions?.includes("file.access.update"));
     const accessUsersRows = await this.dbService.db("file_access_users")
       .leftJoin("users", "users.id", "file_access_users.user_id")
       .select("users.id", "users.login", "users.surname", "users.name", "users.patronymic")
       .where("file_access_users.file_item_id", fileItemId)
       .orderBy("users.login", "asc");
-    const accessUsers = accessUsersRows.map((row: any) => {
-      const fullName = [row.surname, row.name, row.patronymic].filter(Boolean).join(" ").trim();
-      return {
-        id: row.id,
-        login: row.login,
-        fullName: fullName || null
-      };
-    });
+    const accessUsers = canSeeAccessUsers
+      ? accessUsersRows.map((row: any) => {
+          const fullName = [row.surname, row.name, row.patronymic].filter(Boolean).join(" ").trim();
+          return {
+            id: row.id,
+            login: row.login,
+            fullName: fullName || null
+          };
+        })
+      : [];
 
     return {
       id: fileItemId,
@@ -2368,7 +2389,8 @@ export class FilesService {
       assets,
       translations,
       accessDepartments: accessDepartmentsWithPaths,
-      accessUsers
+      accessUsers,
+      accessUsersCount: accessUsersRows.length
     };
   }
 
@@ -2408,7 +2430,7 @@ export class FilesService {
       ? await this.dbService.db("file_version_assets")
           .whereIn("file_version_id", versionIds)
           .whereNull("deleted_at")
-          .select("id", "file_version_id", "lang", "original_name", "mime", "size", "path", "created_at")
+          .select("id", "file_version_id", "lang", "original_name", "mime", "size", "created_at")
       : [];
 
     const translationRows = versionIds.length
@@ -2439,7 +2461,6 @@ export class FilesService {
         originalName: asset.original_name,
         mime: asset.mime,
         size: asset.size,
-        path: asset.path,
         createdAt: asset.created_at
       });
     });

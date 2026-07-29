@@ -783,6 +783,7 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
   const detailsAssets = detailsData?.assets || [];
   const detailsAccessDepartments = detailsData?.accessDepartments || [];
   const detailsAccessUsers = detailsData?.accessUsers || [];
+  const detailsAccessUsersCount = detailsData?.accessUsersCount ?? detailsAccessUsers.length;
   const showAccessLists = detailsData?.accessType && detailsData.accessType !== "public";
   const showAccessUsers = detailsData?.accessType === "restricted";
   const versions = versionsData?.data || [];
@@ -1289,9 +1290,15 @@ export default function UserLibraryPage({ view }: { view: "requests" | "files" |
                     </Typography>
                     <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 0.5, rowGap: 0.5 }}>
                       {detailsAccessUsers.length === 0 ? (
-                        <Typography variant="body2" color="text.secondary">
-                          -
-                        </Typography>
+                        // Names are only returned to users who may edit access;
+                        // everyone else sees the size of the list.
+                        detailsAccessUsersCount > 0 ? (
+                          <Chip size="small" label={t("accessUsersCount", { count: detailsAccessUsersCount })} />
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            -
+                          </Typography>
+                        )
                       ) : (
                         detailsAccessUsers.map((item: any) => (
                           <Chip key={item.id} size="small" label={formatUserLabel(item)} />

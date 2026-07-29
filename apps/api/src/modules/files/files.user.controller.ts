@@ -131,9 +131,10 @@ export class FilesUserController {
   async getOne(
     @Param("id", ParseIntPipe) id: number,
     @User() user: any,
-    @Lang() lang: string | null
+    @Lang() lang: string | null,
+    @Query("source") source?: string
   ) {
-    return this.filesService.getUserFile(id, user, lang);
+    return this.filesService.getUserFile(id, user, lang, source === "viewer" ? "viewer" : "details");
   }
 
   @Get("files/:id/versions")
