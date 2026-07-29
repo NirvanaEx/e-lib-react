@@ -11,6 +11,8 @@ export type AuthUser = {
   roleLevel?: number;
   departmentId?: number | null;
   department?: string | null;
+  positionId?: number | null;
+  position?: string | null;
   name?: string | null;
   surname?: string | null;
   patronymic?: string | null;

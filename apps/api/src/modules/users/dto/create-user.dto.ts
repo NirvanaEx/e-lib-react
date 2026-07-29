@@ -28,6 +28,11 @@ export class CreateUserDto {
   departmentId?: number | null;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  positionId?: number | null;
+
+  @IsOptional()
   @IsString()
   lang?: string | null;
 }

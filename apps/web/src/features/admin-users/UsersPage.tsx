@@ -44,6 +44,7 @@ import {
   uploadUserAvatar
 } from "./users.api";
 import { fetchDepartments } from "../departments/departments.api";
+import { fetchPositionOptions } from "../positions/positions.api";
 import { DataTable } from "../../shared/ui/DataTable";
 import { Page } from "../../shared/ui/Page";
 import { EmptyState } from "../../shared/ui/EmptyState";
@@ -80,7 +81,8 @@ const schema = z.object({
   name: z.string().min(1),
   patronymic: z.string().optional(),
   roleId: z.coerce.number().min(1),
-  departmentId: z.number().nullable().optional()
+  departmentId: z.number().nullable().optional(),
+  positionId: z.number().nullable().optional()
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -96,6 +98,8 @@ type UserRow = {
   role_level?: number;
   department?: string | null;
   department_id?: number | null;
+  position?: string | null;
+  position_id?: number | null;
   must_change_password?: boolean;
   deleted_at?: string | null;
   created_at?: string;
@@ -107,13 +111,16 @@ type RoleOption = { id: number; name: string; level?: number };
 
 type DepartmentOption = { id: number; name: string; parent_id?: number | null; depth?: number };
 
+type PositionOption = { id: number; name: string };
+
 const defaultValues: FormValues = {
   login: "",
   surname: "",
   name: "",
   patronymic: "",
   roleId: 0,
-  departmentId: null
+  departmentId: null,
+  positionId: null
 };
 
 export default function UsersPage() {
@@ -150,8 +157,14 @@ export default function UsersPage() {
     queryFn: () => fetchDepartments({ page: 1, pageSize: 200 })
   });
 
+  const { data: positionsData } = useQuery({
+    queryKey: ["positions", "options", 500],
+    queryFn: () => fetchPositionOptions({ page: 1, pageSize: 500 })
+  });
+
   const roleOptions: RoleOption[] = rolesData || [];
   const departmentOptions: DepartmentOption[] = departmentsData?.data || [];
+  const positionOptions: PositionOption[] = positionsData?.data || [];
 
   const actorLevel = React.useMemo(() => {
     if (user?.role === "superadmin") return Number.MAX_SAFE_INTEGER;
@@ -315,7 +328,8 @@ export default function UsersPage() {
         name: editingUser.name,
         patronymic: editingUser.patronymic || "",
         roleId: editingUser.role_id,
-        departmentId: editingUser.department_id ?? null
+        departmentId: editingUser.department_id ?? null,
+        positionId: editingUser.position_id ?? null
       });
       setCanSubmitFiles(Boolean(editingUser.can_submit_files));
     } else {
@@ -331,7 +345,8 @@ export default function UsersPage() {
       name: values.name,
       patronymic: values.patronymic || null,
       roleId: values.roleId,
-      departmentId: values.departmentId || null
+      departmentId: values.departmentId || null,
+      positionId: values.positionId || null
     };
 
     if (editingUser) {
@@ -424,6 +439,13 @@ export default function UsersPage() {
                 row.department_id ? formatPath(getDepartmentPath(row.department_id)) : "",
               render: (row) =>
                 row.department_id ? renderPath(getDepartmentPath(row.department_id)) : "-"
+            },
+            {
+              key: "position",
+              label: t("position"),
+              minWidth: 200,
+              sortValue: (row) => row.position || "",
+              render: (row) => row.position || "-"
             },
             {
               key: "status",
@@ -656,6 +678,31 @@ export default function UsersPage() {
               {departmentOptions.length === 0 && (
                 <Button size="small" onClick={() => navigate("/dashboard/departments")}>
                   {t("createDepartment")}
+                </Button>
+              )}
+              <Controller
+                control={control}
+                name="positionId"
+                render={({ field }) => (
+                  <Autocomplete
+                    options={positionOptions}
+                    getOptionLabel={(option) => option.name}
+                    value={positionOptions.find((position) => position.id === field.value) || null}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    onChange={(_, value) => field.onChange(value ? value.id : null)}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label={t("position")}
+                        helperText={positionOptions.length === 0 ? t("noPositionsHint") : ""}
+                      />
+                    )}
+                  />
+                )}
+              />
+              {positionOptions.length === 0 && (
+                <Button size="small" onClick={() => navigate("/dashboard/positions")}>
+                  {t("createPosition")}
                 </Button>
               )}
             </Stack>

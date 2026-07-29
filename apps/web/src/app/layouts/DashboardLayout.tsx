@@ -1,6 +1,7 @@
 import React from "react";
 import PeopleIcon from "@mui/icons-material/People";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
+import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import SecurityIcon from "@mui/icons-material/Security";
 import FolderIcon from "@mui/icons-material/Folder";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
@@ -63,6 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const adminItems: DashboardItem[] = [
     { label: t("users"), path: "/dashboard/users", icon: <PeopleIcon />, access: "user.read" },
     { label: t("departments"), path: "/dashboard/departments", icon: <AccountTreeIcon />, access: "department.read" },
+    { label: t("positions"), path: "/dashboard/positions", icon: <BadgeOutlinedIcon />, access: "position.read" },
     { label: t("roles"), path: "/dashboard/roles", icon: <ShieldIcon />, access: "role.read" },
     { label: t("content"), path: "/dashboard/content", icon: <PolicyOutlinedIcon />, access: "content.read" },
     { label: t("appearanceNav"), path: "/dashboard/appearance", icon: <PaletteOutlinedIcon />, access: "content.read" },
