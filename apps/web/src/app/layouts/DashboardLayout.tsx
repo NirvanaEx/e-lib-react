@@ -13,7 +13,6 @@ import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
-import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import { Box, ButtonBase, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { BaseLayout, NavItem } from "./BaseLayout";
@@ -77,8 +76,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: t("publicationRequests"), path: "/dashboard/requests", icon: <AssignmentOutlinedIcon />, access: "file.read" },
     { label: t("files"), path: "/dashboard/files", icon: <DescriptionIcon />, access: "file.read" },
     { label: t("trash"), path: "/dashboard/trash", icon: <DeleteOutlineIcon />, access: "file.trash.read" },
-    { label: t("stats"), path: "/dashboard/stats", icon: <InsightsIcon />, access: "stats.read" },
-    { label: t("seedData"), path: "/dashboard/seed", icon: <AutoAwesomeOutlinedIcon />, access: "section.add" }
+    { label: t("stats"), path: "/dashboard/stats", icon: <InsightsIcon />, access: "stats.read" }
   ];
 
   const toNavItems = (items: DashboardItem[]): NavItem[] =>
