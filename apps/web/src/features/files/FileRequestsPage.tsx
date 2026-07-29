@@ -251,7 +251,8 @@ export default function FileRequestsPage() {
     if (status === "canceled") {
       return <Chip size="small" label={t("requestCancelled")} />;
     }
-    return <Chip size="small" color="warning" label={t("requestPending")} />;
+    // Pending is a normal state, not a warning — it follows the theme colour.
+    return <Chip size="small" color="primary" variant="outlined" label={t("requestPending")} />;
   };
 
   const requestTypeIcon = (requestType?: string | null) => {
@@ -535,7 +536,7 @@ export default function FileRequestsPage() {
             label={
               <Stack direction="row" spacing={1} alignItems="center">
                 <span>{t("pending")}</span>
-                <Chip size="small" label={formatBadge(pendingCount)} color="warning" />
+                <Chip size="small" label={formatBadge(pendingCount)} color="primary" />
               </Stack>
             }
           />

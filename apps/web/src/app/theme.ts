@@ -4,11 +4,6 @@ import { GLASS_OPACITY_DEFAULT, glassSurfaceAlpha } from "../shared/hooks/useThe
 
 // Base RGB of glass panels; must match the --surface colors in index.css.
 const GLASS_PAPER_RGB = { light: "255, 255, 255", dark: "120, 165, 225" };
-// Subtle top-light sheen so panels read as glass even over a plain background.
-const GLASS_SHEEN = {
-  light: "linear-gradient(155deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.12) 100%)",
-  dark: "linear-gradient(155deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.015) 65%)"
-};
 // Floating surfaces (dialogs, menus) need more opacity to stay readable.
 const GLASS_OVERLAY = { light: "rgba(255, 255, 255, 0.9)", dark: "rgba(13, 26, 48, 0.92)" };
 // The sidebar can stay more transparent — behind it is just the page backdrop.
@@ -33,6 +28,14 @@ export function createAppTheme(mode: ThemeMode, style: ThemeStyle = "glass", gla
       mode,
       primary: { main: dark ? "#3b82f6" : "#2563eb" },
       secondary: { main: dark ? "#38bdf8" : "#0ea5e9" },
+      // Without these MUI falls back to its stock palette, whose warning is a
+      // burnt orange (#ed6c02) that clashes with the blue theme. These are
+      // pulled toward the same slate/blue family: teal for success, a desatured
+      // amber kept only for genuine "needs attention", rose for errors.
+      success: { main: dark ? "#2dd4bf" : "#0d9488" },
+      warning: { main: dark ? "#d6b16a" : "#a16207" },
+      error: { main: dark ? "#f87171" : "#dc2626" },
+      info: { main: dark ? "#38bdf8" : "#0ea5e9" },
       background: {
         default: dark ? "#0b1424" : "#f5f7fb",
         paper
@@ -58,18 +61,27 @@ export function createAppTheme(mode: ThemeMode, style: ThemeStyle = "glass", gla
       MuiPaper: {
         styleOverrides: {
           root: {
-            backgroundImage: glass ? (dark ? GLASS_SHEEN.dark : GLASS_SHEEN.light) : "none",
+            // No sheen gradient and no elevation: panels are flat, told apart
+            // by their border alone. The glass style keeps only translucency
+            // and the backdrop blur behind it.
+            backgroundImage: "none",
             boxShadow: "none",
             ...(glass ? glassSurface : {})
           }
         }
       },
       MuiButton: {
+        defaultProps: { disableElevation: true },
         styleOverrides: {
           root: {
             textTransform: "none",
             fontWeight: 600,
-            borderRadius: 8
+            borderRadius: 8,
+            // MUI keeps an elevation on contained buttons even with
+            // disableElevation on :hover/:active in some variants.
+            boxShadow: "none",
+            "&:hover": { boxShadow: "none" },
+            "&:active": { boxShadow: "none" }
           }
         }
       },

@@ -432,7 +432,7 @@ export default function UsersPage() {
               sortValue: (row) => (row.deleted_at ? 1 : 0),
               render: (row) =>
                 row.deleted_at ? (
-                  <Chip size="small" color="warning" label={t("deleted")} />
+                  <Chip size="small" variant="outlined" label={t("deleted")} />
                 ) : (
                   <Chip size="small" color="success" label={t("active")} />
                 )

@@ -356,7 +356,7 @@ export function BaseLayout({
                   const showBadge = badgeLabel !== null && badgeLabel !== "0";
                   const iconNode =
                     item.icon && collapsed && showBadge ? (
-                      <Badge color="error" badgeContent={badgeLabel}>
+                      <Badge color="primary" badgeContent={badgeLabel}>
                         {item.icon}
                       </Badge>
                     ) : (
@@ -414,7 +414,9 @@ export function BaseLayout({
                       )}
                       {!collapsed && showBadge && (
                         <Box sx={{ ml: "auto" }}>
-                          <Chip size="small" label={badgeLabel} color="error" sx={{ fontWeight: 700 }} />
+                          {/* Same colour as the pending tab badge: this is a
+                              count of work items, not an error. */}
+                          <Chip size="small" label={badgeLabel} color="primary" sx={{ fontWeight: 700 }} />
                         </Box>
                       )}
                     </ListItemButton>

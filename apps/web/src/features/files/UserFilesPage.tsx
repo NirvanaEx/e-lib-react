@@ -814,11 +814,10 @@ export default function UserFilesPage() {
                   display: "flex",
                   flexDirection: "column",
                   gap: 0.75,
-                  transition: "border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease",
+                  transition: "border-color 0.15s ease, background-color 0.15s ease",
                   "&:hover": {
                     borderColor: "primary.main",
-                    transform: "translateY(-2px)",
-                    boxShadow: "0 10px 20px rgba(15, 42, 90, 0.08)"
+                    backgroundColor: "rgba(37, 99, 235, 0.04)"
                   }
                 }}
               >
@@ -1080,9 +1079,9 @@ export default function UserFilesPage() {
                   gap: 2,
                   flexWrap: "wrap",
                   cursor: canOpen ? "pointer" : "default",
-                  transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+                  transition: "border-color 0.15s ease, background-color 0.15s ease",
                   "&:hover": canOpen
-                    ? { borderColor: "primary.main", boxShadow: "0 10px 20px rgba(15, 42, 90, 0.08)" }
+                    ? { borderColor: "primary.main", backgroundColor: "rgba(37, 99, 235, 0.04)" }
                     : undefined
                 }}
               >
