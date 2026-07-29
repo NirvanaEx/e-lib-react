@@ -82,6 +82,11 @@
 - UI: shared `SectionCard` replaces hand-rolled panels; `StatCard` no longer forces a white gradient in dark mode and supports icon/hint/trend; content, seed and appearance pages aligned to the same surface.
 - UI: sidebar storage widget is now an interactive card — progress against quota or real disk space, loading skeleton, collapsed tooltip, and it opens the storage tab of the statistics page.
 
+- UI: storage widget removed from the sidebar; the numbers live on the Storage tab of the statistics page.
+- UI: flat surfaces — `--shadow: none` in every theme variant, the `GLASS_SHEEN` gloss dropped from Paper, button elevation off, and the coloured glows / hover lifts under cards replaced by a border + light tint.
+- UI: `success`/`warning`/`error`/`info` added to the palette; without them MUI fell back to its stock burnt orange (#ed6c02). Pending counters now use the theme colour in both the tab and the sidebar, and "deleted" chips are neutral outlines.
+- UI: the "Наполнение данных" (seed) page is gone from the dashboard — menu entry, route and page removed. `/api/dashboard/seed` still exists behind `section.add` for bootstrapping a fresh install.
+
 ## Next
 
 - Run the new migration for rejection reasons if not done yet.
