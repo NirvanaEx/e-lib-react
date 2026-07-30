@@ -55,6 +55,7 @@ import { getErrorMessage } from "../../shared/utils/errors";
 import { buildPathMap, formatPath } from "../../shared/utils/tree";
 import { getFilenameFromDisposition } from "../../shared/utils/download";
 import { formatBytes } from "../../shared/utils/format";
+import { adminFilesTableLayout } from "./fileTableLayout";
 import { FileDetailsPanel } from "./FileDetailsPanel";
 import { formatDateTime } from "../../shared/utils/date";
 import { formatUserLabel } from "../../shared/utils/userLabel";
@@ -501,36 +502,44 @@ export default function FilesPage() {
           sort={sort}
           onSortChange={(key, direction) =>
             setSort(direction ? { key, direction } : { key: null, direction: null })
-          }columns={[
+          }
+          tableLayout="fixed"
+          containerSx={{ overflow: "hidden" }}
+          columns={[
             {
               key: "title",
               label: t("title"),
               sortable: true,
               sortKey: "title",
+              ...adminFilesTableLayout.title,
               render: (row) => row.title || t("file")
             },
             {
-              key: "section",
-              label: t("section"),
-              render: (row) => formatSectionLabel(row.sectionId)
-            },
-            {
-              key: "category",
-              label: t("category"),
-              render: (row) => renderPath(getCategoryPath(row.categoryId)),
+              key: "sectionCategory",
+              label: `${t("section")} / ${t("category")}`,
               sortable: true,
               sortKey: "category",
+              ...adminFilesTableLayout.sectionCategory,
+              render: (row) => (
+                <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                  <Box component="span">{formatSectionLabel(row.sectionId)}</Box>
+                  <Box component="span" sx={{ fontSize: "0.75rem", color: "text.secondary" }}>
+                    {renderPath(getCategoryPath(row.categoryId))}
+                  </Box>
+                </Stack>
+              )
             },
             {
               key: "accessType",
               label: t("access"),
               align: "center",
-              width: 48,
+              ...adminFilesTableLayout.accessType,
               render: (row) => accessIcon(row.accessType)
             },
             {
               key: "langs",
               label: t("languages"),
+              ...adminFilesTableLayout.langs,
               render: (row) => {
                 const langs = row.availableAssetLangs || row.availableLangs || [];
                 if (langs.length === 0) return "-";
@@ -546,6 +555,7 @@ export default function FilesPage() {
             {
               key: "size",
               label: t("fileSize"),
+              ...adminFilesTableLayout.size,
               render: (row) => {
                 const size = resolveRowSize(row);
                 return size === null || size === undefined ? "-" : formatBytes(size);
@@ -556,6 +566,7 @@ export default function FilesPage() {
             {
               key: "updatedAt",
               label: t("updatedAt"),
+              ...adminFilesTableLayout.updatedAt,
               render: (row) => formatDateTime(row.updatedAt),
               sortable: true,
               sortKey: "updated_at"
@@ -564,7 +575,7 @@ export default function FilesPage() {
               key: "download",
               label: t("download"),
               align: "center",
-              width: 56,
+              ...adminFilesTableLayout.download,
               render: (row) => {
                 const langs = row.availableAssetLangs || row.availableLangs || [];
                 const disabled = langs.length === 0;
@@ -602,7 +613,7 @@ export default function FilesPage() {
               label: t("actions"),
               align: "right",
               sortable: false,
-              width: 96,
+              ...adminFilesTableLayout.actions,
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   <Tooltip title={t("edit")}>

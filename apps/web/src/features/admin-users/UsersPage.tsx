@@ -75,6 +75,13 @@ function userInitials(row: { surname?: string | null; name?: string | null; logi
   return combined || row.login?.trim().charAt(0).toUpperCase() || "?";
 }
 
+function userFullName(row: { surname?: string | null; name?: string | null; patronymic?: string | null }) {
+  return [row.surname, row.name, row.patronymic]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
 const schema = z.object({
   login: z.string().min(1),
   surname: z.string().min(1),
@@ -406,22 +413,41 @@ export default function UsersPage() {
       ) : (
         <DataTable
           rows={rows}
+          tableLayout="fixed"
+          containerSx={{ overflow: "hidden" }}
           columns={[
-            { key: "login", label: t("login") },
             {
-              key: "name",
-              label: t("fullName"),
-              sortValue: (row) => `${row.surname} ${row.name}${row.patronymic ? ` ${row.patronymic}` : ""}`.trim(),
+              key: "avatar",
+              label: "",
+              sortable: false,
+              width: 52,
+              minWidth: 52,
+              headerSx: { pl: 1.5, pr: 0 },
+              cellSx: { pl: 1.5, pr: 0 },
               render: (row) => (
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Avatar
-                    src={getAvatarUrl(row)}
-                    sx={{ width: 28, height: 28, fontSize: 12, fontWeight: 700, bgcolor: "primary.main", color: "#fff" }}
-                  >
-                    {userInitials(row)}
-                  </Avatar>
-                  <Box component="span" sx={{ minWidth: 0 }}>
-                    {`${row.surname} ${row.name}${row.patronymic ? ` ${row.patronymic}` : ""}`}
+                <Avatar
+                  src={getAvatarUrl(row)}
+                  sx={{ width: 32, height: 32, fontSize: 12, fontWeight: 700, bgcolor: "primary.main", color: "#fff" }}
+                >
+                  {userInitials(row)}
+                </Avatar>
+              )
+            },
+            {
+              key: "login",
+              label: `${t("login")} / ${t("fullName")}`,
+              width: "20%",
+              minWidth: 180,
+              headerWrap: true,
+              cellWrap: true,
+              sortValue: (row) => row.login,
+              render: (row) => (
+                <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                  <Box component="span" sx={{ fontWeight: 600 }}>
+                    {row.login}
+                  </Box>
+                  <Box component="span" sx={{ fontSize: "0.75rem", color: "text.secondary" }}>
+                    {userFullName(row) || "-"}
                   </Box>
                 </Stack>
               )
@@ -429,28 +455,38 @@ export default function UsersPage() {
             {
               key: "role",
               label: t("role"),
+              width: 120,
+              minWidth: 120,
               render: (row) => <Chip size="small" label={row.role} />
             },
             {
               key: "department",
-              label: t("department"),
+              label: `${t("department")} / ${t("position")}`,
+              width: "28%",
               minWidth: 220,
+              headerWrap: true,
+              cellWrap: true,
               sortValue: (row) =>
                 row.department_id ? formatPath(getDepartmentPath(row.department_id)) : "",
-              render: (row) =>
-                row.department_id ? renderPath(getDepartmentPath(row.department_id)) : "-"
-            },
-            {
-              key: "position",
-              label: t("position"),
-              minWidth: 200,
-              sortValue: (row) => row.position || "",
-              render: (row) => row.position || "-"
+              render: (row) => {
+                if (!row.department_id && !row.position) return "-";
+                return (
+                  <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                    {row.department_id ? renderPath(getDepartmentPath(row.department_id)) : "-"}
+                    {row.position && (
+                      <Box component="span" sx={{ fontSize: "0.75rem", color: "text.secondary" }}>
+                        {row.position}
+                      </Box>
+                    )}
+                  </Stack>
+                );
+              }
             },
             {
               key: "status",
               label: t("status"),
-              width: 120,
+              width: 104,
+              minWidth: 104,
               sortValue: (row) => (row.deleted_at ? 1 : 0),
               render: (row) =>
                 row.deleted_at ? (
@@ -462,14 +498,17 @@ export default function UsersPage() {
             {
               key: "created_at",
               label: t("createdAt"),
-              width: 160,
+              width: 140,
+              minWidth: 140,
+              headerWrap: true,
               render: (row) => formatDateTime(row.created_at)
             },
             {
               key: "connectionStatus",
               label: t("connectionStatus"),
               align: "center",
-              width: 90,
+              width: 124,
+              minWidth: 124,
               sortValue: (row) => (row.must_change_password ? 0 : 1),
               render: (row) => (
                 <Tooltip title={row.must_change_password ? t("statusDisconnected") : t("statusConnected")}>
@@ -490,6 +529,7 @@ export default function UsersPage() {
               label: t("actions"),
               align: "right",
               width: 120,
+              minWidth: 120,
               headerSx: { pr: 1 },
               cellSx: { pr: 1 },
               sortable: false,
