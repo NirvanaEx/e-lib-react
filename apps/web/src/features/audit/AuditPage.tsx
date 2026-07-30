@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchAudit } from "./audit.api";
 import { fetchUsers } from "../admin-users/users.api";
 import { DataTable } from "../../shared/ui/DataTable";
+import { rowNumberColumn } from "../../shared/ui/rowNumberColumn";
 import { Page } from "../../shared/ui/Page";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { FiltersBar } from "../../shared/ui/FiltersBar";
@@ -166,6 +167,7 @@ export default function AuditPage() {
         <DataTable
           rows={rows}
           columns={[
+            rowNumberColumn({ total: meta.total, page: meta.page, pageSize: meta.pageSize }),
             { key: "entity_id", label: t("entityId") },
             {
               key: "created_at",

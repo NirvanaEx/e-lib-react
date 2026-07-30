@@ -162,10 +162,10 @@ export function ProfileTab() {
       <Stack direction="row" spacing={2} alignItems="center">
         <Box sx={{ position: "relative", flexShrink: 0 }}>
           <ButtonBase
-            onClick={() => avatarUrl && setLightboxOpen(true)}
-            disabled={!avatarUrl}
-            aria-label={t("viewPhoto")}
-            sx={{ borderRadius: "50%", cursor: avatarUrl ? "zoom-in" : "default" }}
+            // Пустой аватар работает как кнопка загрузки, с фото — как превью.
+            onClick={() => (avatarUrl ? setLightboxOpen(true) : inputRef.current?.click())}
+            aria-label={avatarUrl ? t("viewPhoto") : t("uploadAvatar")}
+            sx={{ borderRadius: "50%", cursor: avatarUrl ? "zoom-in" : "pointer" }}
           >
             <Avatar
               src={avatarUrl}

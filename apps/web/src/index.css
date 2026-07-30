@@ -18,6 +18,9 @@
   --appbar: rgba(255, 255, 255, 0.88);
   --bg-glow-1: #e7efff;
   --bg-glow-2: #e3f0fb;
+  /* Полоса прокрутки: тонкая, без трека, проявляется при наведении. */
+  --scrollbar-thumb: rgba(100, 116, 139, 0.28);
+  --scrollbar-thumb-hover: rgba(100, 116, 139, 0.5);
 }
 
 :root[data-theme="dark"] {
@@ -37,6 +40,8 @@
   --appbar: rgba(11, 20, 36, 0.88);
   --bg-glow-1: #12233f;
   --bg-glow-2: #0f2036;
+  --scrollbar-thumb: rgba(148, 163, 184, 0.26);
+  --scrollbar-thumb-hover: rgba(148, 163, 184, 0.45);
 }
 
 /* Liquid glass style: translucent panel surfaces (page background unchanged).
@@ -63,7 +68,7 @@
 * {
   box-sizing: border-box;
   scrollbar-width: thin;
-  scrollbar-color: rgba(100, 116, 139, 0.55) rgba(228, 233, 242, 0.7);
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 body {
@@ -104,21 +109,25 @@ main {
 }
 
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
 }
 
+/* Трек прозрачный: полоса не рисует «желобок» ни на светлом фоне страницы,
+   ни на тёмном сайдбаре — виден только сам бегунок. */
 *::-webkit-scrollbar-track {
-  background: rgba(228, 233, 242, 0.7);
-  border-radius: 999px;
+  background: transparent;
 }
 
 *::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.5);
+  background: var(--scrollbar-thumb);
   border-radius: 999px;
-  border: 2px solid rgba(228, 233, 242, 0.7);
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.7);
+  background: var(--scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }

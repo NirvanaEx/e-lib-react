@@ -46,6 +46,7 @@ import {
 import { fetchDepartments } from "../departments/departments.api";
 import { fetchPositionOptions } from "../positions/positions.api";
 import { DataTable } from "../../shared/ui/DataTable";
+import { rowNumberColumn } from "../../shared/ui/rowNumberColumn";
 import { Page } from "../../shared/ui/Page";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { useToast } from "../../shared/ui/ToastProvider";
@@ -416,6 +417,7 @@ export default function UsersPage() {
           tableLayout="fixed"
           containerSx={{ overflow: "hidden" }}
           columns={[
+            rowNumberColumn({ total: meta.total, page: meta.page, pageSize: meta.pageSize }),
             {
               key: "avatar",
               label: "",
@@ -616,11 +618,13 @@ export default function UsersPage() {
               {editingUser && (
                 <Stack direction="row" spacing={2} alignItems="center">
                   <input ref={avatarInputRef} type="file" accept={AVATAR_ACCEPT} hidden onChange={handleAvatarFileChange} />
-                  <Tooltip title={editingUser.avatar ? t("viewPhoto") : ""}>
+                  <Tooltip title={editingUser.avatar ? t("viewPhoto") : t("uploadAvatar")}>
                     <Box
                       component="span"
-                      onClick={() => editingUser.avatar && setAvatarLightboxOpen(true)}
-                      sx={{ cursor: editingUser.avatar ? "zoom-in" : "default", display: "inline-flex", borderRadius: "50%" }}
+                      onClick={() =>
+                        editingUser.avatar ? setAvatarLightboxOpen(true) : avatarInputRef.current?.click()
+                      }
+                      sx={{ cursor: editingUser.avatar ? "zoom-in" : "pointer", display: "inline-flex", borderRadius: "50%" }}
                     >
                       <Avatar
                         src={getAvatarUrl(editingUser)}

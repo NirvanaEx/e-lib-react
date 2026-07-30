@@ -19,6 +19,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createPosition, deletePosition, fetchPositions, updatePosition } from "./positions.api";
 import { DataTable } from "../../shared/ui/DataTable";
+import { rowNumberColumn } from "../../shared/ui/rowNumberColumn";
 import { Page } from "../../shared/ui/Page";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { LoadingState } from "../../shared/ui/LoadingState";
@@ -163,6 +164,7 @@ export default function PositionsPage() {
         <DataTable
           rows={rows}
           columns={[
+            rowNumberColumn({ total: meta.total, page: meta.page, pageSize: meta.pageSize }),
             {
               key: "name",
               label: t("name"),

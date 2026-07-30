@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchSessions } from "./sessions.api";
 import { fetchUsers } from "../admin-users/users.api";
 import { DataTable } from "../../shared/ui/DataTable";
+import { rowNumberColumn } from "../../shared/ui/rowNumberColumn";
 import { Page } from "../../shared/ui/Page";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { LoadingState } from "../../shared/ui/LoadingState";
@@ -81,6 +82,7 @@ export default function SessionsPage() {
         <DataTable
           rows={rows}
           columns={[
+            rowNumberColumn({ total: meta.total, page: meta.page, pageSize: meta.pageSize }),
             {
               key: "login",
               label: t("user"),

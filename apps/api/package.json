@@ -1,6 +1,6 @@
 {
   "name": "@e-lib/api",
-  "version": "0.1.0",
+  "version": "2.9.0",
   "private": true,
   "scripts": {
     "dev": "node scripts/kill-port.js 3003 && nest start --watch",

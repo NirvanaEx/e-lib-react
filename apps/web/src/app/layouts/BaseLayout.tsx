@@ -40,12 +40,12 @@ import { useAuth } from "../../shared/hooks/useAuth";
 import { LanguageMenu } from "../../shared/ui/LanguageMenu";
 import { TestVersionRibbon, TEST_RIBBON_HEIGHT } from "../../shared/ui/TestVersionRibbon";
 import i18n from "../i18n";
-import { changeLanguage } from "../../features/settings/settings.api";
+import { changeLanguage, uploadMyAvatar } from "../../features/settings/settings.api";
 import { useToast } from "../../shared/ui/ToastProvider";
 import { useTranslation } from "react-i18next";
 import { getDashboardRoute, getDefaultRoute, hasAccess } from "../../shared/utils/access";
 import { getAvatarUrl } from "../../shared/utils/avatar";
-import { ImageLightbox } from "../../shared/ui/AvatarEditor";
+import { AvatarCropDialog, ImageLightbox } from "../../shared/ui/AvatarEditor";
 import { acceptUserContentPage, fetchUserContentPage } from "../../features/content-pages/content-pages.api";
 import { fetchAppSettings } from "../../features/settings/app-settings.api";
 
@@ -115,6 +115,38 @@ export function BaseLayout({
   const [agreementRequired, setAgreementRequired] = React.useState(false);
   const [userMenuAnchor, setUserMenuAnchor] = React.useState<HTMLElement | null>(null);
   const [avatarLightboxOpen, setAvatarLightboxOpen] = React.useState(false);
+  const avatarInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [avatarCropFile, setAvatarCropFile] = React.useState<File | null>(null);
+
+  // Клик по пустому аватару сразу открывает выбор файла: заходить в настройки
+  // ради первой загрузки фото не нужно.
+  const avatarUploadMutation = useMutation({
+    mutationFn: uploadMyAvatar,
+    onSuccess: (data: any) => {
+      updateUser({ avatar: data?.avatar || null });
+      setAvatarCropFile(null);
+      showToast({ message: t("avatarUpdated"), severity: "success" });
+    },
+    onError: () => showToast({ message: t("actionFailed"), severity: "error" })
+  });
+
+  const handleAvatarClick = () => {
+    if (user?.avatar) {
+      setUserMenuAnchor(null);
+      setAvatarLightboxOpen(true);
+      return;
+    }
+    avatarInputRef.current?.click();
+  };
+
+  const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) {
+      setUserMenuAnchor(null);
+      setAvatarCropFile(file);
+    }
+  };
   const queryClient = useQueryClient();
 
   const agreementKey = "user_agreement";
@@ -567,17 +599,11 @@ export function BaseLayout({
                   }}
                 >
                   <Stack direction="row" spacing={1.25} alignItems="center" sx={{ px: 2, pt: 1.75, pb: 1.5 }}>
-                    <Tooltip title={user?.avatar ? t("viewPhoto") : ""}>
+                    <Tooltip title={user?.avatar ? t("viewPhoto") : t("uploadAvatar")}>
                       <ButtonBase
-                        onClick={() => {
-                          if (user?.avatar) {
-                            setUserMenuAnchor(null);
-                            setAvatarLightboxOpen(true);
-                          }
-                        }}
-                        disabled={!user?.avatar}
-                        aria-label={t("viewPhoto")}
-                        sx={{ borderRadius: "50%", cursor: user?.avatar ? "zoom-in" : "default" }}
+                        onClick={handleAvatarClick}
+                        aria-label={user?.avatar ? t("viewPhoto") : t("uploadAvatar")}
+                        sx={{ borderRadius: "50%", cursor: user?.avatar ? "zoom-in" : "pointer" }}
                       >
                         <Avatar
                           src={getAvatarUrl(user)}
@@ -774,6 +800,20 @@ export function BaseLayout({
           </Button>
         </DialogActions>
       </Dialog>
+      <input
+        ref={avatarInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        hidden
+        onChange={handleAvatarFileChange}
+      />
+      <AvatarCropDialog
+        open={Boolean(avatarCropFile)}
+        file={avatarCropFile}
+        saving={avatarUploadMutation.isPending}
+        onClose={() => setAvatarCropFile(null)}
+        onSave={(blob) => avatarUploadMutation.mutate(new File([blob], "avatar.png", { type: "image/png" }))}
+      />
       <ImageLightbox open={avatarLightboxOpen} src={getAvatarUrl(user)} onClose={() => setAvatarLightboxOpen(false)} />
       </Box>
     </Box>
