@@ -1,3 +1,51 @@
+/**
+ * Раскладка админской таблицы файлов: проценты для текстовых столбцов и
+ * фиксированные пиксели для иконок, чтобы таблица всегда укладывалась в
+ * ширину страницы, а длинные названия переносились внутри своей колонки.
+ */
+export const adminFilesTableLayout = {
+  title: {
+    width: "34%",
+    minWidth: 260,
+    headerWrap: false,
+    cellWrap: true
+  },
+  sectionCategory: {
+    width: "22%",
+    minWidth: 200,
+    headerWrap: true,
+    cellWrap: true
+  },
+  accessType: {
+    width: 80,
+    minWidth: 80
+  },
+  langs: {
+    width: 110,
+    minWidth: 110,
+    headerWrap: false,
+    cellWrap: true
+  },
+  size: {
+    width: 110,
+    minWidth: 110,
+    headerWrap: false
+  },
+  updatedAt: {
+    width: 150,
+    minWidth: 150,
+    headerWrap: false
+  },
+  download: {
+    width: 72,
+    minWidth: 72
+  },
+  actions: {
+    width: 104,
+    minWidth: 104
+  }
+};
+
 export const sharedLibraryTableLayout = {
   status: {
     width: 80,
