@@ -545,7 +545,7 @@ const resources = {
       tabBranding: "Logo & wallpaper",
       tabInterface: "Interface",
       testRibbonSetting: "Test-version ribbon",
-      testRibbonSettingHint: "Show the moving \"test version\" ribbon at the bottom of the screen for all users.",
+      testRibbonSettingHint: "Show a thin \"test version\" status line above the application header for all users.",
       brandingLogoLight: "Logo — light theme",
       brandingLogoLightHint:
         "Shown at the top left of the user panel in the light theme. PNG with a transparent background is recommended.",
@@ -1162,7 +1162,7 @@ const resources = {
       tabBranding: "Логотип и обои",
       tabInterface: "Интерфейс",
       testRibbonSetting: "Плашка тестовой версии",
-      testRibbonSettingHint: "Показывать бегущую плашку «тестовая версия» внизу экрана для всех пользователей.",
+      testRibbonSettingHint: "Показывать тонкую строку «тестовая версия» над шапкой приложения для всех пользователей.",
       brandingLogoLight: "Логотип — светлая тема",
       brandingLogoLightHint:
         "Отображается сверху слева в панели пользователя при светлой теме. Рекомендуется PNG с прозрачным фоном.",
@@ -1777,7 +1777,7 @@ const resources = {
       tabBranding: "Logotip va fon",
       tabInterface: "Interfeys",
       testRibbonSetting: "Test versiya lentasi",
-      testRibbonSettingHint: "Barcha foydalanuvchilar uchun ekran pastida harakatlanuvchi «test versiya» lentasini ko'rsatish.",
+      testRibbonSettingHint: "Barcha foydalanuvchilar uchun ilova sarlavhasi ustida ingichka «test versiya» qatorini ko'rsatish.",
       brandingLogoLight: "Logotip — yorug' mavzu",
       brandingLogoLightHint:
         "Yorug' mavzuda foydalanuvchi panelining yuqori chap qismida ko'rsatiladi. Shaffof fonli PNG tavsiya etiladi.",
