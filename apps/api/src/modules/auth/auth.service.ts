@@ -178,7 +178,9 @@ export class AuthService {
         "departments.name as department",
         "positions.name as position"
       )
-      .where("users.login", login)
+      // Логин сравниваем без учёта регистра: пользователи набирают его как
+      // придётся, а уникальность гарантирует индекс по lower(login).
+      .whereRaw("lower(users.login) = lower(?)", [login])
       .whereNull("users.deleted_at")
       .first();
 
@@ -338,14 +340,14 @@ export class AuthService {
 
     const ok = await bcrypt.compare(currentPassword, user.password_hash);
     if (!ok) {
-      throw new BadRequestException("Current password is invalid");
+      throw new BadRequestException({ message: "Current password is invalid", code: "CURRENT_PASSWORD_INVALID" });
     }
 
     // The temp password is known to whoever handed it out, so reusing it here
     // would leave the account effectively unprotected.
     const sameAsCurrent = await bcrypt.compare(newPassword, user.password_hash);
     if (sameAsCurrent) {
-      throw new BadRequestException("New password must differ from the current one");
+      throw new BadRequestException({ message: "New password must differ from the current one", code: "PASSWORD_REUSED" });
     }
 
     const hash = await bcrypt.hash(newPassword, 10);
