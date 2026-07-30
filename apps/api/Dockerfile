@@ -16,5 +16,8 @@ ENV NODE_ENV=production
 COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/package.json ./package.json
+COPY --from=builder /app/apps/api/knexfile.js ./knexfile.js
+COPY --from=builder /app/apps/api/migrations ./migrations
+COPY --from=builder /app/apps/api/seeds ./seeds
 
 CMD ["node", "dist/main.js"]
