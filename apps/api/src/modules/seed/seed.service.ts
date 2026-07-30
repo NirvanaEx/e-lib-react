@@ -46,17 +46,15 @@ export class SeedService {
     return row ? Number(row.section_id) : null;
   }
 
-  private async findCategoryIdByRuTitle(sectionId: number, title: string) {
+  private async findCategoryIdByRuTitle(title: string) {
     const row = await this.db("categories_translations")
-      .join("categories", "categories.id", "categories_translations.category_id")
       .where({
         "categories_translations.lang": "ru",
-        "categories_translations.title": title,
-        "categories.section_id": sectionId
+        "categories_translations.title": title
       })
-      .select("categories.id")
+      .select("categories_translations.category_id")
       .first();
-    return row ? Number(row.id) : null;
+    return row ? Number(row.category_id) : null;
   }
 
   private translationRows(titles: SeedTitles, key: string, id: number) {
@@ -191,17 +189,12 @@ export class SeedService {
     return { departments: result, idsByName };
   }
 
-  private async seedCategories(sectionIdsByKey: Map<string, number>) {
+  private async seedCategories() {
     const result: SeedCounters = { created: 0, skipped: 0 };
     const idsByKey = new Map<string, number>();
 
     for (const preset of PRESET_CATEGORIES) {
-      const sectionId = sectionIdsByKey.get(preset.sectionKey);
-      if (!sectionId) {
-        result.skipped += 1;
-        continue;
-      }
-      const existingId = await this.findCategoryIdByRuTitle(sectionId, preset.titles.ru);
+      const existingId = await this.findCategoryIdByRuTitle(preset.titles.ru);
       if (existingId) {
         idsByKey.set(preset.key, existingId);
         result.skipped += 1;
@@ -211,7 +204,6 @@ export class SeedService {
       const id = await this.db.transaction(async (trx) => {
         const [inserted] = await trx("categories")
           .insert({
-            section_id: sectionId,
             parent_id: null,
             depth: 1,
             icon: preset.icon,
@@ -381,7 +373,7 @@ export class SeedService {
   async seedDemo(actorId: number) {
     const { sections, idsByKey: sectionIds } = await this.seedSections(actorId);
     const { departments, idsByName: departmentIds } = await this.seedDepartments();
-    const { categories, idsByKey: categoryIds } = await this.seedCategories(sectionIds);
+    const { categories, idsByKey: categoryIds } = await this.seedCategories();
     const { documents } = await this.seedDocuments(
       actorId,
       sectionIds,

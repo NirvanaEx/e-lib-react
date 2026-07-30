@@ -27,7 +27,6 @@ import { Page } from "../../shared/ui/Page";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { LoadingState } from "../../shared/ui/LoadingState";
 import { FiltersBar } from "../../shared/ui/FiltersBar";
-import { PaginationBar } from "../../shared/ui/PaginationBar";
 import { SearchField } from "../../shared/ui/SearchField";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { useToast } from "../../shared/ui/ToastProvider";
@@ -71,8 +70,6 @@ export default function DepartmentsPage() {
   const autoExpandRef = React.useRef(false);
   const [confirmDelete, setConfirmDelete] = React.useState<DepartmentRow | null>(null);
   const [search, setSearch] = React.useState("");
-  const [page, setPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(20);
   const [sort, setSort] = React.useState<{ key: string | null; direction: "asc" | "desc" | null }>({
     key: null,
     direction: null
@@ -82,16 +79,12 @@ export default function DepartmentsPage() {
   const { t } = useTranslation();
 
   React.useEffect(() => {
-    setPage(1);
-  }, [search, pageSize]);
-
-  React.useEffect(() => {
     autoExpandRef.current = false;
-  }, [search, page, pageSize]);
+  }, [search]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["departments", page, pageSize, search],
-    queryFn: () => fetchDepartments({ page, pageSize, q: search })
+    queryKey: ["departments", "tree", search],
+    queryFn: () => fetchDepartments({ page: 1, pageSize: 500, q: search })
   });
 
   const { data: departmentsOptions } = useQuery({
@@ -100,7 +93,6 @@ export default function DepartmentsPage() {
   });
 
   const rows: DepartmentRow[] = data?.data || [];
-  const meta = data?.meta || { page, pageSize, total: 0 };
   const allDepartments: DepartmentRow[] = departmentsOptions?.data || [];
 
   const createMutation = useMutation({
@@ -341,14 +333,6 @@ export default function DepartmentsPage() {
           ]}
         />
       )}
-
-      <PaginationBar
-        page={meta.page}
-        pageSize={meta.pageSize}
-        total={meta.total}
-        onPageChange={setPage}
-        onPageSizeChange={setPageSize}
-      />
 
       <Dialog
         open={open || !!editing}
