@@ -20,6 +20,33 @@ export class CategoriesService {
     return Number.isFinite(raw) && raw > 0 ? raw : 5;
   }
 
+  private async ensureTranslationTitlesUnique(
+    trx: any,
+    translations: Array<{ lang: string; title: string }>,
+    excludeCategoryId?: number
+  ) {
+    for (const translation of translations) {
+      const query = trx("categories_translations")
+        .where({ lang: translation.lang })
+        .whereRaw(
+          "lower(regexp_replace(btrim(title), '\\s+', ' ', 'g')) = lower(regexp_replace(btrim(?), '\\s+', ' ', 'g'))",
+          [translation.title]
+        );
+      if (excludeCategoryId) {
+        query.whereNot({ category_id: excludeCategoryId });
+      }
+      const existing = await query.first();
+      if (existing) {
+        throw new BadRequestException({
+          code: "CATEGORY_TITLE_EXISTS",
+          message: "A category with this title already exists",
+          lang: translation.lang,
+          title: translation.title
+        });
+      }
+    }
+  }
+
   async list(params: { page: number; pageSize: number; q?: string }, preferredLang: string | null) {
     const { page, pageSize, q } = params;
     const baseQuery = this.dbService.db("categories")
@@ -184,6 +211,7 @@ export class CategoriesService {
 
   async create(dto: any, actorId: number) {
     return this.dbService.db.transaction(async (trx) => {
+      await this.ensureTranslationTitlesUnique(trx, dto.translations);
       const maxDepth = this.getMaxDepth();
       let depth = 1;
       if (dto.parentId) {
@@ -284,6 +312,7 @@ export class CategoriesService {
       await trx("categories").update(patch).where({ id });
 
       if (dto.translations && dto.translations.length > 0) {
+        await this.ensureTranslationTitlesUnique(trx, dto.translations, id);
         await trx("categories_translations").where({ category_id: id }).delete();
         const rows = dto.translations.map((t: any) => ({
           category_id: id,
