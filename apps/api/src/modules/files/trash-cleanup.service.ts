@@ -19,6 +19,7 @@ export class TrashCleanupService {
 
     const items = await this.dbService.db("file_items")
       .whereNotNull("deleted_at")
+      .whereNull("purged_at")
       .andWhere("deleted_at", "<=", cutoff)
       .select("id");
 
