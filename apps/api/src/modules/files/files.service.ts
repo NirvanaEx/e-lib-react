@@ -152,7 +152,7 @@ export class FilesService {
       const picked = selectTranslation<MenuTranslation>(s.translations, lang, defaultLang);
       return {
         id: s.id,
-        title: picked?.title || null,
+        title: this.toUserFacingTitle(picked?.title),
         icon: s.icon,
         iconColor: s.iconColor,
         availableLangs: getAvailableLangs(s.translations)
@@ -182,7 +182,7 @@ export class FilesService {
         id: c.id,
         parentId: c.parentId,
         depth: c.depth,
-        title: picked?.title || null,
+        title: this.toUserFacingTitle(picked?.title),
         icon: c.icon,
         iconColor: c.iconColor,
         availableLangs: getAvailableLangs(c.translations)
@@ -190,6 +190,11 @@ export class FilesService {
     });
 
     return { sections, categories };
+  }
+
+  private toUserFacingTitle(title?: string | null) {
+    if (!title) return null;
+    return title.replace(/\s*\(legacy\)\s*$/i, "").trim();
   }
 
   private async deleteFileSafe(filePath: string) {

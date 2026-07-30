@@ -294,18 +294,6 @@ export default function DepartmentsPage() {
               render: (row) => formatDateTime(row.updated_at)
             },
             {
-              key: "dataOwnCount",
-              label: t("dataOwnCount"),
-              sortable: false,
-              render: (row) => row.dataOwnCount ?? 0
-            },
-            {
-              key: "dataCount",
-              label: t("dataCount"),
-              sortable: false,
-              render: (row) => row.dataCount ?? 0
-            },
-            {
               key: "actions",
               label: t("actions"),
               align: "right",

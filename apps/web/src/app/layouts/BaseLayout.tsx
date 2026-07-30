@@ -451,13 +451,22 @@ export function BaseLayout({
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      {ribbonEnabled && <TestVersionRibbon />}
+      <Box
+        sx={{
+          display: "flex",
+          flex: 1,
+          minHeight: ribbonEnabled ? `calc(100vh - ${TEST_RIBBON_HEIGHT}px)` : "100vh"
+        }}
+      >
       <AppBar
         position="fixed"
         color="transparent"
         elevation={0}
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
+          top: ribbonEnabled ? `${TEST_RIBBON_HEIGHT}px` : 0,
           backdropFilter: "blur(12px)",
           backgroundColor: "var(--appbar)",
           borderBottom: "1px solid var(--border)",
@@ -681,6 +690,8 @@ export function BaseLayout({
             "& .MuiDrawer-paper": {
               boxSizing: "border-box",
               width: drawerWidth,
+              top: ribbonEnabled ? `${TEST_RIBBON_HEIGHT}px` : 0,
+              height: ribbonEnabled ? `calc(100% - ${TEST_RIBBON_HEIGHT}px)` : "100%",
               overflow: "hidden",
               ...(darkSidebar ? { background: darkSidebarBackground, color: "#fff" } : {})
             }
@@ -698,6 +709,7 @@ export function BaseLayout({
             "& .MuiDrawer-paper": {
               boxSizing: "border-box",
               width: effectiveDrawerWidth,
+              top: ribbonEnabled ? `${TEST_RIBBON_HEIGHT}px` : 0,
               height: ribbonEnabled ? `calc(100% - ${TEST_RIBBON_HEIGHT}px)` : "100%",
               borderRight: darkSidebar ? "none" : "1px solid var(--border)",
               overflow: "hidden",
@@ -714,12 +726,11 @@ export function BaseLayout({
       </Box>
       <Box
         component="main"
-        sx={{ flexGrow: 1, display: "flex", flexDirection: "column", minHeight: "100vh", minWidth: 0 }}
+        sx={{ flexGrow: 1, display: "flex", flexDirection: "column", minHeight: "100%", minWidth: 0 }}
       >
         <Toolbar />
         <Box sx={{ flex: "1 0 auto", display: "flex", flexDirection: "column", p: { xs: 2, md: 4 } }}>{children}</Box>
         {footer}
-        {ribbonEnabled && <Box sx={{ flexShrink: 0, height: `${TEST_RIBBON_HEIGHT}px` }} />}
       </Box>
       <Dialog
         open={agreementOpen}
@@ -764,7 +775,7 @@ export function BaseLayout({
         </DialogActions>
       </Dialog>
       <ImageLightbox open={avatarLightboxOpen} src={getAvatarUrl(user)} onClose={() => setAvatarLightboxOpen(false)} />
-      {ribbonEnabled && <TestVersionRibbon />}
+      </Box>
     </Box>
   );
 }
