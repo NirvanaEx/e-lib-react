@@ -31,6 +31,7 @@ import { useToast } from "../../shared/ui/ToastProvider";
 import { SupportDialog } from "../../shared/ui/SupportDialog";
 import { useTranslation } from "react-i18next";
 import { getDefaultRoute } from "../../shared/utils/access";
+import { getLoginLockoutMessage } from "../../shared/utils/errors";
 import i18n from "../../app/i18n";
 import { useBranding } from "../../shared/hooks/useBranding";
 import { getBrandingImageUrl } from "../settings/app-settings.api";
@@ -73,8 +74,11 @@ export default function LoginPage() {
       }
       setAuth(data.user);
       navigate(getDefaultRoute(data.user));
-    } catch (_err) {
-      showToast({ message: t("loginFailed"), severity: "error" });
+    } catch (error) {
+      // При серии неудачных попыток API отвечает 429 и отдаёт retryAfter —
+      // показываем, сколько ждать, вместо безликой «ошибки входа».
+      const lockoutMessage = getLoginLockoutMessage(error, t);
+      showToast({ message: lockoutMessage || t("loginFailed"), severity: "error" });
     }
   };
 

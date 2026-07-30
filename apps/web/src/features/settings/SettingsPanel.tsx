@@ -39,7 +39,8 @@ import { useToast } from "../../shared/ui/ToastProvider";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { useThemeMode } from "../../shared/hooks/useThemeMode";
 import { getAvatarUrl } from "../../shared/utils/avatar";
-import { getErrorMessage } from "../../shared/utils/errors";
+import { passwordFieldSchema } from "../../shared/utils/password";
+import { getErrorMessage, getPasswordErrorCode, getPasswordErrorMessage } from "../../shared/utils/errors";
 import { LANGUAGES, flagFrameSx } from "../../shared/ui/LanguageMenu";
 import { useTranslation } from "react-i18next";
 
@@ -363,7 +364,7 @@ function SecurityTab() {
       z
         .object({
           currentPassword: z.string().min(1),
-          newPassword: z.string().min(6),
+          newPassword: passwordFieldSchema(t),
           confirmPassword: z.string().min(1)
         })
         .refine((data) => data.newPassword === data.confirmPassword, {
@@ -381,7 +382,16 @@ function SecurityTab() {
       passwordForm.reset({ currentPassword: "", newPassword: "", confirmPassword: "" });
       showToast({ message: t("passwordUpdated"), severity: "success" });
     },
-    onError: () => showToast({ message: t("actionFailed"), severity: "error" })
+    onError: (error) => {
+      const message = getPasswordErrorMessage(error, t, t("actionFailed"));
+      const code = getPasswordErrorCode(error);
+      if (code === "CURRENT_PASSWORD_INVALID") {
+        passwordForm.setError("currentPassword", { message });
+      } else if (code === "PASSWORD_REUSED") {
+        passwordForm.setError("newPassword", { message });
+      }
+      showToast({ message, severity: "error" });
+    }
   });
 
   const onSubmit = (values: PasswordForm) => {
@@ -420,7 +430,7 @@ function SecurityTab() {
             autoComplete="new-password"
             {...passwordForm.register("newPassword")}
             error={!!passwordForm.formState.errors.newPassword}
-            helperText={passwordForm.formState.errors.newPassword?.message}
+            helperText={passwordForm.formState.errors.newPassword?.message || t("passwordRule")}
             InputProps={{ endAdornment: visibilityAdornment }}
           />
           <TextField
