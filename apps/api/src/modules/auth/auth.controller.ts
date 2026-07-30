@@ -63,6 +63,10 @@ export class AuthController {
   }
 
   @ApiBearerAuth()
+  // Профиль отдаём и при непросроченной обязательной смене пароля: иначе после
+  // перезагрузки страницы клиент теряет пользователя и уводит на /login вместо
+  // формы смены пароля. Ничего сверх того, что уже вернул /auth/login, здесь нет.
+  @AllowTempPassword()
   @Get("me")
   async me(@User() user: any) {
     return this.authService.me(user.id);

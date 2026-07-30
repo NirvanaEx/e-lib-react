@@ -13,16 +13,16 @@ import {
   Tooltip
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { fetchDepartments, createDepartment, deleteDepartment, updateDepartment } from "./departments.api";
 import { DataTable } from "../../shared/ui/DataTable";
+import { rowNumberColumn } from "../../shared/ui/rowNumberColumn";
+import { TreeBranchCell, TreeGuides, flattenTree } from "../../shared/ui/TreeBranch";
 import { Page } from "../../shared/ui/Page";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { LoadingState } from "../../shared/ui/LoadingState";
@@ -52,10 +52,12 @@ type DepartmentRow = {
   dataOwnCount?: number;
 };
 
-type TreeRow = DepartmentRow & {
-  treeDepth: number;
-  hasChildren: boolean;
-};
+type TreeRow = DepartmentRow &
+  TreeGuides & {
+    treeDepth: number;
+    hasChildren: boolean;
+    childrenCount: number;
+  };
 
 const defaultValues: FormValues = {
   name: "",
@@ -171,39 +173,26 @@ export default function DepartmentsPage() {
     ? allDepartments.filter((dept) => dept.id !== editing.id)
     : allDepartments;
 
-  const treeRows: TreeRow[] = React.useMemo(() => {
-    const rowsById = new Map(rows.map((row) => [row.id, row]));
-    const childrenMap = new Map<number | null, DepartmentRow[]>();
-
-    rows.forEach((row) => {
-      const parentKey = row.parent_id && rowsById.has(row.parent_id) ? row.parent_id : null;
-      if (!childrenMap.has(parentKey)) {
-        childrenMap.set(parentKey, []);
-      }
-      childrenMap.get(parentKey)?.push(row);
-    });
-
-    const sortRootsByName = (items: DepartmentRow[]) => {
-      if (sort.key !== "name" || !sort.direction) return items;
-      const sorted = [...items].sort((a, b) =>
-        String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true, sensitivity: "base" })
-      );
-      return sort.direction === "asc" ? sorted : sorted.reverse();
-    };
-
-    const result: TreeRow[] = [];
-    const walk = (node: DepartmentRow, depth: number) => {
-      const children = childrenMap.get(node.id) || [];
-      result.push({ ...node, treeDepth: depth, hasChildren: children.length > 0 });
-      if (expandedIds.has(node.id)) {
-        children.forEach((child) => walk(child, depth + 1));
-      }
-    };
-
-    const roots = sortRootsByName(childrenMap.get(null) || []);
-    roots.forEach((root) => walk(root, 1));
-    return result;
-  }, [rows, expandedIds, sort]);
+  const treeRows: TreeRow[] = React.useMemo(
+    () =>
+      flattenTree({
+        items: rows,
+        getId: (row) => row.id,
+        getParentId: (row) => row.parent_id ?? null,
+        expandedIds,
+        sortSiblings: (items) => {
+          if (sort.key !== "name" || !sort.direction) return items;
+          const sorted = [...items].sort((a, b) =>
+            String(a.name || "").localeCompare(String(b.name || ""), undefined, {
+              numeric: true,
+              sensitivity: "base"
+            })
+          );
+          return sort.direction === "asc" ? sorted : sorted.reverse();
+        }
+      }),
+    [rows, expandedIds, sort]
+  );
 
   const defaultExpandedIds = React.useMemo(() => {
     const childrenByParent = new Map<number, number>();
@@ -264,21 +253,47 @@ export default function DepartmentsPage() {
             setSort(direction ? { key, direction } : { key: null, direction: null })
           }
           columns={[
+            rowNumberColumn<TreeRow>({ total: treeRows.length }),
             {
               key: "name",
               label: t("name"),
               sortable: true,
+              cellSx: { py: 0 },
               render: (row) => (
-                <Stack direction="row" alignItems="center" spacing={0.5} sx={{ pl: Math.max(0, row.treeDepth - 1) * 2 }}>
-                  {row.hasChildren ? (
-                    <IconButton size="small" onClick={() => toggleExpanded(row.id)}>
-                      {expandedIds.has(row.id) ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
-                    </IconButton>
-                  ) : (
-                    <Box sx={{ width: 32 }} />
+                <TreeBranchCell
+                  depth={row.treeDepth}
+                  guides={row.guides}
+                  isLastChild={row.isLastChild}
+                  hasChildren={row.hasChildren}
+                  expanded={expandedIds.has(row.id)}
+                  onToggle={() => toggleExpanded(row.id)}
+                >
+                  <Box
+                    sx={{
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      fontWeight: row.hasChildren ? 600 : 400
+                    }}
+                  >
+                    {row.name}
+                  </Box>
+                  {row.hasChildren && (
+                    <Box
+                      component="span"
+                      sx={{
+                        flexShrink: 0,
+                        px: 0.75,
+                        borderRadius: "999px",
+                        border: "1px solid var(--border)",
+                        fontSize: "0.7rem",
+                        color: "text.secondary"
+                      }}
+                    >
+                      {row.childrenCount}
+                    </Box>
                   )}
-                  <Box sx={{ minWidth: 0 }}>{row.name}</Box>
-                </Stack>
+                </TreeBranchCell>
               )
             },
             {

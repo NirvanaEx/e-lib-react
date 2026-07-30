@@ -40,6 +40,7 @@ import { fetchCategories } from "../categories/categories.api";
 import { fetchDepartmentOptions } from "../departments/departments.api";
 import { fetchUserOptions } from "../admin-users/users.api";
 import { DataTable } from "../../shared/ui/DataTable";
+import { rowNumberColumn } from "../../shared/ui/rowNumberColumn";
 import { Page } from "../../shared/ui/Page";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { LoadingState } from "../../shared/ui/LoadingState";
@@ -506,6 +507,7 @@ export default function FilesPage() {
           tableLayout="fixed"
           containerSx={{ overflow: "hidden" }}
           columns={[
+            rowNumberColumn({ total: meta.total, page: meta.page, pageSize: meta.pageSize }),
             {
               key: "title",
               label: t("title"),

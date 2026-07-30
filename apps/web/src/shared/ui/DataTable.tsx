@@ -20,7 +20,8 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 export type Column<T> = {
   key: keyof T | string;
   label: string;
-  render?: (row: T) => React.ReactNode;
+  /** index — позиция строки в отрисованном (уже отсортированном) списке. */
+  render?: (row: T, index: number) => React.ReactNode;
   align?: "left" | "center" | "right";
   width?: number | string;
   minWidth?: number | string;
@@ -186,7 +187,7 @@ export function DataTable<T extends { id: number | string }>({
           </TableRow>
         </TableHead>
         <TableBody>
-          {rowsToRender.map((row) => (
+          {rowsToRender.map((row, rowIndex) => (
             <TableRow
               key={rowKey ? rowKey(row) : row.id}
               hover
@@ -225,7 +226,7 @@ export function DataTable<T extends { id: number | string }>({
                           }
                     }
                   >
-                    {col.render ? col.render(row) : (row as any)[col.key]}
+                    {col.render ? col.render(row, rowIndex) : (row as any)[col.key]}
                   </Box>
                 </TableCell>
               ))}

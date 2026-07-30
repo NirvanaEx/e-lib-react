@@ -21,8 +21,7 @@ import { NavbarSearch } from "../../features/files/NavbarSearch";
 import { HELP_EXTENSIONS, HELP_PHONE, HELP_PHONE_HREF } from "../../shared/constants/support";
 import logoFullColor from "../../assets/logo-full-color.png";
 import logoFullWhite from "../../assets/logo-full-white.png";
-
-const APP_VERSION = "1.0.0";
+import { APP_VERSION } from "../../shared/constants/version";
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();

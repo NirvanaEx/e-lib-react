@@ -54,6 +54,7 @@ import { SectionCard } from "../../shared/ui/SectionCard";
 import { FiltersBar } from "../../shared/ui/FiltersBar";
 import { SearchField } from "../../shared/ui/SearchField";
 import { DataTable } from "../../shared/ui/DataTable";
+import { rowNumberColumn } from "../../shared/ui/rowNumberColumn";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { LoadingState } from "../../shared/ui/LoadingState";
 import { PaginationBar } from "../../shared/ui/PaginationBar";
@@ -70,11 +71,27 @@ const TAB_KEYS: TabKey[] = ["overview", "activity", "files", "users", "storage",
 
 const toDateInput = (date: Date) => date.toISOString().slice(0, 10);
 
-const defaultFrom = () => {
-  const date = new Date();
-  date.setDate(date.getDate() - 29);
-  return toDateInput(date);
-};
+type RangePreset = "all" | "30d" | "1y" | "5y" | "custom";
+
+/**
+ * Пресеты диапазона. Пустые from/to = «за всё время»: серверный applyRange
+ * просто не добавляет условие по дате. Гранулярность подбираем под длину
+ * диапазона, иначе на пятилетке график превратится в кашу из дневных точек.
+ */
+function presetRange(preset: RangePreset): { from: string; to: string; bucket: string } | null {
+  if (preset === "custom") return null;
+  if (preset === "all") return { from: "", to: "", bucket: "month" };
+
+  const today = new Date();
+  const start = new Date();
+  if (preset === "30d") {
+    start.setDate(start.getDate() - 29);
+    return { from: toDateInput(start), to: toDateInput(today), bucket: "day" };
+  }
+  start.setFullYear(start.getFullYear() - (preset === "1y" ? 1 : 5));
+  start.setDate(start.getDate() + 1);
+  return { from: toDateInput(start), to: toDateInput(today), bucket: preset === "1y" ? "week" : "month" };
+}
 
 // Percentage change vs the previous window; null when there is no baseline to
 // compare against (a jump from zero is not a meaningful percentage).
@@ -105,9 +122,19 @@ export default function StatsPage() {
     else params.set("tab", next);
     setSearchParams(params, { replace: true });
   };
-  const [from, setFrom] = React.useState(defaultFrom());
-  const [to, setTo] = React.useState(toDateInput(new Date()));
-  const [bucket, setBucket] = React.useState("day");
+  const [rangePreset, setRangePreset] = React.useState<RangePreset>("all");
+  const [from, setFrom] = React.useState("");
+  const [to, setTo] = React.useState("");
+  const [bucket, setBucket] = React.useState("month");
+
+  const applyPreset = (preset: RangePreset) => {
+    setRangePreset(preset);
+    const next = presetRange(preset);
+    if (!next) return;
+    setFrom(next.from);
+    setTo(next.to);
+    setBucket(next.bucket);
+  };
 
   const [userId, setUserId] = React.useState<number | null>(null);
   const [userSearch, setUserSearch] = React.useState("");
@@ -268,11 +295,28 @@ export default function StatsPage() {
         }
       >
         <TextField
+          select
+          size="small"
+          label={t("dateRange")}
+          value={rangePreset}
+          onChange={(event) => applyPreset(event.target.value as RangePreset)}
+          sx={{ minWidth: 170 }}
+        >
+          <MenuItem value="all">{t("rangeAllTime")}</MenuItem>
+          <MenuItem value="30d">{t("rangeLast30Days")}</MenuItem>
+          <MenuItem value="1y">{t("rangeLastYear")}</MenuItem>
+          <MenuItem value="5y">{t("rangeLast5Years")}</MenuItem>
+          <MenuItem value="custom">{t("rangeCustom")}</MenuItem>
+        </TextField>
+        <TextField
           type="date"
           size="small"
           label={t("from")}
           value={from}
-          onChange={(event) => setFrom(event.target.value)}
+          onChange={(event) => {
+            setFrom(event.target.value);
+            setRangePreset("custom");
+          }}
           InputLabelProps={{ shrink: true }}
         />
         <TextField
@@ -280,7 +324,10 @@ export default function StatsPage() {
           size="small"
           label={t("to")}
           value={to}
-          onChange={(event) => setTo(event.target.value)}
+          onChange={(event) => {
+            setTo(event.target.value);
+            setRangePreset("custom");
+          }}
           InputLabelProps={{ shrink: true }}
         />
         <TextField
@@ -444,6 +491,7 @@ export default function StatsPage() {
                   id: row.departmentId ?? `none-${index}`
                 }))}
                 columns={[
+                  rowNumberColumn({ total: byDepartment?.data?.length || 0, order: "asc" }),
                   {
                     key: "department",
                     label: t("department"),
@@ -474,6 +522,11 @@ export default function StatsPage() {
               <DataTable
                 rows={activity?.data || []}
                 columns={[
+                  rowNumberColumn({
+                    total: activity?.meta?.total || 0,
+                    page: activity?.meta?.page || page,
+                    pageSize: activity?.meta?.pageSize || pageSize
+                  }),
                   {
                     key: "createdAt",
                     label: t("time"),
@@ -559,6 +612,7 @@ export default function StatsPage() {
             <DataTable
               rows={(topFiles?.data || []).map((row: any) => ({ ...row, id: row.fileItemId }))}
               columns={[
+                rowNumberColumn({ total: topFiles?.data?.length || 0, order: "asc" }),
                 {
                   key: "title",
                   label: t("title"),
@@ -594,6 +648,7 @@ export default function StatsPage() {
             <DataTable
               rows={(topUsers?.data || []).map((row: any) => ({ ...row, id: row.userId }))}
               columns={[
+                rowNumberColumn({ total: topUsers?.data?.length || 0, order: "asc" }),
                 {
                   key: "login",
                   label: t("user"),
@@ -698,6 +753,7 @@ export default function StatsPage() {
               <DataTable
                 rows={(largest?.data || []).map((row: any) => ({ ...row, id: row.fileItemId }))}
                 columns={[
+                  rowNumberColumn({ total: largest?.data?.length || 0, order: "asc" }),
                   {
                     key: "title",
                     label: t("title"),
@@ -750,6 +806,7 @@ export default function StatsPage() {
               <DataTable
                 rows={logins?.recentFailures || []}
                 columns={[
+                  rowNumberColumn({ total: (logins?.recentFailures || []).length }),
                   {
                     key: "createdAt",
                     label: t("time"),

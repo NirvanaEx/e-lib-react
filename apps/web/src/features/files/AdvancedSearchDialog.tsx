@@ -2,11 +2,12 @@ import React from "react";
 import {
   Box,
   Button,
-  Chip,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   IconButton,
   InputAdornment,
   Stack,
@@ -25,7 +26,15 @@ import { FilterOption, buildTreeOptions, parseIds, serializeIds } from "./filter
 
 type FilterParamKey = "sectionIds" | "categoryIds" | "departmentIds";
 
-function FilterChipGroup({
+/** Длинные списки (отделы) получают собственный поиск внутри группы. */
+const SEARCHABLE_FROM = 8;
+
+/**
+ * Группа фильтра: заголовок со счётчиком, локальный поиск и список чекбоксов
+ * с отступами по вложенности. Раньше здесь была «стена» чипов — длинные
+ * названия обрезались, а список отделов растягивал диалог на несколько экранов.
+ */
+function FilterFacet({
   label,
   options,
   selected,
@@ -37,7 +46,16 @@ function FilterChipGroup({
   onChange: (next: Set<number>) => void;
 }) {
   const { t } = useTranslation();
+  const [query, setQuery] = React.useState("");
+  const searchable = options.length > SEARCHABLE_FROM;
   const allActive = selected.size === 0;
+  const searching = query.trim().length > 0;
+
+  const visibleOptions = React.useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return options;
+    return options.filter((option) => option.path.toLowerCase().includes(needle));
+  }, [options, query]);
 
   const toggle = (id: number) => {
     const next = new Set(selected);
@@ -46,43 +64,90 @@ function FilterChipGroup({
     } else {
       next.add(id);
     }
-    if (next.size === options.length) {
-      onChange(new Set());
-      return;
-    }
-    onChange(next);
+    // Выбраны все — это то же самое, что фильтр не задан.
+    onChange(next.size === options.length ? new Set() : next);
   };
 
   return (
-    <Box>
-      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-        {label}
-      </Typography>
-      <Stack direction="row" spacing={0} sx={{ flexWrap: "wrap", gap: 0.75 }}>
-        <Chip
-          size="small"
-          label={t("selectAll")}
-          onClick={() => onChange(new Set())}
-          color={allActive ? "primary" : "default"}
-          variant={allActive ? "filled" : "outlined"}
-          sx={{ fontWeight: 600 }}
-        />
-        {options.map((option) => {
-          const active = selected.has(option.id);
-          return (
-            <Chip
-              key={option.id}
-              size="small"
-              label={option.path}
-              title={option.path}
-              onClick={() => toggle(option.id)}
-              color={active ? "primary" : "default"}
-              variant={active ? "filled" : "outlined"}
-              sx={{ fontWeight: 500, maxWidth: 320 }}
-            />
-          );
-        })}
+    <Box sx={{ border: "1px solid var(--border)", borderRadius: "10px", overflow: "hidden" }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1}
+        sx={{ px: 1.5, py: 0.75, backgroundColor: "var(--surface-2)" }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, flex: 1, minWidth: 0 }}>
+          {label}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {allActive ? t("selectAll") : `${selected.size} / ${options.length}`}
+        </Typography>
+        {!allActive && (
+          <Button size="small" onClick={() => onChange(new Set())} sx={{ minWidth: 0, px: 1 }}>
+            {t("clear")}
+          </Button>
+        )}
       </Stack>
+      {searchable && (
+        <Box sx={{ px: 1.5, pt: 1.25 }}>
+          <TextField
+            size="small"
+            fullWidth
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("filterSearchPlaceholder")}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              sx: { borderRadius: "8px" }
+            }}
+          />
+        </Box>
+      )}
+      {/* Короткие списки показываем целиком — вложенная прокрутка нужна только
+          длинным (отделы), иначе в диалоге получается скролл внутри скролла. */}
+      <Box
+        sx={{
+          maxHeight: searchable ? 216 : "none",
+          overflowY: searchable ? "auto" : "visible",
+          px: 1,
+          py: 0.75
+        }}
+      >
+        {visibleOptions.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ px: 0.5, py: 0.75 }}>
+            {t("filterNothingFound")}
+          </Typography>
+        ) : (
+          visibleOptions.map((option) => (
+            <FormControlLabel
+              key={option.id}
+              control={
+                <Checkbox size="small" checked={selected.has(option.id)} onChange={() => toggle(option.id)} />
+              }
+              // При поиске показываем полный путь: родители могут быть отфильтрованы,
+              // и один отступ уже ничего не объясняет.
+              label={
+                <Typography variant="body2" sx={{ py: 0.25 }}>
+                  {searching ? option.path : option.label}
+                </Typography>
+              }
+              sx={{
+                display: "flex",
+                width: "100%",
+                m: 0,
+                pr: 1,
+                ml: searching ? 0 : option.depth * 2.5,
+                borderRadius: "8px",
+                "&:hover": { backgroundColor: "var(--surface-2)" }
+              }}
+            />
+          ))
+        )}
+      </Box>
     </Box>
   );
 }
@@ -175,19 +240,19 @@ export function AdvancedSearchDialog({ open, onClose }: { open: boolean; onClose
               sx: { borderRadius: "8px" }
             }}
           />
-          <FilterChipGroup
+          <FilterFacet
             label={t("sections")}
             options={sections}
             selected={selection.sectionIds}
             onChange={(next) => setSelection((prev) => ({ ...prev, sectionIds: next }))}
           />
-          <FilterChipGroup
+          <FilterFacet
             label={t("categories")}
             options={categories}
             selected={selection.categoryIds}
             onChange={(next) => setSelection((prev) => ({ ...prev, categoryIds: next }))}
           />
-          <FilterChipGroup
+          <FilterFacet
             label={t("departments")}
             options={departments}
             selected={selection.departmentIds}

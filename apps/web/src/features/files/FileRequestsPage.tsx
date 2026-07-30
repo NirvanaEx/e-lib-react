@@ -28,6 +28,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Page } from "../../shared/ui/Page";
 import { DataTable } from "../../shared/ui/DataTable";
+import { rowNumberColumn } from "../../shared/ui/rowNumberColumn";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { LoadingState } from "../../shared/ui/LoadingState";
 import { FiltersBar } from "../../shared/ui/FiltersBar";
@@ -557,7 +558,10 @@ export default function FileRequestsPage() {
       ) : (
         <DataTable
           rows={rows}
-          columns={scope === "pending" ? pendingColumns : historyColumns}
+          columns={[
+            rowNumberColumn({ total: meta.total, page: meta.page, pageSize: meta.pageSize }),
+            ...(scope === "pending" ? pendingColumns : historyColumns)
+          ]}
           sortIconVariant="chevron"
           onRowClick={(row) => setDetailsTarget(row)}/>
       )}

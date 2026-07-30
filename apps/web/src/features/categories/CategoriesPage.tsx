@@ -14,16 +14,16 @@ import {
   Tooltip
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { fetchCategories, createCategory, deleteCategory, fetchCategory, updateCategory } from "./categories.api";
 import { DataTable } from "../../shared/ui/DataTable";
+import { rowNumberColumn } from "../../shared/ui/rowNumberColumn";
+import { TreeBranchCell, TreeGuides, flattenTree } from "../../shared/ui/TreeBranch";
 import { Page } from "../../shared/ui/Page";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { LoadingState } from "../../shared/ui/LoadingState";
@@ -58,10 +58,12 @@ type CategoryRow = {
   dataOwnCount?: number;
 };
 
-type TreeRow = CategoryRow & {
-  treeDepth: number;
-  hasChildren: boolean;
-};
+type TreeRow = CategoryRow &
+  TreeGuides & {
+    treeDepth: number;
+    hasChildren: boolean;
+    childrenCount: number;
+  };
 
 const defaultValues: FormValues = {
   parentId: null
@@ -173,39 +175,26 @@ export default function CategoriesPage() {
       ? parentOptions.find((cat) => cat.id === createParentId)?.title || `#${createParentId}`
       : "";
 
-  const treeRows: TreeRow[] = React.useMemo(() => {
-    const rowsById = new Map(rows.map((row) => [row.id, row]));
-    const childrenMap = new Map<number | null, CategoryRow[]>();
-
-    rows.forEach((row) => {
-      const parentKey = row.parentId && rowsById.has(row.parentId) ? row.parentId : null;
-      if (!childrenMap.has(parentKey)) {
-        childrenMap.set(parentKey, []);
-      }
-      childrenMap.get(parentKey)?.push(row);
-    });
-
-    const sortRootsByTitle = (items: CategoryRow[]) => {
-      if (sort.key !== "title" || !sort.direction) return items;
-      const sorted = [...items].sort((a, b) =>
-        String(a.title || "").localeCompare(String(b.title || ""), undefined, { numeric: true, sensitivity: "base" })
-      );
-      return sort.direction === "asc" ? sorted : sorted.reverse();
-    };
-
-    const result: TreeRow[] = [];
-    const walk = (node: CategoryRow, depth: number) => {
-      const children = childrenMap.get(node.id) || [];
-      result.push({ ...node, treeDepth: depth, hasChildren: children.length > 0 });
-      if (expandedIds.has(node.id)) {
-        children.forEach((child) => walk(child, depth + 1));
-      }
-    };
-
-    const roots = sortRootsByTitle(childrenMap.get(null) || []);
-    roots.forEach((root) => walk(root, 1));
-    return result;
-  }, [rows, expandedIds, sort]);
+  const treeRows: TreeRow[] = React.useMemo(
+    () =>
+      flattenTree({
+        items: rows,
+        getId: (row) => row.id,
+        getParentId: (row) => row.parentId ?? null,
+        expandedIds,
+        sortSiblings: (items) => {
+          if (sort.key !== "title" || !sort.direction) return items;
+          const sorted = [...items].sort((a, b) =>
+            String(a.title || "").localeCompare(String(b.title || ""), undefined, {
+              numeric: true,
+              sensitivity: "base"
+            })
+          );
+          return sort.direction === "asc" ? sorted : sorted.reverse();
+        }
+      }),
+    [rows, expandedIds, sort]
+  );
 
   const defaultExpandedIds = React.useMemo(() => {
     const childrenByParent = new Map<number, number>();
@@ -310,19 +299,21 @@ export default function CategoriesPage() {
             setSort(direction ? { key, direction } : { key: null, direction: null })
           }
           columns={[
+            rowNumberColumn<TreeRow>({ total: treeRows.length }),
             {
               key: "title",
               label: t("title"),
               sortable: true,
+              cellSx: { py: 0 },
               render: (row) => (
-                <Stack direction="row" alignItems="center" spacing={0.5} sx={{ pl: Math.max(0, row.treeDepth - 1) * 2 }}>
-                  {row.hasChildren ? (
-                  <IconButton size="small" onClick={() => toggleExpanded(row.id)}>
-                    {expandedIds.has(row.id) ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
-                  </IconButton>
-                ) : (
-                    <Box sx={{ width: 32 }} />
-                  )}
+                <TreeBranchCell
+                  depth={row.treeDepth}
+                  guides={row.guides}
+                  isLastChild={row.isLastChild}
+                  hasChildren={row.hasChildren}
+                  expanded={expandedIds.has(row.id)}
+                  onToggle={() => toggleExpanded(row.id)}
+                >
                   <Box
                     sx={{
                       width: 26,
@@ -332,14 +323,37 @@ export default function CategoriesPage() {
                       placeItems: "center",
                       backgroundColor: `${row.iconColor || "#2563eb"}1a`,
                       color: row.iconColor || "#2563eb",
-                      flexShrink: 0,
-                      mr: 0.5
+                      flexShrink: 0
                     }}
                   >
                     <LibraryIcon name={row.icon} sx={{ fontSize: 16 }} />
                   </Box>
-                  <Box sx={{ minWidth: 0 }}>{row.title || ""}</Box>
-                </Stack>
+                  <Box
+                    sx={{
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      fontWeight: row.hasChildren ? 600 : 400
+                    }}
+                  >
+                    {row.title || ""}
+                  </Box>
+                  {row.hasChildren && (
+                    <Box
+                      component="span"
+                      sx={{
+                        flexShrink: 0,
+                        px: 0.75,
+                        borderRadius: "999px",
+                        border: "1px solid var(--border)",
+                        fontSize: "0.7rem",
+                        color: "text.secondary"
+                      }}
+                    >
+                      {row.childrenCount}
+                    </Box>
+                  )}
+                </TreeBranchCell>
               )
             },
             {
@@ -355,15 +369,13 @@ export default function CategoriesPage() {
               )
             },
             {
-              key: "dataOwnCount",
-              label: t("dataOwnCount"),
-              sortable: false,
-              render: (row) => row.dataOwnCount ?? 0
-            },
-            {
+              // Считаем файлы по всему поддереву: отдельный счётчик «в этом
+              // узле» дублировал информацию и только шумел.
               key: "dataCount",
-              label: t("dataCount"),
+              label: t("filesCount"),
               sortable: false,
+              width: 120,
+              minWidth: 120,
               render: (row) => row.dataCount ?? 0
             },
             {

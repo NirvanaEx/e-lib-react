@@ -15,6 +15,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Page } from "../../shared/ui/Page";
 import { DataTable } from "../../shared/ui/DataTable";
+import { rowNumberColumn } from "../../shared/ui/rowNumberColumn";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { LoadingState } from "../../shared/ui/LoadingState";
 import { useToast } from "../../shared/ui/ToastProvider";
@@ -169,6 +170,7 @@ export default function RolesPage() {
         <DataTable
           rows={roles}
           columns={[
+            rowNumberColumn({ total: roles.length }),
             { key: "name", label: t("role") },
             { key: "level", label: t("roleLevel"), render: (row) => row.level ?? "-" },
             {
