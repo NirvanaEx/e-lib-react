@@ -9,8 +9,12 @@ server {
   root /usr/share/nginx/html;
   index index.html;
 
+  # Порт API берётся из APP_PORT — того же, на котором его поднимает compose.
+  # Раньше здесь было зашито 3001, а API слушал 3006, и проксирование молча
+  # отдавало 502. Никто этого не замечал, потому что фронт собирался с
+  # абсолютным адресом и ходил в API мимо nginx, наружу.
   location /api/ {
-    proxy_pass http://api:3001;
+    proxy_pass http://api:${APP_PORT};
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;

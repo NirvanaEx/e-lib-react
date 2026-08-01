@@ -5,7 +5,11 @@ services:
     container_name: e-lib-db
     restart: unless-stopped
     ports:
-      - "${DB_PORT:-5432}:5432"
+      # Только loopback. Без 127.0.0.1 слева docker публикует порт на все
+      # интерфейсы и проходит мимо ufw — база оказывается в интернете, а
+      # `ufw status` об этом молчит. Плюс на сервере 5432 уже занят системным
+      # постгресом, и публикация на 0.0.0.0 дерётся с ним за порт.
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: ${DB_USER:-elib}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-elib}

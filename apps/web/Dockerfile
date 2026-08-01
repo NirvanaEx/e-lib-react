@@ -13,6 +13,10 @@ RUN npm run build --workspace apps/web
 
 FROM nginx:alpine
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
-COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+# Шаблон, а не готовый конфиг: entrypoint nginx подставит в него APP_PORT.
+# NGINX_ENVSUBST_FILTER ограничивает подстановку одной переменной, иначе
+# envsubst съел бы $host, $remote_addr и прочие переменные самого nginx.
+COPY apps/web/nginx.conf.template /etc/nginx/templates/default.conf.template
+ENV NGINX_ENVSUBST_FILTER=APP_PORT
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
