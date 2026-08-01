@@ -4,6 +4,7 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
     env_file:
       - .env
     ports:
@@ -18,12 +19,14 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3001/api}
+    restart: unless-stopped
     ports:
       - "${WEB_PORT:-3000}:80"
     depends_on:
       - api
   db:
     image: postgres:15-alpine
+    restart: unless-stopped
     env_file:
       - .env
     environment:

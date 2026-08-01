@@ -3,6 +3,7 @@ services:
   db:
     image: postgres:15-alpine
     container_name: e-lib-db
+    restart: unless-stopped
     ports:
       - "${DB_PORT:-5432}:5432"
     environment:
