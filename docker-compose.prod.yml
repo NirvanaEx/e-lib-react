@@ -7,8 +7,10 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    ports:
-      - "${APP_PORT:-3001}:${APP_PORT:-3001}"
+    # Порт наружу не публикуем: до API достаточно достучаться из web по
+    # внутренней сети. Наружу торчит только сам фронт.
+    expose:
+      - "${APP_PORT:-3001}"
     volumes:
       - ./uploads:/app/uploads
     depends_on:
@@ -18,8 +20,12 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001/api}
+        # Относительный путь, а не абсолютный с IP: браузер зовёт /api у того же
+        # адреса, откуда взял страницу, а nginx фронта проксирует внутрь.
+        VITE_API_URL: ${VITE_API_URL:-/api}
     restart: unless-stopped
+    environment:
+      APP_PORT: ${APP_PORT:-3001}
     ports:
       - "${WEB_PORT:-3000}:80"
     depends_on:
