@@ -1,5 +1,7 @@
 import React from "react";
-import { Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, IconButton, InputAdornment, Paper, Stack, TextField, Typography } from "@mui/material";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,6 +10,9 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { getDefaultRoute } from "../../shared/utils/access";
+import { useToast } from "../../shared/ui/ToastProvider";
+import { getPasswordErrorCode, getPasswordErrorMessage } from "../../shared/utils/errors";
+import { passwordFieldSchema } from "../../shared/utils/password";
 
 type FormValues = {
   currentPassword: string;
@@ -19,12 +24,14 @@ export default function ChangeTempPasswordPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, setAuth, updateUser, clearAuth } = useAuth();
+  const { showToast } = useToast();
+  const [showPassword, setShowPassword] = React.useState(false);
   const schema = React.useMemo(
     () =>
       z
         .object({
           currentPassword: z.string().min(1),
-          newPassword: z.string().min(6),
+          newPassword: passwordFieldSchema(t),
           confirmPassword: z.string().min(1)
         })
         .refine((data) => data.newPassword === data.confirmPassword, {
@@ -37,19 +44,51 @@ export default function ChangeTempPasswordPage() {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting }
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (values: FormValues) => {
-    const data = await changeTempPassword({ currentPassword: values.currentPassword, newPassword: values.newPassword });
-    if (data?.user) {
-      setAuth(data.user);
-      navigate(getDefaultRoute(data.user));
-      return;
+    try {
+      const data = await changeTempPassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword
+      });
+      if (data?.user) {
+        setAuth(data.user);
+        navigate(getDefaultRoute(data.user));
+        return;
+      }
+      updateUser({ mustChangePassword: false });
+      navigate(getDefaultRoute(user));
+    } catch (error) {
+      // Раньше отказ сервера просто всплывал наружу необработанным промисом:
+      // форма замирала, и пользователь не понимал, что пошло не так.
+      const message = getPasswordErrorMessage(error, t, t("actionFailed"));
+      const code = getPasswordErrorCode(error);
+      if (code === "CURRENT_PASSWORD_INVALID") {
+        setError("currentPassword", { message });
+      } else if (code === "PASSWORD_REUSED") {
+        setError("newPassword", { message });
+      }
+      showToast({ message, severity: "error" });
     }
-    updateUser({ mustChangePassword: false });
-    navigate(getDefaultRoute(user));
   };
+
+  const visibilityAdornment = (
+    <InputAdornment position="end">
+      <IconButton
+        size="small"
+        edge="end"
+        aria-label={showPassword ? t("hidePassword") : t("showPassword")}
+        onClick={() => setShowPassword((prev) => !prev)}
+      >
+        {showPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+      </IconButton>
+    </InputAdornment>
+  );
+
+  const fieldType = showPassword ? "text" : "password";
 
   const handleLogout = () => {
     clearAuth();
@@ -89,31 +128,37 @@ export default function ChangeTempPasswordPage() {
             fullWidth
             margin="normal"
             label={t("currentPassword")}
-            type="password"
+            type={fieldType}
             required
+            autoComplete="current-password"
             {...register("currentPassword")}
             error={!!errors.currentPassword}
             helperText={errors.currentPassword?.message}
+            InputProps={{ endAdornment: visibilityAdornment }}
           />
           <TextField
             fullWidth
             margin="normal"
             label={t("newPassword")}
-            type="password"
+            type={fieldType}
             required
+            autoComplete="new-password"
             {...register("newPassword")}
             error={!!errors.newPassword}
-            helperText={errors.newPassword?.message}
+            helperText={errors.newPassword?.message || t("passwordRule")}
+            InputProps={{ endAdornment: visibilityAdornment }}
           />
           <TextField
             fullWidth
             margin="normal"
             label={t("confirmPassword")}
-            type="password"
+            type={fieldType}
             required
+            autoComplete="new-password"
             {...register("confirmPassword")}
             error={!!errors.confirmPassword}
             helperText={errors.confirmPassword?.message}
+            InputProps={{ endAdornment: visibilityAdornment }}
           />
           <Button fullWidth variant="contained" type="submit" disabled={isSubmitting} sx={{ mt: 2 }}>
             {t("updatePassword")}

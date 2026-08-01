@@ -33,6 +33,51 @@ export function getErrorMessage(error: unknown, fallback: string) {
 }
 
 /**
+ * Разбирает отказы смены пароля: API помечает их кодом, поэтому сообщение не
+ * зависит от английского текста ответа. Всё неизвестное (например, политика
+ * пароля, если она разойдётся с клиентской) отдаём как есть.
+ */
+export function getPasswordErrorMessage(
+  error: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string,
+  fallback: string
+) {
+  const code = getErrorBody(error)?.code;
+  if (code === "CURRENT_PASSWORD_INVALID") return t("currentPasswordInvalid");
+  if (code === "PASSWORD_REUSED") return t("passwordMustDiffer");
+  return getErrorMessage(error, fallback);
+}
+
+/** Код ошибки пароля — нужен, чтобы подсветить конкретное поле формы. */
+export function getPasswordErrorCode(error: unknown) {
+  return getErrorBody(error)?.code || null;
+}
+
+/**
+ * Блокировка входа после серии неудачных попыток: API отдаёт 429 и retryAfter
+ * в секундах. Превращаем в человеческую фразу, чтобы в уведомлении было видно,
+ * сколько ждать, а не просто «ошибка входа».
+ */
+export function getLoginLockoutMessage(
+  error: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string
+) {
+  const anyError = error as { response?: { status?: number; data?: { retryAfter?: number } } } | null;
+  if (anyError?.response?.status !== 429) return null;
+
+  const seconds = Math.max(1, Math.ceil(Number(anyError.response?.data?.retryAfter || 0)));
+  if (!Number.isFinite(seconds) || seconds <= 0) return t("loginLockedUnknown");
+
+  const minutes = Math.floor(seconds / 60);
+  const restSeconds = seconds % 60;
+  const parts: string[] = [];
+  if (minutes > 0) parts.push(t("durationMinutes", { count: minutes }));
+  if (restSeconds > 0 || minutes === 0) parts.push(t("durationSeconds", { count: restSeconds }));
+
+  return t("loginLockedFor", { time: parts.join(" ") });
+}
+
+/**
  * Turns the structured refusals the API sends when a section or category is
  * still in use into a localized sentence with the actual counts. Falls back to
  * the plain message so unknown errors still surface something.
