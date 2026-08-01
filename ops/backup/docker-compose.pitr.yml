@@ -1,0 +1,14 @@
+services:
+  db:
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_timeout=300s
+      - -c
+      - archive_command=test ! -f /backups/pitr/wal/%f && cp %p /backups/pitr/wal/%f
+    volumes:
+      - /home/atm/apps/backups/e-lib-react/pitr:/backups/pitr

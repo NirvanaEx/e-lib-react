@@ -766,7 +766,11 @@ export class FilesService {
   }
 
   async softDelete(fileItemId: number, actorId: number) {
-    await this.dbService.db("file_items").update({ deleted_at: this.dbService.db.fn.now() }).where({ id: fileItemId });
+    const updated = await this.dbService.db("file_items")
+      .where({ id: fileItemId })
+      .whereNull("purged_at")
+      .update({ deleted_at: this.dbService.db.fn.now() });
+    if (!updated) throw new NotFoundException();
 
     await this.auditService.log({
       actorUserId: actorId,
@@ -779,7 +783,12 @@ export class FilesService {
   }
 
   async restore(fileItemId: number, actorId: number) {
-    await this.dbService.db("file_items").update({ deleted_at: null }).where({ id: fileItemId });
+    const updated = await this.dbService.db("file_items")
+      .where({ id: fileItemId })
+      .whereNotNull("deleted_at")
+      .whereNull("purged_at")
+      .update({ deleted_at: null });
+    if (!updated) throw new NotFoundException();
 
     await this.auditService.log({
       actorUserId: actorId,
@@ -811,6 +820,7 @@ export class FilesService {
     const filesQuery = db("file_items")
       .modify((queryBuilder) => applyTitleJoins(queryBuilder))
       .whereNotNull("file_items.deleted_at")
+      .whereNull("file_items.purged_at")
       .select(
         db.raw("'file' as type"),
         "file_items.id as id",
@@ -831,6 +841,8 @@ export class FilesService {
       .leftJoin("file_items", "file_versions.file_item_id", "file_items.id")
       .modify((queryBuilder) => applyTitleJoins(queryBuilder))
       .whereNotNull("file_versions.deleted_at")
+      .whereNull("file_versions.purged_at")
+      .whereNull("file_items.purged_at")
       .select(
         db.raw("'version' as type"),
         "file_versions.id as id",
@@ -852,7 +864,10 @@ export class FilesService {
       .leftJoin("file_items", "file_versions.file_item_id", "file_items.id")
       .modify((queryBuilder) => applyTitleJoins(queryBuilder))
       .whereNotNull("file_version_assets.deleted_at")
+      .whereNull("file_version_assets.purged_at")
       .whereNull("file_versions.deleted_at")
+      .whereNull("file_versions.purged_at")
+      .whereNull("file_items.purged_at")
       .select(
         db.raw("'asset' as type"),
         "file_version_assets.id as id",
@@ -1481,44 +1496,45 @@ export class FilesService {
   }
 
   async forceDelete(fileItemId: number, actorId?: number) {
+    const item = await this.dbService.db("file_items")
+      .where({ id: fileItemId })
+      .whereNotNull("deleted_at")
+      .whereNull("purged_at")
+      .first();
+    if (!item) throw new NotFoundException();
+
     const versions = await this.dbService.db("file_versions")
       .where({ file_item_id: fileItemId })
       .select("id");
     const versionIds = versions.map((v: any) => v.id);
-
-    const assets = versionIds.length
-      ? await this.dbService.db("file_version_assets")
-          .whereIn("file_version_id", versionIds)
-          .select("path")
-      : [];
-
-    for (const asset of assets) {
-      if (asset.path) {
-        await this.deleteFileSafe(asset.path);
-      }
-    }
+    const now = this.dbService.db.fn.now();
 
     await this.dbService.db.transaction(async (trx) => {
       if (versionIds.length) {
-        await trx("file_version_assets").whereIn("file_version_id", versionIds).delete();
+        await trx("file_version_assets")
+          .whereIn("file_version_id", versionIds)
+          .whereNull("purged_at")
+          .update({ purged_at: now, purged_by: actorId || null });
       }
-      await trx("file_versions").where({ file_item_id: fileItemId }).delete();
-      await trx("file_translations").where({ file_item_id: fileItemId }).delete();
-      await trx("file_access_departments").where({ file_item_id: fileItemId }).delete();
-      await trx("file_access_users").where({ file_item_id: fileItemId }).delete();
-      await trx("file_items").where({ id: fileItemId }).delete();
+      await trx("file_versions")
+        .where({ file_item_id: fileItemId })
+        .whereNull("purged_at")
+        .update({ purged_at: now, purged_by: actorId || null });
+      await trx("file_items")
+        .where({ id: fileItemId })
+        .update({ purged_at: now, purged_by: actorId || null });
     });
 
     if (actorId) {
       await this.auditService.log({
         actorUserId: actorId,
-        action: "FILE_FORCE_DELETED",
+        action: "FILE_RECOVERY_ARCHIVED",
         entityType: "FILE",
         entityId: fileItemId
       });
     }
 
-    return { success: true };
+    return { success: true, recoverable: true };
   }
 
   async listVersions(fileItemId: number) {
@@ -1748,6 +1764,8 @@ export class FilesService {
   async restoreVersion(fileItemId: number, versionId: number, actorId: number) {
     const version = await this.dbService.db("file_versions")
       .where({ id: versionId, file_item_id: fileItemId })
+      .whereNotNull("deleted_at")
+      .whereNull("purged_at")
       .first();
     if (!version) throw new NotFoundException();
 
@@ -1768,7 +1786,11 @@ export class FilesService {
   }
 
   async restoreVersionById(versionId: number, actorId: number) {
-    const version = await this.dbService.db("file_versions").where({ id: versionId }).first();
+    const version = await this.dbService.db("file_versions")
+      .where({ id: versionId })
+      .whereNotNull("deleted_at")
+      .whereNull("purged_at")
+      .first();
     if (!version) throw new NotFoundException();
 
     const now = this.dbService.db.fn.now();
@@ -1788,7 +1810,11 @@ export class FilesService {
   }
 
   async forceDeleteVersion(versionId: number, actorId: number) {
-    const version = await this.dbService.db("file_versions").where({ id: versionId }).first();
+    const version = await this.dbService.db("file_versions")
+      .where({ id: versionId })
+      .whereNotNull("deleted_at")
+      .whereNull("purged_at")
+      .first();
     if (!version) throw new NotFoundException();
 
     const file = await this.dbService.db("file_items").where({ id: version.file_item_id }).first();
@@ -1796,28 +1822,25 @@ export class FilesService {
       throw new BadRequestException("Cannot delete current version");
     }
 
-    const assets = await this.dbService.db("file_version_assets")
-      .where({ file_version_id: versionId })
-      .select("path");
-    for (const asset of assets) {
-      if (asset.path) {
-        await this.deleteFileSafe(asset.path);
-      }
-    }
-
+    const now = this.dbService.db.fn.now();
     await this.dbService.db.transaction(async (trx) => {
-      await trx("file_version_assets").where({ file_version_id: versionId }).delete();
-      await trx("file_versions").where({ id: versionId }).delete();
+      await trx("file_version_assets")
+        .where({ file_version_id: versionId })
+        .whereNull("purged_at")
+        .update({ purged_at: now, purged_by: actorId });
+      await trx("file_versions")
+        .where({ id: versionId })
+        .update({ purged_at: now, purged_by: actorId });
     });
 
     await this.auditService.log({
       actorUserId: actorId,
-      action: "FILE_VERSION_FORCE_DELETED",
+      action: "FILE_VERSION_RECOVERY_ARCHIVED",
       entityType: "FILE_VERSION",
       entityId: versionId
     });
 
-    return { success: true };
+    return { success: true, recoverable: true };
   }
 
   async uploadAsset(fileItemId: number, versionId: number, lang: string, file: Express.Multer.File, actorId: number) {
@@ -1933,7 +1956,11 @@ export class FilesService {
   }
 
   async restoreAsset(assetId: number, actorId: number) {
-    const asset = await this.dbService.db("file_version_assets").where({ id: assetId }).first();
+    const asset = await this.dbService.db("file_version_assets")
+      .where({ id: assetId })
+      .whereNotNull("deleted_at")
+      .whereNull("purged_at")
+      .first();
     if (!asset) throw new NotFoundException();
 
     await this.dbService.db("file_version_assets")
@@ -1951,20 +1978,28 @@ export class FilesService {
   }
 
   async forceDeleteAsset(assetId: number, actorId: number) {
-    const asset = await this.dbService.db("file_version_assets").where({ id: assetId }).first();
+    const asset = await this.dbService.db("file_version_assets")
+      .where({ id: assetId })
+      .whereNotNull("deleted_at")
+      .whereNull("purged_at")
+      .first();
     if (!asset) throw new NotFoundException();
 
-    await this.deleteFileSafe(asset.path);
-    await this.dbService.db("file_version_assets").where({ id: assetId }).delete();
+    await this.dbService.db("file_version_assets")
+      .where({ id: assetId })
+      .update({
+        purged_at: this.dbService.db.fn.now(),
+        purged_by: actorId
+      });
 
     await this.auditService.log({
       actorUserId: actorId,
-      action: "FILE_ASSET_FORCE_DELETED",
+      action: "FILE_ASSET_RECOVERY_ARCHIVED",
       entityType: "FILE_VERSION_ASSET",
       entityId: assetId
     });
 
-    return { success: true };
+    return { success: true, recoverable: true };
   }
 
   async listUserFiles(

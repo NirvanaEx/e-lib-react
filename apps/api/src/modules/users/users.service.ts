@@ -248,7 +248,7 @@ export class UsersService {
   async create(dto: any, actorId: number) {
     const existing = await this.dbService
       .db("users")
-      .where({ login: dto.login })
+      .whereRaw("lower(login) = lower(?)", [dto.login])
       .whereNull("deleted_at")
       .first();
 
@@ -347,7 +347,7 @@ export class UsersService {
     if (dto.login && dto.login !== user.login) {
       const existing = await this.dbService
       .db("users")
-      .where({ login: dto.login })
+      .whereRaw("lower(login) = lower(?)", [dto.login])
         .whereNull("deleted_at")
         .first();
       if (existing) {
@@ -462,7 +462,7 @@ export class UsersService {
 
     const existing = await this.dbService
       .db("users")
-      .where({ login: user.login })
+      .whereRaw("lower(login) = lower(?)", [user.login])
       .whereNull("deleted_at")
       .first();
     if (existing) {
@@ -524,12 +524,12 @@ export class UsersService {
 
     const ok = await bcrypt.compare(currentPassword, user.password_hash);
     if (!ok) {
-      throw new BadRequestException("Current password is invalid");
+      throw new BadRequestException({ message: "Current password is invalid", code: "CURRENT_PASSWORD_INVALID" });
     }
 
     const sameAsCurrent = await bcrypt.compare(newPassword, user.password_hash);
     if (sameAsCurrent) {
-      throw new BadRequestException("New password must differ from the current one");
+      throw new BadRequestException({ message: "New password must differ from the current one", code: "PASSWORD_REUSED" });
     }
 
     const hash = await bcrypt.hash(newPassword, 10);
