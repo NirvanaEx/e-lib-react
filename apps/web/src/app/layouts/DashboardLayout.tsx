@@ -13,6 +13,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
+import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import { Box, ButtonBase, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
@@ -68,6 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: t("roles"), path: "/dashboard/roles", icon: <ShieldIcon />, access: "role.read" },
     { label: t("content"), path: "/dashboard/content", icon: <PolicyOutlinedIcon />, access: "content.read" },
     { label: t("appearanceNav"), path: "/dashboard/appearance", icon: <PaletteOutlinedIcon />, access: "content.read" },
+    { label: t("guides"), path: "/dashboard/guides", icon: <HelpOutlineOutlinedIcon />, access: "content.read" },
     { label: t("sessions"), path: "/dashboard/sessions", icon: <HistoryIcon />, access: "session.read" },
     { label: t("audit"), path: "/dashboard/audit", icon: <SecurityIcon />, access: "audit.read" }
   ];
