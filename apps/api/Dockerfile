@@ -18,6 +18,8 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/package.json ./package.json
 COPY --from=builder /app/apps/api/knexfile.js ./knexfile.js
 COPY --from=builder /app/apps/api/migrations ./migrations
+# Скриншоты инструкций из поставки: сервис отдаёт их из assets/guides
+COPY --from=builder /app/apps/api/assets ./assets
 COPY --from=builder /app/apps/api/seeds ./seeds
 
 CMD ["node", "dist/main.js"]
