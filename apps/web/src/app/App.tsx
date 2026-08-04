@@ -17,6 +17,7 @@ import PositionsPage from "../features/positions/PositionsPage";
 import SessionsPage from "../features/sessions/SessionsPage";
 import AuditPage from "../features/audit/AuditPage";
 import ContentPage from "../features/content-pages/ContentPage";
+import GuideAdminPage from "../features/guides/GuideAdminPage";
 import AppearancePage from "../features/appearance/AppearancePage";
 import SectionsPage from "../features/sections/SectionsPage";
 import CategoriesPage from "../features/categories/CategoriesPage";
@@ -195,6 +196,19 @@ export default function App() {
                     <RequireAccess permissions={["dashboard.access", "content.read"]}>
                       <DashboardLayout>
                         <ContentPage />
+                      </DashboardLayout>
+                    </RequireAccess>
+                  </RequireAuth>
+                }
+              />
+
+              <Route
+                path="/dashboard/guides"
+                element={
+                  <RequireAuth>
+                    <RequireAccess permissions={["dashboard.access", "content.read"]}>
+                      <DashboardLayout>
+                        <GuideAdminPage />
                       </DashboardLayout>
                     </RequireAccess>
                   </RequireAuth>

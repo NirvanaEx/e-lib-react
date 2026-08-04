@@ -21,6 +21,7 @@ import { StatsModule } from "./modules/stats/stats.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { HealthModule } from "./modules/health/health.module";
 import { ContentPagesModule } from "./modules/content-pages/content-pages.module";
+import { GuidesModule } from "./modules/guides/guides.module";
 import { AppSettingsModule } from "./modules/app-settings/app-settings.module";
 import { SeedModule } from "./modules/seed/seed.module";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -64,6 +65,7 @@ import { LoggerModule } from "nestjs-pino";
     StatsModule,
     AuditModule,
     ContentPagesModule,
+    GuidesModule,
     AppSettingsModule,
     SeedModule,
     HealthModule
