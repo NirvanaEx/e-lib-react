@@ -62,6 +62,7 @@ import { formatDateTime } from "../../shared/utils/date";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { getAvatarUrl } from "../../shared/utils/avatar";
 import { getErrorMessage } from "../../shared/utils/errors";
+import { copyToClipboard } from "../../shared/utils/clipboard";
 import { AvatarCropDialog, ImageLightbox } from "../../shared/ui/AvatarEditor";
 import { UserFilesPanel } from "./UserFilesPanel";
 
@@ -387,10 +388,13 @@ export default function UsersPage() {
 
   const handleCopyCredentials = async () => {
     if (!tempCredentials) return;
-    await navigator.clipboard.writeText(
+    const ok = await copyToClipboard(
       `${t("login")}: ${tempCredentials.login}\n${t("temporaryPassword")}: ${tempCredentials.tempPassword}`
     );
-    showToast({ message: t("copied"), severity: "success" });
+    showToast({
+      message: ok ? t("copied") : t("copyFailed"),
+      severity: ok ? "success" : "error"
+    });
   };
 
   return (
