@@ -39,7 +39,14 @@ async function bootstrap() {
       : isProd
         ? false
         : true;
-  app.enableCors({ origin: corsOrigin, credentials: true });
+  // Content-Disposition нужен клиенту, чтобы взять имя скачиваемого файла.
+  // В проде фронт и API за одним nginx и CORS не работает, а в dev без
+  // exposedHeaders браузер прячет заголовок и файл сохраняется под кодовым именем.
+  app.enableCors({
+    origin: corsOrigin,
+    credentials: true,
+    exposedHeaders: ["Content-Disposition"]
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

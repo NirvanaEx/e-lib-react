@@ -5,10 +5,12 @@ import FolderCopyOutlinedIcon from "@mui/icons-material/FolderCopyOutlined";
 import StarBorderOutlinedIcon from "@mui/icons-material/StarBorderOutlined";
 import ApartmentOutlinedIcon from "@mui/icons-material/ApartmentOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
+import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 import LocalPhoneOutlinedIcon from "@mui/icons-material/LocalPhoneOutlined";
+import { useQuery } from "@tanstack/react-query";
 import { BaseLayout } from "./BaseLayout";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -18,6 +20,8 @@ import { useThemeMode } from "../../shared/hooks/useThemeMode";
 import { useBranding } from "../../shared/hooks/useBranding";
 import { getBrandingImageUrl } from "../../features/settings/app-settings.api";
 import { NavbarSearch } from "../../features/files/NavbarSearch";
+import { GuideDialog } from "../../features/guides/GuideDialog";
+import { fetchGuideStatuses } from "../../features/guides/guides.api";
 import { HELP_EXTENSIONS, HELP_PHONE, HELP_PHONE_HREF } from "../../shared/constants/support";
 import logoFullColor from "../../assets/logo-full-color.png";
 import logoFullWhite from "../../assets/logo-full-white.png";
@@ -29,6 +33,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   const navigate = useNavigate();
   const branding = useBranding();
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [guideOpen, setGuideOpen] = React.useState(false);
   const customLogo = mode === "dark" ? branding?.logoDark : branding?.logoLight;
   const logoSrc = getBrandingImageUrl(customLogo) || (mode === "dark" ? logoFullWhite : logoFullColor);
 
@@ -68,7 +73,9 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
     </ButtonBase>
   );
 
-  const sidebarContent = ({ collapsed }: { collapsed: boolean }) => <UserSidebarMenu collapsed={collapsed} />;
+  const sidebarContent = ({ collapsed }: { collapsed: boolean }) => (
+    <UserSidebarMenu collapsed={collapsed} onOpenGuide={() => setGuideOpen(true)} />
+  );
   const sidebarFooter = ({ collapsed }: { collapsed: boolean }) => <UserSidebarFooter collapsed={collapsed} />;
 
   const footer = (
@@ -114,15 +121,28 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
         {children}
       </BaseLayout>
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <GuideDialog open={guideOpen} onClose={() => setGuideOpen(false)} guideKey="user" />
     </>
   );
 }
 
-function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
+function UserSidebarMenu({
+  collapsed,
+  onOpenGuide
+}: {
+  collapsed: boolean;
+  onOpenGuide: () => void;
+}) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const { data: guideStatuses } = useQuery({
+    queryKey: ["guide-statuses"],
+    queryFn: fetchGuideStatuses,
+    staleTime: 60000
+  });
 
   const canSubmitFiles = Boolean(user?.canSubmitFiles);
   const hasDepartment = Boolean(user?.departmentId);
@@ -135,8 +155,18 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
     { label: t("favorites"), path: "/users/my-library/favorites", icon: <StarBorderOutlinedIcon fontSize="small" /> },
     ...(canSubmitFiles
       ? [{ label: t("publicationRequests"), path: "/users/my-library/requests", icon: <PendingActionsOutlinedIcon fontSize="small" /> }]
+      : []),
+    ...(guideStatuses?.user
+      ? [
+          {
+            label: t("guide"),
+            path: "guide-dialog",
+            icon: <HelpOutlineOutlinedIcon fontSize="small" />,
+            action: onOpenGuide
+          }
+        ]
       : [])
-  ];
+  ] as { label: string; path: string; icon: React.ReactNode; exact?: boolean; action?: () => void }[];
 
   const itemSx = {
     borderRadius: "8px",
@@ -163,12 +193,16 @@ function UserSidebarMenu({ collapsed }: { collapsed: boolean }) {
     <Box>
       <List disablePadding>
         {navItems.map((item) => {
-          const active = item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path);
+          const active = item.action
+            ? false
+            : item.exact
+              ? location.pathname === item.path
+              : location.pathname.startsWith(item.path);
           const button = (
             <ListItemButton
               key={item.path}
               selected={active}
-              onClick={() => navigate(item.path)}
+              onClick={() => (item.action ? item.action() : navigate(item.path))}
               sx={{ ...itemSx, justifyContent: collapsed ? "center" : "flex-start" }}
             >
               <ListItemIcon sx={{ minWidth: collapsed ? 0 : 34, color: active ? "#fff" : "text.secondary" }}>
