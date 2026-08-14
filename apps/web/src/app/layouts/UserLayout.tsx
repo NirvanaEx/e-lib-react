@@ -45,7 +45,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
         borderRadius: "8px",
         px: 0.5,
         py: 0.5,
-        justifyContent: collapsed ? "center" : "flex-start"
+        justifyContent: "center"
       }}
     >
       {collapsed ? (
@@ -67,7 +67,10 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           component="img"
           src={logoSrc}
           alt={t("appName")}
-          sx={{ height: 40, maxWidth: "100%", objectFit: "contain", objectPosition: "left center" }}
+          // Логотип масштабируется по ширине сайдбара, а не по фиксированной высоте:
+          // высота под широкое лого оставляла квадратное лого мелким. maxHeight
+          // страхует обратный случай — вертикальное лого, загруженное в брендинге.
+          sx={{ width: "100%", maxWidth: 200, maxHeight: 104, objectFit: "contain", mx: "auto" }}
         />
       )}
     </ButtonBase>
