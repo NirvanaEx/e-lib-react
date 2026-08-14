@@ -768,14 +768,19 @@ export class FileRequestsService {
     if (request.created_by !== actor.id) throw new ForbiddenException("Access denied");
     if (request.status !== "pending") throw new BadRequestException("Request is not pending");
 
-    await this.dbService.db("file_requests")
+    // deleteRequestAssets unlinks the uploaded files, and approveRequest hands
+    // the very same paths to the published version. Guarding the transition
+    // makes "user cancels while the admin approves" resolve one way or the
+    // other instead of erasing a file that just went live.
+    const claimed = await this.dbService.db("file_requests")
+      .where({ id: requestId, status: "pending" })
       .update({
         status: "canceled",
         resolved_by: actor.id,
         resolved_at: this.dbService.db.fn.now(),
         updated_at: this.dbService.db.fn.now()
-      })
-      .where({ id: requestId });
+      });
+    if (!claimed) throw new BadRequestException("Request is not pending");
 
     await this.deleteRequestAssets(requestId);
 
@@ -824,6 +829,21 @@ export class FileRequestsService {
     const now = this.dbService.db.fn.now();
 
     const { fileItemId, versionId } = await this.dbService.db.transaction(async (trx) => {
+      // Claim the request first: the status read above is not part of this
+      // transaction, so two approvals (a double-clicked button) would both get
+      // past it and publish the same submission twice. The guarded UPDATE
+      // serialises them on the row lock — the loser sees 0 rows and rolls back.
+      const claimed = await trx("file_requests")
+        .where({ id: requestId, status: "pending" })
+        .update({
+          status: "approved",
+          rejection_reason: null,
+          resolved_by: actor.id,
+          resolved_at: now,
+          updated_at: now
+        });
+      if (!claimed) throw new BadRequestException("Request is not pending");
+
       const [fileItem] = await trx("file_items")
         .insert({
           section_id: request.section_id,
@@ -900,16 +920,6 @@ export class FileRequestsService {
         }))
       );
 
-      await trx("file_requests")
-        .update({
-          status: "approved",
-          rejection_reason: null,
-          resolved_by: actor.id,
-          resolved_at: now,
-          updated_at: now
-        })
-        .where({ id: requestId });
-
       await trx("file_request_assets").where({ file_request_id: requestId }).delete();
 
       return { fileItemId, versionId };
@@ -969,6 +979,19 @@ export class FileRequestsService {
     const nextVersionNumber = Number(maxVersionRow?.max || 0) + 1;
 
     const { versionId } = await this.dbService.db.transaction(async (trx) => {
+      // Same claim as in approveRequest: without it two concurrent approvals
+      // publish two versions of the same submission.
+      const claimed = await trx("file_requests")
+        .where({ id: requestId, status: "pending" })
+        .update({
+          status: "approved",
+          rejection_reason: null,
+          resolved_by: actor.id,
+          resolved_at: now,
+          updated_at: now
+        });
+      if (!claimed) throw new BadRequestException("Request is not pending");
+
       if (translations.length > 0) {
         await trx("file_translations").where({ file_item_id: request.file_item_id }).delete();
         await trx("file_translations").insert(
@@ -1023,16 +1046,6 @@ export class FileRequestsService {
         }))
       );
 
-      await trx("file_requests")
-        .update({
-          status: "approved",
-          rejection_reason: null,
-          resolved_by: actor.id,
-          resolved_at: now,
-          updated_at: now
-        })
-        .where({ id: requestId });
-
       await trx("file_request_assets").where({ file_request_id: requestId }).delete();
 
       return { versionId };
@@ -1072,15 +1085,18 @@ export class FileRequestsService {
     if (request.status !== "pending") throw new BadRequestException("Request is not pending");
 
     const rejectionReason = reason ? String(reason).trim() || null : null;
-    await this.dbService.db("file_requests")
+    // Same reason as in cancelRequest: the files are deleted right after, so
+    // the transition must not race with an approval.
+    const claimed = await this.dbService.db("file_requests")
+      .where({ id: requestId, status: "pending" })
       .update({
         status: "rejected",
         rejection_reason: rejectionReason,
         resolved_by: actor.id,
         resolved_at: this.dbService.db.fn.now(),
         updated_at: this.dbService.db.fn.now()
-      })
-      .where({ id: requestId });
+      });
+    if (!claimed) throw new BadRequestException("Request is not pending");
 
     await this.deleteRequestAssets(requestId);
 

@@ -60,6 +60,14 @@ export class StatsService {
     return query;
   }
 
+  // resolveRange parses "YYYY-MM-DD" in the server timezone, so the previous
+  // window has to be formatted back the same way. toISOString() would convert
+  // to UTC first and shift the whole window by a day east of Greenwich.
+  private formatLocalDate(date: Date) {
+    const pad = (part: number) => String(part).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  }
+
   // Window of the same length immediately before the selected one, used for
   // the "vs previous period" deltas on the overview cards.
   private getPreviousRange(range: Range): Range | null {
@@ -73,8 +81,8 @@ export class StatsService {
     // the previous window exactly as long as the selected one.
     const prevTo = new Date(from.getTime() - dayMs);
     return {
-      from: prevFrom.toISOString().slice(0, 10),
-      to: prevTo.toISOString().slice(0, 10)
+      from: this.formatLocalDate(prevFrom),
+      to: this.formatLocalDate(prevTo)
     };
   }
 
