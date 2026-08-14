@@ -1266,6 +1266,21 @@ export class FilesService {
       )
       .whereNull("file_items.deleted_at");
 
+    // Favourites added before the check in addFavorite (or while the user still
+    // belonged to the department) must not keep exposing closed files.
+    if (!user?.permissions?.includes("file.download.restricted")) {
+      query.where((builder) => {
+        builder.whereNot("file_items.access_type", "department_closed");
+        if (departmentIds.length) {
+          builder.orWhereIn("file_items.id", function () {
+            this.select("file_item_id")
+              .from("file_access_departments")
+              .whereIn("department_id", departmentIds);
+          });
+        }
+      });
+    }
+
     if (q) {
       query.whereILike("file_translations.title", `%${q}%`);
     }
@@ -1469,12 +1484,30 @@ export class FilesService {
     return { data, meta: buildPaginationMeta(page, pageSize, Number(countResult?.count || 0)) };
   }
 
+  // "department_closed" files are never listed outside their own department
+  // (see OPEN_ACCESS_TYPES). Anything that can surface a file card must ask
+  // this first, otherwise the file becomes readable by id alone.
+  private async isDepartmentVisible(user: any, fileItemId: number) {
+    if (user?.permissions?.includes("file.download.restricted")) return true;
+    const departmentIds = await this.getDepartmentScopeIds(user?.departmentId ?? null);
+    if (!departmentIds.length) return false;
+    const hasDept = await this.dbService.db("file_access_departments")
+      .where({ file_item_id: fileItemId })
+      .whereIn("department_id", departmentIds)
+      .first();
+    return Boolean(hasDept);
+  }
+
   async addFavorite(fileItemId: number, user: any) {
     const file = await this.dbService.db("file_items")
+      .select("id", "access_type")
       .where({ id: fileItemId })
       .whereNull("deleted_at")
       .first();
     if (!file) throw new NotFoundException();
+    if (file.access_type === "department_closed" && !(await this.isDepartmentVisible(user, fileItemId))) {
+      throw new ForbiddenException("Access denied");
+    }
 
     await this.dbService.db("file_favorites")
       .insert({
