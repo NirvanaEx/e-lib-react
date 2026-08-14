@@ -30,11 +30,6 @@ export async function deleteFile(id: number) {
   return data;
 }
 
-export async function restoreFile(id: number) {
-  const { data } = await api.post(`/dashboard/files/${id}/restore`);
-  return data;
-}
-
 export async function fetchVersions(fileId: number) {
   const { data } = await api.get(`/dashboard/files/${fileId}/versions`);
   return data;
@@ -156,11 +151,6 @@ export async function fetchUserFavorites(params: { page: number; pageSize: numbe
 
 export async function fetchUserRequests(params: { page: number; pageSize: number; status?: string; scope?: string; q?: string }) {
   const { data } = await api.get("/user/requests", { params });
-  return data;
-}
-
-export async function fetchUserRequestAccessOptions() {
-  const { data } = await api.get("/user/requests/access-options");
   return data;
 }
 
