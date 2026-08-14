@@ -43,11 +43,6 @@ export async function fetchStatsByPeriod(params?: StatsRange & { bucket?: string
   return data;
 }
 
-export async function fetchFileActivity(fileItemId: number, params?: StatsRange) {
-  const { data } = await api.get(`/dashboard/stats/files/${fileItemId}/activity`, { params });
-  return data;
-}
-
 export async function fetchLoginActivity(params?: StatsRange & { limit?: number }) {
   const { data } = await api.get("/dashboard/stats/logins", { params });
   return data;
