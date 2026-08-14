@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../../db/database.service";
 import { getRequestContextValue } from "../../common/request-context";
+import { applyDateRange } from "../../common/utils/date-range";
 
 export interface AuditLogInput {
   actorUserId: number;
@@ -67,8 +68,7 @@ export class AuditService {
     if (actorId) query.where("audit_logs.actor_user_id", actorId);
     if (action) query.where("audit_logs.action", action);
     if (entityType) query.where("audit_logs.entity_type", entityType);
-    if (from) query.where("audit_logs.created_at", ">=", from);
-    if (to) query.where("audit_logs.created_at", "<=", to);
+    applyDateRange(query, "audit_logs.created_at", from, to);
 
     const countResult = await query
       .clone()

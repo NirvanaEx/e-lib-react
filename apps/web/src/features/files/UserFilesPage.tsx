@@ -337,7 +337,10 @@ export default function UserFilesPage() {
       a.download = filename;
       a.click();
       window.URL.revokeObjectURL(url);
-    }
+    },
+    // Без этого неудачная загрузка (нет доступа, файл удалён) молчала: спиннер
+    // гас, а пользователь так и не узнавал, почему файл не пришёл.
+    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
   });
 
   const downloadVersionMutation = useMutation({
@@ -354,7 +357,10 @@ export default function UserFilesPage() {
       a.download = filename;
       a.click();
       window.URL.revokeObjectURL(url);
-    }
+    },
+    // Без этого неудачная загрузка (нет доступа, файл удалён) молчала: спиннер
+    // гас, а пользователь так и не узнавал, почему файл не пришёл.
+    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
   });
 
   const updateFavoriteCaches = (id: number, nextValue: boolean) => {
