@@ -8,6 +8,18 @@ import { normalizeLang } from "../../common/utils/lang";
 
 type Range = { from?: string; to?: string };
 
+/**
+ * Дата в виде YYYY-MM-DD по местному времени сервера.
+ *
+ * Через toISOString() нельзя: границы периода строятся как локальная полночь,
+ * а UTC-представление такой полуночи при положительном смещении (Asia/Tashkent —
+ * UTC+5) приходится на предыдущие сутки, и предыдущий период уезжал на день назад.
+ */
+function toLocalDate(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 export type ActivityRow = {
   id: string;
   action: "download" | "view";
@@ -73,8 +85,8 @@ export class StatsService {
     // the previous window exactly as long as the selected one.
     const prevTo = new Date(from.getTime() - dayMs);
     return {
-      from: prevFrom.toISOString().slice(0, 10),
-      to: prevTo.toISOString().slice(0, 10)
+      from: toLocalDate(prevFrom),
+      to: toLocalDate(prevTo)
     };
   }
 
