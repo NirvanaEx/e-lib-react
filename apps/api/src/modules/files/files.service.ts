@@ -118,6 +118,27 @@ export class FilesService {
     return rows.map((row: any) => Number(row.id)).filter((id: number) => Number.isFinite(id));
   }
 
+  // Тот же обход дерева, но сразу от нескольких корней: расширенный поиск
+  // присылает список категорий, и запрос на каждую из них — это N рекурсивных
+  // обходов там, где хватает одного.
+  private async getCategoriesScopeIds(categoryIds: number[]) {
+    const seeds = categoryIds.filter((id) => Number.isFinite(id));
+    if (!seeds.length) return [];
+    const placeholders = seeds.map(() => "?").join(", ");
+    const result = await this.dbService.db.raw(
+      `WITH RECURSIVE tree AS (
+        SELECT id FROM categories WHERE id IN (${placeholders})
+        UNION ALL
+        SELECT c.id FROM categories c
+        JOIN tree t ON c.parent_id = t.id
+      )
+      SELECT DISTINCT id FROM tree`,
+      seeds
+    );
+    const rows = result?.rows || [];
+    return rows.map((row: any) => Number(row.id)).filter((id: number) => Number.isFinite(id));
+  }
+
   private buildMenu(sectionsRows: any[], categoriesRows: any[], preferredLang: string | null) {
     const defaultLang = this.getDefaultLang();
     const lang = normalizeLang(preferredLang) || null;
@@ -2081,15 +2102,11 @@ export class FilesService {
     }
 
     if (filterCategoryIds && filterCategoryIds.length) {
-      const expanded = new Set<number>();
-      for (const id of filterCategoryIds) {
-        const scope = await this.getCategoryScopeIds(id);
-        if (scope.length) {
-          scope.forEach((scopeId: number) => expanded.add(scopeId));
-        } else {
-          expanded.add(id);
-        }
-      }
+      // Сами выбранные категории остаются в наборе всегда: для существующей
+      // категории обход и так возвращает её саму, для несуществующей — прежнее
+      // поведение, когда id уходил в фильтр как есть.
+      const scope = await this.getCategoriesScopeIds(filterCategoryIds);
+      const expanded = new Set<number>([...scope, ...filterCategoryIds]);
       query.whereIn("file_items.category_id", Array.from(expanded));
     }
 
