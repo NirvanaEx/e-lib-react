@@ -11,11 +11,14 @@ import { formatBytes } from "../../shared/utils/format";
 import { getFilenameFromDisposition } from "../../shared/utils/download";
 import { formatUserLabel } from "../../shared/utils/userLabel";
 import { accessColor, accessLabelKey } from "../../shared/utils/accessType";
+import { getErrorMessage } from "../../shared/utils/errors";
+import { useToast } from "../../shared/ui/ToastProvider";
 
 export default function UserFileDetailsPage() {
   const params = useParams();
   const fileId = Number(params.id);
   const { t, i18n } = useTranslation();
+  const { showToast } = useToast();
   const { data } = useQuery({ queryKey: ["user-file", fileId], queryFn: () => fetchUserFile(fileId) });
   const [downloadTarget, setDownloadTarget] = React.useState<string[] | null>(null);
   const assetLangs = React.useMemo(() => {
@@ -67,7 +70,10 @@ export default function UserFileDetailsPage() {
       a.download = filename;
       a.click();
       window.URL.revokeObjectURL(url);
-    }
+    },
+    // Без этого неудачная загрузка (нет доступа, файл удалён) молчала: спиннер
+    // гас, а пользователь так и не узнавал, почему файл не пришёл.
+    onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
   });
 
   const handleDownload = () => {

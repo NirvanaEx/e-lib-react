@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../../db/database.service";
 import { buildPaginationMeta } from "../../common/utils/pagination";
+import { applyDateRange } from "../../common/utils/date-range";
 
 @Injectable()
 export class SessionsService {
@@ -43,12 +44,7 @@ export class SessionsService {
     if (userId) {
       query.where("sessions.user_id", userId);
     }
-    if (from) {
-      query.where("sessions.created_at", ">=", from);
-    }
-    if (to) {
-      query.where("sessions.created_at", "<=", to);
-    }
+    applyDateRange(query, "sessions.created_at", from, to);
 
     const countResult = await query
       .clone()
