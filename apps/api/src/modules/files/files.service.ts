@@ -2082,14 +2082,14 @@ export class FilesService {
 
     if (filterCategoryIds && filterCategoryIds.length) {
       const expanded = new Set<number>();
-      for (const id of filterCategoryIds) {
-        const scope = await this.getCategoryScopeIds(id);
+      const scopes = await Promise.all(filterCategoryIds.map((id) => this.getCategoryScopeIds(id)));
+      scopes.forEach((scope, index) => {
         if (scope.length) {
           scope.forEach((scopeId: number) => expanded.add(scopeId));
         } else {
-          expanded.add(id);
+          expanded.add(filterCategoryIds[index]);
         }
-      }
+      });
       query.whereIn("file_items.category_id", Array.from(expanded));
     }
 
