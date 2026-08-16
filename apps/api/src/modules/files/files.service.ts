@@ -1849,7 +1849,12 @@ export class FilesService {
       .where({ id: versionId, file_item_id: fileItemId })
       .whereNull("deleted_at")
       .first();
-    if (!version) throw new NotFoundException();
+    if (!version) {
+      // Multer уже записал вложение на диск: без уборки каждая загрузка в
+      // удалённую или чужую версию оставляла бы .tmp в каталоге навсегда.
+      await this.deleteFileSafe(file.path);
+      throw new NotFoundException();
+    }
 
     const maxSizeMb = Number(this.config.get<string>("MAX_UPLOAD_SIZE_MB", "10"));
     if (file.size > maxSizeMb * 1024 * 1024) {

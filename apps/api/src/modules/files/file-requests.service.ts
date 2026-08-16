@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { ConfigService } from "@nestjs/config";
 import path from "path";
 import fs from "fs/promises";
+import type { Knex } from "knex";
 import { v4 as uuidv4 } from "uuid";
 import { DatabaseService } from "../../db/database.service";
 import { AuditService } from "../audit/audit.service";
@@ -768,14 +769,11 @@ export class FileRequestsService {
     if (request.created_by !== actor.id) throw new ForbiddenException("Access denied");
     if (request.status !== "pending") throw new BadRequestException("Request is not pending");
 
-    await this.dbService.db("file_requests")
-      .update({
-        status: "canceled",
-        resolved_by: actor.id,
-        resolved_at: this.dbService.db.fn.now(),
-        updated_at: this.dbService.db.fn.now()
-      })
-      .where({ id: requestId });
+    const resolved = await this.resolvePending(requestId, {
+      status: "canceled",
+      resolved_by: actor.id
+    });
+    if (!resolved) throw new BadRequestException("Request is not pending");
 
     await this.deleteRequestAssets(requestId);
 
@@ -787,6 +785,30 @@ export class FileRequestsService {
     });
 
     return { success: true };
+  }
+
+  // Блокирует строку заявки до конца транзакции и убеждается, что её ещё никто
+  // не разобрал. Параллельный вызов ждёт на блокировке и после коммита видит
+  // уже не "pending" — вместо дубля получает 400.
+  private async assertStillPending(trx: Knex.Transaction, requestId: number) {
+    const locked = await trx("file_requests").where({ id: requestId }).forUpdate().first();
+    if (!locked) throw new NotFoundException();
+    if (locked.status !== "pending") throw new BadRequestException("Request is not pending");
+    return locked;
+  }
+
+  // Переводит заявку из "pending" в конечное состояние одним условным UPDATE.
+  // Возвращает false, если её успели разобрать в другом запросе, — тогда нельзя
+  // удалять файлы заявки: их уже забрал одобренный документ.
+  private async resolvePending(requestId: number, patch: Record<string, any>) {
+    const updated = await this.dbService.db("file_requests")
+      .where({ id: requestId, status: "pending" })
+      .update({
+        ...patch,
+        resolved_at: this.dbService.db.fn.now(),
+        updated_at: this.dbService.db.fn.now()
+      });
+    return updated > 0;
   }
 
   async approveRequest(requestId: number, actor: any) {
@@ -824,6 +846,12 @@ export class FileRequestsService {
     const now = this.dbService.db.fn.now();
 
     const { fileItemId, versionId } = await this.dbService.db.transaction(async (trx) => {
+      // Статус проверен вне транзакции, поэтому два одновременных «одобрить»
+      // (двойной клик или два администратора) успевали пройти проверку оба и
+      // создавали две карточки на один запрос, ссылающиеся на одни и те же
+      // файлы на диске. Блокируем строку и перечитываем статус уже внутри.
+      await this.assertStillPending(trx, requestId);
+
       const [fileItem] = await trx("file_items")
         .insert({
           section_id: request.section_id,
@@ -969,6 +997,10 @@ export class FileRequestsService {
     const nextVersionNumber = Number(maxVersionRow?.max || 0) + 1;
 
     const { versionId } = await this.dbService.db.transaction(async (trx) => {
+      // См. approveRequest: без блокировки строки повторное «одобрить»
+      // создавало вторую версию с тем же version_number.
+      await this.assertStillPending(trx, requestId);
+
       if (translations.length > 0) {
         await trx("file_translations").where({ file_item_id: request.file_item_id }).delete();
         await trx("file_translations").insert(
@@ -1072,15 +1104,14 @@ export class FileRequestsService {
     if (request.status !== "pending") throw new BadRequestException("Request is not pending");
 
     const rejectionReason = reason ? String(reason).trim() || null : null;
-    await this.dbService.db("file_requests")
-      .update({
-        status: "rejected",
-        rejection_reason: rejectionReason,
-        resolved_by: actor.id,
-        resolved_at: this.dbService.db.fn.now(),
-        updated_at: this.dbService.db.fn.now()
-      })
-      .where({ id: requestId });
+    // Условный UPDATE, а не безусловный: иначе отклонение, отправленное пока
+    // выполняется одобрение, стирало с диска файлы уже созданного документа.
+    const resolved = await this.resolvePending(requestId, {
+      status: "rejected",
+      rejection_reason: rejectionReason,
+      resolved_by: actor.id
+    });
+    if (!resolved) throw new BadRequestException("Request is not pending");
 
     await this.deleteRequestAssets(requestId);
 
