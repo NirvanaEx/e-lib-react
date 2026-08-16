@@ -60,6 +60,15 @@ export class StatsService {
     return query;
   }
 
+  // resolveRange reads dates as local midnight, so they must be written back
+  // the same way. toISOString() would convert to UTC and shift the whole
+  // window a day back on any server east of Greenwich.
+  private toDateKey(date: Date) {
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${date.getFullYear()}-${month}-${day}`;
+  }
+
   // Window of the same length immediately before the selected one, used for
   // the "vs previous period" deltas on the overview cards.
   private getPreviousRange(range: Range): Range | null {
@@ -73,8 +82,8 @@ export class StatsService {
     // the previous window exactly as long as the selected one.
     const prevTo = new Date(from.getTime() - dayMs);
     return {
-      from: prevFrom.toISOString().slice(0, 10),
-      to: prevTo.toISOString().slice(0, 10)
+      from: this.toDateKey(prevFrom),
+      to: this.toDateKey(prevTo)
     };
   }
 
