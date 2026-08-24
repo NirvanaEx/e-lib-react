@@ -713,6 +713,10 @@ export function BaseLayout({
           ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: "block", md: "none" },
+            // MUI's temporary Drawer defaults its Modal to zIndex.drawer, one
+            // below the AppBar's zIndex.drawer+1 above — the mobile menu was
+            // rendering behind the header instead of over it.
+            zIndex: (theme) => theme.zIndex.drawer + 2,
             "& .MuiDrawer-paper": {
               boxSizing: "border-box",
               width: drawerWidth,
