@@ -11,9 +11,10 @@ server {
   listen 80;
   server_name _;
 
-  # API upload handlers allow images up to 10 MiB. Leave room for multipart
-  # headers so Nginx does not reject a valid upload before it reaches the API.
-  client_max_body_size 12m;
+  # Держим чуть выше MAX_UPLOAD_SIZE_MB (200): запас на multipart-обвязку,
+  # чтобы отказ по размеру приходил от API внятным JSON, а не сырой
+  # HTML-страницей 413 от nginx, которую фронтенд разобрать не может.
+  client_max_body_size 210m;
 
   root /usr/share/nginx/html;
   index index.html;
@@ -29,6 +30,12 @@ server {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $forwarded_proto;
+
+    # Заливка сотен мегабайт по медленному каналу дольше стандартных 60с:
+    # без этого соединение рвётся на середине большого файла.
+    client_body_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
   }
 
   location / {
