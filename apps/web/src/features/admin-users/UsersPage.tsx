@@ -62,7 +62,7 @@ import { formatDateTime } from "../../shared/utils/date";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { getAvatarUrl } from "../../shared/utils/avatar";
 import { getErrorMessage } from "../../shared/utils/errors";
-import { copyToClipboard } from "../../shared/utils/clipboard";
+import { copyToClipboard, selectFieldContent } from "../../shared/utils/clipboard";
 import { AvatarCropDialog, ImageLightbox } from "../../shared/ui/AvatarEditor";
 import { UserFilesPanel } from "./UserFilesPanel";
 
@@ -136,6 +136,7 @@ export default function UsersPage() {
   const [open, setOpen] = React.useState(false);
   const [editingUser, setEditingUser] = React.useState<UserRow | null>(null);
   const [tempCredentials, setTempCredentials] = React.useState<{ login: string; tempPassword: string } | null>(null);
+  const tempPasswordFieldRef = React.useRef<HTMLInputElement | null>(null);
   const pendingCreateLoginRef = React.useRef<string | null>(null);
   const resetTargetRef = React.useRef<UserRow | null>(null);
   const [confirmAction, setConfirmAction] = React.useState<null | { type: "delete" | "restore"; user: UserRow }>(null);
@@ -391,6 +392,10 @@ export default function UsersPage() {
     const ok = await copyToClipboard(
       `${t("login")}: ${tempCredentials.login}\n${t("temporaryPassword")}: ${tempCredentials.tempPassword}`
     );
+    // Браузер может запретить копирование (не secure context, отказ в
+    // разрешении). Тогда выделяем пароль — самое нужное из двух — чтобы
+    // остался один Ctrl+C, а не выделение текста мышью по символам.
+    if (!ok) selectFieldContent(tempPasswordFieldRef.current);
     showToast({
       message: ok ? t("copied") : t("copyFailed"),
       severity: ok ? "success" : "error"
@@ -839,20 +844,26 @@ export default function UsersPage() {
         <DialogTitle>{t("temporaryPassword")}</DialogTitle>
         <DialogContent>
           <Stack spacing={2}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: "8px",
-                border: "1px solid var(--border)",
-                background: "var(--surface-2)",
-                fontFamily: "monospace",
-                fontSize: "1rem"
-              }}
-            >
-              {t("login")}: {tempCredentials?.login}
-              <br />
-              {t("temporaryPassword")}: {tempCredentials?.tempPassword}
-            </Box>
+            {/* Поля вместо простого текста: клик выделяет значение целиком,
+                поэтому пароль можно забрать вручную, даже если браузер
+                запретил программное копирование. */}
+            <TextField
+              label={t("login")}
+              value={tempCredentials?.login ?? ""}
+              size="small"
+              fullWidth
+              InputProps={{ readOnly: true, sx: { fontFamily: "monospace" } }}
+              onFocus={(event) => event.target.select()}
+            />
+            <TextField
+              label={t("temporaryPassword")}
+              value={tempCredentials?.tempPassword ?? ""}
+              size="small"
+              fullWidth
+              inputRef={tempPasswordFieldRef}
+              InputProps={{ readOnly: true, sx: { fontFamily: "monospace" } }}
+              onFocus={(event) => event.target.select()}
+            />
             <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={handleCopyCredentials}>
               {t("copy")}
             </Button>
