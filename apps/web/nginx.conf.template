@@ -1,3 +1,12 @@
+# Снаружи TLS терминирует отдельный nginx и проксирует сюда обычным http,
+# поэтому $scheme здесь всегда "http". Если исходный протокол уже пришёл в
+# заголовке — передаём его дальше, иначе API считает https-запросы http-овыми
+# (это видно в аудите и ломает любую логику, завязанную на протокол).
+map $http_x_forwarded_proto $forwarded_proto {
+  default $scheme;
+  ~. $http_x_forwarded_proto;
+}
+
 server {
   listen 80;
   server_name _;
@@ -19,7 +28,7 @@ server {
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Proto $forwarded_proto;
   }
 
   location / {
