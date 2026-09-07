@@ -210,13 +210,13 @@ function HomeContent() {
                   {card.icon}
                 </Box>
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: "block" }} noWrap>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: "block", height: 20, lineHeight: "20px" }} noWrap>
                     {card.label}
                   </Typography>
                   {statsLoading ? (
-                    <Skeleton width={64} height={30} />
+                    <Skeleton width={64} height={29} />
                   ) : (
-                    <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
+                    <Typography variant="h5" sx={{ fontWeight: 800, fontSize: 24, lineHeight: "29px", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
                       {numberFormat.format(Number(card.value || 0))}
                     </Typography>
                   )}
