@@ -8,6 +8,7 @@
     "start": "node dist/main.js",
     "lint": "echo \"no lint\"",
     "test": "echo \"no test\"",
+    "test:sorting": "npm run build && node --test tests/table-sorting.test.cjs",
     "migrate": "knex --knexfile knexfile.js migrate:latest",
     "migrate:rollback": "knex --knexfile knexfile.js migrate:rollback",
     "seed": "knex --knexfile knexfile.js seed:run"

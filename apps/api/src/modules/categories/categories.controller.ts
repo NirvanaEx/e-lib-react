@@ -21,7 +21,7 @@ export class CategoriesController {
   @Access("category.read")
   async list(@Query() query: CategoriesQueryDto, @Lang() lang: string | null) {
     return this.categoriesService.list(
-      { page: query.page || 1, pageSize: query.pageSize || 20, q: query.q },
+      { page: query.page || 1, pageSize: query.pageSize || 20, tree: query.tree, q: query.q },
       lang
     );
   }

@@ -1,3 +1,4 @@
+import { useTableSort } from "../../shared/hooks/useTableSort";
 import React from "react";
 import { IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
@@ -37,6 +38,7 @@ export default function TrashPage() {
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
+  const { sort, onSortChange, sortParams } = useTableSort(setPage);
   const [confirmRestore, setConfirmRestore] = React.useState<TrashItem | null>(null);
   const [confirmDelete, setConfirmDelete] = React.useState<TrashItem | null>(null);
 
@@ -45,8 +47,8 @@ export default function TrashPage() {
   }, [search, pageSize]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["trash", page, pageSize, search],
-    queryFn: () => fetchTrash({ page, pageSize, q: search })
+    queryKey: ["trash", page, pageSize, search, sort],
+    queryFn: () => fetchTrash({ ...sortParams, page, pageSize, q: search })
   });
 
   const restoreMutation = useMutation({
@@ -124,13 +126,16 @@ export default function TrashPage() {
         <EmptyState title={t("trashEmpty")} subtitle={t("trashEmptySubtitle")} />
       ) : (
         <DataTable
+          sort={sort}
+          onSortChange={onSortChange}
           rows={rows}
+          rowKey={(row) => `${row.type}-${row.id}`}
           columns={[
             rowNumberColumn({ total: meta.total, page: meta.page, pageSize: meta.pageSize }),
-            { key: "title", label: t("title"), render: (row) => row.title || "-" },
-            { key: "type", label: t("type"), render: (row) => getTypeLabel(row.type) },
-            { key: "details", label: t("details"), render: (row) => getDetails(row) },
-            { key: "deletedAt", label: t("deletedAt"), render: (row) => formatDateTime(row.deletedAt) },
+            { key: "title", sortKey: "title", label: t("title"), render: (row) => row.title || "-" },
+            { key: "type", sortKey: "type", label: t("type"), render: (row) => getTypeLabel(row.type) },
+            { key: "details", sortable: false, label: t("details"), render: (row) => getDetails(row) },
+            { key: "deletedAt", sortKey: "deletedAt", label: t("deletedAt"), render: (row) => formatDateTime(row.deletedAt) },
             {
               key: "actions",
               label: t("actions"),

@@ -72,7 +72,7 @@ export async function deleteAsset(fileId: number, versionId: number, assetId: nu
   return data;
 }
 
-export async function fetchTrash(params: { page: number; pageSize: number; q?: string }) {
+export async function fetchTrash(params: { sortBy?: string; sortDir?: string; page: number; pageSize: number; q?: string }) {
   const { data } = await api.get("/dashboard/trash", { params });
   return data;
 }
@@ -196,7 +196,7 @@ export async function removeUserFavorite(fileId: number) {
   return data;
 }
 
-export async function fetchDashboardRequests(params: { page: number; pageSize: number; status?: string; scope?: string; q?: string }) {
+export async function fetchDashboardRequests(params: { sortBy?: string; sortDir?: string; page: number; pageSize: number; status?: string; scope?: string; q?: string }) {
   const { data } = await api.get("/dashboard/requests", { params });
   return data;
 }

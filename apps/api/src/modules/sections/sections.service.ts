@@ -1,3 +1,4 @@
+import { selectJoinedPage, translatedTitle, SortParams } from "../../common/utils/sorting";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { DatabaseService } from "../../db/database.service";
@@ -15,7 +16,7 @@ export class SectionsService {
     private readonly auditService: AuditService
   ) {}
 
-  async list(params: { page: number; pageSize: number; q?: string }, preferredLang: string | null) {
+  async list(params: SortParams & { page: number; pageSize: number; q?: string }, preferredLang: string | null) {
     const { page, pageSize, q } = params;
     const baseQuery = this.dbService.db("sections")
       .leftJoin(
@@ -35,7 +36,9 @@ export class SectionsService {
       .orderBy("sections.id", "desc");
 
     if (q) {
-      baseQuery.whereILike("sections_translations.title", `%${q}%`);
+      baseQuery.whereExists(this.dbService.db("sections_translations as search_translation")
+        .select(1).whereRaw("?? = ??", ["search_translation.section_id", "sections.id"])
+        .whereILike("search_translation.title", `%${q}%`));
     }
 
     const countResult = await baseQuery
@@ -45,7 +48,16 @@ export class SectionsService {
       .countDistinct<{ count: string }>("sections.id as count")
       .first();
 
-    const rows = await baseQuery.offset((page - 1) * pageSize).limit(pageSize);
+    const defaultLang = normalizeLang(this.config.get<string>("DEFAULT_DATA_LANG", "ru")) || "ru";
+    const lang = normalizeLang(preferredLang) || null;
+    const db = this.dbService.db;
+    const rows = await selectJoinedPage(baseQuery, params, {
+      id: "sections.id",
+      title: db.raw("lower(?)", [translatedTitle(db, "sections_translations", "section_id", "sections.id", lang, defaultLang)]),
+      langs: db.raw("(select string_agg(lang, ',' order by lang) from sections_translations where section_id = sections.id)"),
+      filesCount: db.raw("(select count(*) from file_items where section_id = sections.id and deleted_at is null)"),
+      createdAt: "sections.created_at", updatedAt: "sections.updated_at"
+    }, "id", "desc", "sections.id");
 
     type SectionRow = {
       id: number;
@@ -73,9 +85,6 @@ export class SectionsService {
         current.translations.push({ lang: row.lang, title: row.title });
       }
     });
-
-    const defaultLang = normalizeLang(this.config.get<string>("DEFAULT_DATA_LANG", "ru")) || "ru";
-    const lang = normalizeLang(preferredLang) || null;
 
     const baseData = Array.from(grouped.values()).map((item) => {
       const picked = selectTranslation<SectionTranslation>(item.translations, lang, defaultLang);

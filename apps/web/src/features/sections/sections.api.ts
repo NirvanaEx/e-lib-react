@@ -1,6 +1,6 @@
 import api from "../../shared/api/client";
 
-export async function fetchSections(params: { page: number; pageSize: number; q?: string }) {
+export async function fetchSections(params: { sortBy?: string; sortDir?: string; page: number; pageSize: number; q?: string }) {
   const { data } = await api.get("/dashboard/sections", { params });
   return data;
 }

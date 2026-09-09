@@ -1,3 +1,4 @@
+import { useTableSort } from "../../shared/hooks/useTableSort";
 import React from "react";
 import {
   Autocomplete,
@@ -64,6 +65,7 @@ export default function AuditPage() {
   const { user } = useAuth();
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
+  const { sort, onSortChange, sortParams } = useTableSort(setPage);
   const [actorId, setActorId] = React.useState<number | null>(null);
   const [actorSearch, setActorSearch] = React.useState("");
   const [action, setAction] = React.useState<string | null>(null);
@@ -77,9 +79,10 @@ export default function AuditPage() {
   }, [actorId, action, entityType, from, to, pageSize]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["audit", page, pageSize, actorId, action, entityType, from, to],
+    queryKey: ["audit", page, pageSize, actorId, action, entityType, from, to, sort],
     queryFn: () =>
       fetchAudit({
+        ...sortParams,
         page,
         pageSize,
         actorId: actorId || undefined,
@@ -165,12 +168,15 @@ export default function AuditPage() {
         <EmptyState title={t("auditEmpty")} subtitle={t("auditEmptySubtitle")} />
       ) : (
         <DataTable
+          sort={sort}
+          onSortChange={onSortChange}
           rows={rows}
           columns={[
             rowNumberColumn({ total: meta.total, page: meta.page, pageSize: meta.pageSize }),
-            { key: "entity_id", label: t("entityId") },
+            { key: "entity_id", sortKey: "entity_id", label: t("entityId") },
             {
               key: "created_at",
+              sortKey: "created_at",
               label: t("time"),
               render: (row: any) => formatDateTime(row.created_at)
             },

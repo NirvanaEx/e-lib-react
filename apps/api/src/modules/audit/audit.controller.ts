@@ -19,6 +19,8 @@ export class AuditController {
     return this.auditService.list({
       page: query.page || 1,
       pageSize: query.pageSize || 20,
+      sortBy: query.sortBy,
+      sortDir: query.sortDir,
       actorId: query.actorId,
       action: query.action,
       entityType: query.entityType,

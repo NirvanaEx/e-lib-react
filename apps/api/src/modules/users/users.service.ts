@@ -1,3 +1,4 @@
+import { applySorting, SortParams, departmentPath } from "../../common/utils/sorting";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import bcrypt from "bcrypt";
@@ -163,7 +164,7 @@ export class UsersService {
     }
   }
 
-  async list(params: { page: number; pageSize: number; q?: string }) {
+  async list(params: SortParams & { page: number; pageSize: number; q?: string }) {
     const { page, pageSize, q } = params;
     const query = this.dbService.db("users")
       .leftJoin("roles", "roles.id", "users.role_id")
@@ -199,6 +200,13 @@ export class UsersService {
           .orWhereILike("users.name", `%${q}%`);
       });
     }
+
+    const db = this.dbService.db;
+    applySorting(query, params, { login: db.raw("lower(users.login)"), role: db.raw("lower(roles.name)"),
+      department: db.raw("lower(?)", [departmentPath(db, "users.department_id")]),
+      status: db.raw("users.deleted_at is not null"), created_at: "users.created_at",
+      connectionStatus: db.raw("not coalesce(users.must_change_password, false)")
+    }, "created_at", "desc", ["users.id"]);
 
     const countResult = await query
       .clone()

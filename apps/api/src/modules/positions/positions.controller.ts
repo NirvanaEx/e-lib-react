@@ -33,6 +33,8 @@ export class PositionsController {
     return this.positionsService.list({
       page: query.page || 1,
       pageSize: query.pageSize || 20,
+      sortBy: query.sortBy,
+      sortDir: query.sortDir,
       q: query.q
     });
   }

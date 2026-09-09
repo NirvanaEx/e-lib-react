@@ -25,6 +25,8 @@ export class FileRequestsController {
       {
         page: query.page || 1,
         pageSize: query.pageSize || 20,
+        sortBy: query.sortBy,
+        sortDir: query.sortDir,
         status: query.status,
         scope: query.scope,
         q: query.q

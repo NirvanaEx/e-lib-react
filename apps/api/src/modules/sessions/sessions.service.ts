@@ -1,3 +1,4 @@
+import { applySorting, SortParams } from "../../common/utils/sorting";
 import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../../db/database.service";
 import { buildPaginationMeta } from "../../common/utils/pagination";
@@ -15,7 +16,7 @@ export class SessionsService {
     });
   }
 
-  async list(params: { page: number; pageSize: number; userId?: number; from?: string; to?: string }) {
+  async list(params: SortParams & { page: number; pageSize: number; userId?: number; from?: string; to?: string }) {
     const { page, pageSize, userId, from, to } = params;
     const lastActivitySubquery = this.dbService.db("audit_logs")
       .select("actor_user_id")
@@ -49,6 +50,10 @@ export class SessionsService {
     if (to) {
       query.where("sessions.created_at", "<=", to);
     }
+
+    const db = this.dbService.db;
+    applySorting(query, params, { login: db.raw("lower(users.login)"), ip: "sessions.ip", created_at: "sessions.created_at", last_activity: "last_activity.last_activity"
+    }, "created_at", "desc", ["sessions.id"]);
 
     const countResult = await query
       .clone()

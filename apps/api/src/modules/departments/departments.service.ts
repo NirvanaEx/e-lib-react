@@ -17,7 +17,7 @@ export class DepartmentsService {
     return Number.isFinite(raw) && raw > 0 ? raw : 5;
   }
 
-  async list(params: { page: number; pageSize: number; q?: string }) {
+  async list(params: { tree?: boolean; page: number; pageSize: number; q?: string }) {
     const { page, pageSize, q } = params;
     const query = this.dbService.db("departments")
       .select("id", "name", "parent_id", "depth", "created_at", "updated_at")
@@ -34,7 +34,7 @@ export class DepartmentsService {
       .clearOrder()
       .count<{ count: string }>("departments.id as count")
       .first();
-    const data = await query.offset((page - 1) * pageSize).limit(pageSize);
+    const data = params.tree ? await query : await query.offset((page - 1) * pageSize).limit(pageSize);
 
     let countsById = new Map<number, number>();
     let ownCountsById = new Map<number, number>();

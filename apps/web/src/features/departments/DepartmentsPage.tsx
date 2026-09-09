@@ -86,12 +86,12 @@ export default function DepartmentsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["departments", "tree", search],
-    queryFn: () => fetchDepartments({ page: 1, pageSize: 500, q: search })
+    queryFn: () => fetchDepartments({ tree: true, page: 1, pageSize: 500, q: search })
   });
 
   const { data: departmentsOptions } = useQuery({
     queryKey: ["departments", "options", 500],
-    queryFn: () => fetchDepartments({ page: 1, pageSize: 500 })
+    queryFn: () => fetchDepartments({ tree: true, page: 1, pageSize: 500 })
   });
 
   const rows: DepartmentRow[] = data?.data || [];

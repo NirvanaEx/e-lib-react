@@ -1,3 +1,4 @@
+import { useTableSort } from "../../shared/hooks/useTableSort";
 import React from "react";
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Tooltip } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -32,6 +33,7 @@ export default function SectionsPage() {
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
+  const { sort, onSortChange, sortParams } = useTableSort(setPage);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { t } = useTranslation();
@@ -41,8 +43,8 @@ export default function SectionsPage() {
   }, [search, pageSize]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["sections", page, pageSize, search],
-    queryFn: () => fetchSections({ page, pageSize, q: search })
+    queryKey: ["sections", page, pageSize, search, sort],
+    queryFn: () => fetchSections({ ...sortParams, page, pageSize, q: search })
   });
 
   const { data: sectionDetails } = useQuery({
@@ -153,11 +155,14 @@ export default function SectionsPage() {
         <EmptyState title={t("sectionsEmpty")} subtitle={t("sectionsEmptySubtitle")} action={{ label: t("newSection"), onClick: handleOpenCreate }} />
       ) : (
         <DataTable
+          sort={sort}
+          onSortChange={onSortChange}
           rows={rows}
           columns={[
             rowNumberColumn({ total: meta.total, page: meta.page, pageSize: meta.pageSize }),
             {
               key: "title",
+              sortKey: "title",
               label: t("title"),
               render: (row: any) => (
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -181,6 +186,7 @@ export default function SectionsPage() {
             },
             {
               key: "langs",
+              sortKey: "langs",
               label: t("languages"),
               sortValue: (row) => (row.availableLangs || []).join(","),
               render: (row) => (
@@ -193,16 +199,19 @@ export default function SectionsPage() {
             },
             {
               key: "filesCount",
+              sortKey: "filesCount",
               label: t("filesCount"),
               render: (row) => row.filesCount ?? 0
             },
             {
               key: "createdAt",
+              sortKey: "createdAt",
               label: t("createdAt"),
               render: (row) => formatDateTime(row.createdAt)
             },
             {
               key: "updatedAt",
+              sortKey: "updatedAt",
               label: t("updatedAt"),
               render: (row) => formatDateTime(row.updatedAt)
             },

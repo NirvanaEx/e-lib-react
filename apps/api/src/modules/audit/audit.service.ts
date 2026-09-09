@@ -1,3 +1,4 @@
+import { applySorting, SortParams } from "../../common/utils/sorting";
 import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../../db/database.service";
 import { getRequestContextValue } from "../../common/request-context";
@@ -34,7 +35,7 @@ export class AuditService {
     });
   }
 
-  async list(params: {
+  async list(params: SortParams & {
     page: number;
     pageSize: number;
     actorId?: number;
@@ -69,6 +70,10 @@ export class AuditService {
     if (entityType) query.where("audit_logs.entity_type", entityType);
     if (from) query.where("audit_logs.created_at", ">=", from);
     if (to) query.where("audit_logs.created_at", "<=", to);
+
+    const db = this.dbService.db;
+    applySorting(query, params, { entity_id: "audit_logs.entity_id", created_at: "audit_logs.created_at"
+    }, "created_at", "desc", ["audit_logs.id"]);
 
     const countResult = await query
       .clone()

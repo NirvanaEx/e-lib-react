@@ -1,6 +1,6 @@
 import api from "../../shared/api/client";
 
-export async function fetchDepartments(params: { page: number; pageSize: number; q?: string }) {
+export async function fetchDepartments(params: { tree?: boolean; page: number; pageSize: number; q?: string }) {
   const { data } = await api.get("/dashboard/departments", { params });
   return data;
 }

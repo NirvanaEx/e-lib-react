@@ -1,6 +1,6 @@
 import api from "../../shared/api/client";
 
-export async function fetchPositions(params: { page: number; pageSize: number; q?: string }) {
+export async function fetchPositions(params: { sortBy?: string; sortDir?: string; page: number; pageSize: number; q?: string }) {
   const { data } = await api.get("/dashboard/positions", { params });
   return data;
 }
