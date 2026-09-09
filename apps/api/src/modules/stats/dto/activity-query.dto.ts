@@ -37,4 +37,8 @@ export class ActivityQueryDto extends PaginationDto {
   @IsOptional()
   @IsIn(["asc", "desc"])
   sortDir?: string;
+
+  @IsOptional()
+  @IsString()
+  sortBy?: string;
 }

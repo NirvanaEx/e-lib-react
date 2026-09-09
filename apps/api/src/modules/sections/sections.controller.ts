@@ -21,7 +21,13 @@ export class SectionsController {
   @Access("section.read")
   async list(@Query() query: SectionsQueryDto, @Lang() lang: string | null) {
     return this.sectionsService.list(
-      { page: query.page || 1, pageSize: query.pageSize || 20, q: query.q },
+      {
+        page: query.page || 1,
+        pageSize: query.pageSize || 20,
+        sortBy: query.sortBy,
+        sortDir: query.sortDir,
+        q: query.q
+      },
       lang
     );
   }

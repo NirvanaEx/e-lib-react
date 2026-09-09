@@ -1,3 +1,4 @@
+import { useTableSort } from "../../shared/hooks/useTableSort";
 import React from "react";
 import { Autocomplete, Stack, TextField } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
@@ -18,6 +19,7 @@ export default function SessionsPage() {
   const { t } = useTranslation();
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
+  const { sort, onSortChange, sortParams } = useTableSort(setPage);
   const [userId, setUserId] = React.useState<number | null>(null);
   const [userSearch, setUserSearch] = React.useState("");
   const [from, setFrom] = React.useState("");
@@ -28,8 +30,8 @@ export default function SessionsPage() {
   }, [userId, from, to, pageSize]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["sessions", page, pageSize, userId, from, to],
-    queryFn: () => fetchSessions({ page, pageSize, userId: userId || undefined, from: from || undefined, to: to || undefined })
+    queryKey: ["sessions", page, pageSize, userId, from, to, sort],
+    queryFn: () => fetchSessions({ ...sortParams, page, pageSize, userId: userId || undefined, from: from || undefined, to: to || undefined })
   });
 
   const { data: usersData } = useQuery({
@@ -80,11 +82,14 @@ export default function SessionsPage() {
         <EmptyState title={t("sessionsEmpty")} subtitle={t("sessionsEmptySubtitle")} />
       ) : (
         <DataTable
+          sort={sort}
+          onSortChange={onSortChange}
           rows={rows}
           columns={[
             rowNumberColumn({ total: meta.total, page: meta.page, pageSize: meta.pageSize }),
             {
               key: "login",
+              sortKey: "login",
               label: t("user"),
               render: (row: any) =>
                 formatUserLabel({
@@ -94,14 +99,16 @@ export default function SessionsPage() {
                   patronymic: row.patronymic
                 })
             },
-            { key: "ip", label: t("ip") },
+            { key: "ip", sortKey: "ip", label: t("ip") },
             {
               key: "created_at",
+              sortKey: "created_at",
               label: t("time"),
               render: (row: any) => formatDateTime(row.created_at)
             },
             {
               key: "last_activity",
+              sortKey: "last_activity",
               label: t("lastActivity"),
               render: (row: any) => formatDateTime(row.last_activity)
             }

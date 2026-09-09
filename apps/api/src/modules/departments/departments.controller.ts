@@ -31,6 +31,7 @@ export class DepartmentsController {
   @Access("department.read")
   async list(@Query() query: DepartmentsQueryDto) {
     return this.departmentsService.list({
+      tree: query.tree,
       page: query.page || 1,
       pageSize: query.pageSize || 20,
       q: query.q

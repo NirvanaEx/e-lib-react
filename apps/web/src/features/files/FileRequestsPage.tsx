@@ -1,3 +1,4 @@
+import { useTableSort } from "../../shared/hooks/useTableSort";
 import React from "react";
 import {
   Box,
@@ -27,7 +28,7 @@ import SystemUpdateAltOutlinedIcon from "@mui/icons-material/SystemUpdateAltOutl
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Page } from "../../shared/ui/Page";
-import { DataTable } from "../../shared/ui/DataTable";
+import { DataTable, type Column } from "../../shared/ui/DataTable";
 import { rowNumberColumn } from "../../shared/ui/rowNumberColumn";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { LoadingState } from "../../shared/ui/LoadingState";
@@ -88,6 +89,7 @@ export default function FileRequestsPage() {
   const [tab, setTab] = React.useState(0);
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
+  const { sort, onSortChange, sortParams } = useTableSort(setPage);
   const [search, setSearch] = React.useState("");
   const [detailsTarget, setDetailsTarget] = React.useState<RequestRow | null>(null);
   const [rejectTarget, setRejectTarget] = React.useState<RequestRow | null>(null);
@@ -100,8 +102,8 @@ export default function FileRequestsPage() {
   }, [tab, pageSize, search]);
 
   const { data: requestsData, isLoading } = useQuery({
-    queryKey: ["dashboard-requests", scope, page, pageSize, search],
-    queryFn: () => fetchDashboardRequests({ page, pageSize, scope, q: search }),
+    queryKey: ["dashboard-requests", scope, page, pageSize, search, sort],
+    queryFn: () => fetchDashboardRequests({ ...sortParams, page, pageSize, scope, q: search }),
     refetchInterval: autoRefreshMs
   });
 
@@ -340,7 +342,7 @@ export default function FileRequestsPage() {
     onError: (error) => showToast({ message: getErrorMessage(error, t("actionFailed")), severity: "error" })
   });
 
-  const pendingColumns = [
+  const pendingColumns: Column<RequestRow>[] = [
     {
       key: "type",
       label: "",
@@ -442,7 +444,7 @@ export default function FileRequestsPage() {
     }
   ];
 
-  const historyColumns = [
+  const historyColumns: Column<RequestRow>[] = [
     {
       key: "type",
       label: "",
@@ -557,6 +559,8 @@ export default function FileRequestsPage() {
         <EmptyState title={t("requestsEmpty")} subtitle={t("requestsEmptySubtitle")} />
       ) : (
         <DataTable
+          sort={sort}
+          onSortChange={onSortChange}
           rows={rows}
           columns={[
             rowNumberColumn({ total: meta.total, page: meta.page, pageSize: meta.pageSize }),

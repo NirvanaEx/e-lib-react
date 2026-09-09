@@ -1,3 +1,4 @@
+import { selectJoinedPage, translatedTitle, categoryPath, SortParams } from "../../common/utils/sorting";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import path from "path";
@@ -560,7 +561,7 @@ export class FileRequestsService {
   }
 
   async listAdminRequests(
-    params: { page: number; pageSize: number; status?: string; scope?: string; q?: string },
+    params: SortParams & { page: number; pageSize: number; status?: string; scope?: string; q?: string },
     preferredLang: string | null
   ) {
     const { page, pageSize, status, scope, q } = params;
@@ -612,8 +613,10 @@ export class FileRequestsService {
 
     if (q) {
       query.where((builder) => {
-        builder.whereILike("file_request_translations.title", `%${q}%`);
-        builder.orWhereILike("file_request_translations.description", `%${q}%`);
+        builder.whereExists(db("file_request_translations as search_translation")
+          .select(1).whereRaw("?? = ??", ["search_translation.file_request_id", "file_requests.id"])
+          .where((translation) => translation.whereILike("search_translation.title", `%${q}%`)
+            .orWhereILike("search_translation.description", `%${q}%`)));
         builder.orWhereILike("file_requests.comment", `%${q}%`);
         builder.orWhereILike("users.login", `%${q}%`);
         builder.orWhereILike("users.surname", `%${q}%`);
@@ -630,10 +633,18 @@ export class FileRequestsService {
       .countDistinct<{ count: string }>("file_requests.id as count")
       .first();
 
-    const rows = await query
-      .orderBy("file_requests.created_at", "desc")
-      .offset((page - 1) * pageSize)
-      .limit(pageSize);
+    const rows = await selectJoinedPage(query, params, {
+      type: db.raw("coalesce(file_requests.request_type, 'new')"),
+      login: db.raw("lower(users.login)"),
+      user: db.raw("lower(coalesce(nullif(concat_ws(' ', users.surname, users.name, users.patronymic), ''), users.login))"),
+      title: db.raw("lower(?)", [translatedTitle(db, "file_request_translations", "file_request_id", "file_requests.id", lang, defaultLang)]),
+      department: db.raw("lower(departments.name)"),
+      section: db.raw("lower(?)", [translatedTitle(db, "sections_translations", "section_id", "file_requests.section_id", lang, defaultLang)]),
+      category: db.raw("lower(?)", [categoryPath(db, "file_requests.category_id", lang, defaultLang)]),
+      access: "file_requests.access_type", status: "file_requests.status",
+      createdAt: "file_requests.created_at",
+      resolvedAt: db.raw("coalesce(file_requests.resolved_at, file_requests.updated_at, file_requests.created_at)")
+    }, "createdAt", "desc", "file_requests.id");
 
     type RequestRow = {
       id: number;

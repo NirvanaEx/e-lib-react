@@ -45,6 +45,7 @@ export class StatsController {
         departmentId: query.departmentId,
         action: query.action,
         q: query.q,
+        sortBy: query.sortBy,
         sortDir: query.sortDir
       },
       lang
@@ -67,6 +68,7 @@ export class StatsController {
         departmentId: query.departmentId,
         action: query.action,
         q: query.q,
+        sortBy: query.sortBy,
         sortDir: query.sortDir
       },
       lang

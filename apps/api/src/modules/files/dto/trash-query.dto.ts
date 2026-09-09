@@ -1,7 +1,7 @@
 import { IsOptional, IsString } from "class-validator";
-import { PaginationDto } from "../../../common/dto/pagination.dto";
+import { SortedPaginationDto } from "../../../common/dto/sorted-pagination.dto";
 
-export class TrashQueryDto extends PaginationDto {
+export class TrashQueryDto extends SortedPaginationDto {
   @IsOptional()
   @IsString()
   q?: string;

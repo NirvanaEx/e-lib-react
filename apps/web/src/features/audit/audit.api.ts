@@ -1,6 +1,6 @@
 import api from "../../shared/api/client";
 
-export async function fetchAudit(params: {
+export async function fetchAudit(params: { sortBy?: string; sortDir?: string;
   page: number;
   pageSize: number;
   actorId?: number;

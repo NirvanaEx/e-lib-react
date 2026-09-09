@@ -1,3 +1,4 @@
+import { useTableSort } from "../../shared/hooks/useTableSort";
 import React from "react";
 import {
   Autocomplete,
@@ -143,6 +144,7 @@ export default function StatsPage() {
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
+  const { sort, onSortChange, sortParams } = useTableSort(setPage);
   const [exporting, setExporting] = React.useState(false);
 
   const range = React.useMemo(() => ({ from: from || undefined, to: to || undefined }), [from, to]);
@@ -184,9 +186,10 @@ export default function StatsPage() {
       userId: userId || undefined,
       departmentId: departmentId || undefined,
       action: action === "all" ? undefined : action,
-      q: search || undefined
+      q: search || undefined,
+      ...sortParams
     }),
-    [range, page, pageSize, userId, departmentId, action, search]
+    [range, page, pageSize, userId, departmentId, action, search, sort.key, sort.direction]
   );
 
   const { data: activity, isLoading: activityLoading } = useQuery({
@@ -521,6 +524,8 @@ export default function StatsPage() {
             ) : (
               <DataTable
                 rows={activity?.data || []}
+                sort={sort}
+                onSortChange={onSortChange}
                 columns={[
                   rowNumberColumn({
                     total: activity?.meta?.total || 0,
@@ -529,36 +534,42 @@ export default function StatsPage() {
                   }),
                   {
                     key: "createdAt",
+                    sortKey: "createdAt",
                     label: t("time"),
                     width: 150,
                     render: (row: any) => formatDateTime(row.createdAt)
                   },
                   {
                     key: "action",
+                    sortKey: "action",
                     label: t("action"),
                     width: 130,
                     render: (row: any) => actionChip(row.action)
                   },
                   {
                     key: "user",
+                    sortKey: "user",
                     label: t("user"),
                     cellWrap: true,
                     render: (row: any) => (row.user ? formatUserLabel(row.user) : "-")
                   },
                   {
                     key: "department",
+                    sortKey: "department",
                     label: t("department"),
                     cellWrap: true,
                     render: (row: any) => row.user?.department || "-"
                   },
                   {
                     key: "file",
+                    sortKey: "file",
                     label: t("file"),
                     cellWrap: true,
                     render: (row: any) => row.file?.title || (row.file ? `#${row.file.id}` : "-")
                   },
                   {
                     key: "versionNumber",
+                    sortKey: "versionNumber",
                     label: t("versionLabel"),
                     width: 90,
                     align: "center",
@@ -566,6 +577,7 @@ export default function StatsPage() {
                   },
                   {
                     key: "lang",
+                    sortKey: "lang",
                     label: t("language"),
                     width: 90,
                     align: "center",
@@ -573,6 +585,7 @@ export default function StatsPage() {
                   },
                   {
                     key: "ip",
+                    sortKey: "ip",
                     label: t("ip"),
                     width: 130,
                     render: (row: any) =>

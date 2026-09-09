@@ -11,6 +11,7 @@ export type ActivityFilters = StatsRange & {
   action?: string;
   q?: string;
   sortDir?: string;
+  sortBy?: string;
 };
 
 export async function fetchStatsOverview(params?: StatsRange) {

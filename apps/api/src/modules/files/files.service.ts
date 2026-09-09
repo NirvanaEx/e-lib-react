@@ -1,3 +1,4 @@
+import { applySorting, SortParams } from "../../common/utils/sorting";
 import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import path from "path";
@@ -800,7 +801,7 @@ export class FilesService {
     return { success: true };
   }
 
-  async listTrash(params: { page: number; pageSize: number; q?: string }, preferredLang: string | null) {
+  async listTrash(params: SortParams & { page: number; pageSize: number; q?: string }, preferredLang: string | null) {
     const { page, pageSize, q } = params;
     const db = this.dbService.db;
     const defaultLang = this.getDefaultLang();
@@ -892,9 +893,11 @@ export class FilesService {
       .from(unionQuery.as("trash"))
       .count<{ count: string }>("* as count")
       .first();
-    const rows = await db
-      .from(unionQuery.as("trash"))
-      .orderBy("deleted_at", "desc")
+    const sortedQuery = db.from(unionQuery.as("trash"));
+    applySorting(sortedQuery, params, {
+      title: db.raw("lower(title)"), type: "type", deletedAt: "deleted_at"
+    }, "deletedAt", "desc", ["type", "id"]);
+    const rows = await sortedQuery
       .offset((page - 1) * pageSize)
       .limit(pageSize);
 

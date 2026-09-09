@@ -1,3 +1,4 @@
+import { selectJoinedPage } from "../../common/utils/sorting";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { DatabaseService } from "../../db/database.service";
@@ -47,7 +48,7 @@ export class CategoriesService {
     }
   }
 
-  async list(params: { page: number; pageSize: number; q?: string }, preferredLang: string | null) {
+  async list(params: { tree?: boolean; page: number; pageSize: number; q?: string }, preferredLang: string | null) {
     const { page, pageSize, q } = params;
     const baseQuery = this.dbService.db("categories")
       .leftJoin(
@@ -68,7 +69,9 @@ export class CategoriesService {
       .orderBy("categories.id", "desc");
 
     if (q) {
-      baseQuery.whereILike("categories_translations.title", `%${q}%`);
+      baseQuery.whereExists(this.dbService.db("categories_translations as search_translation")
+        .select(1).whereRaw("?? = ??", ["search_translation.category_id", "categories.id"])
+        .whereILike("search_translation.title", `%${q}%`));
     }
 
     const countResult = await baseQuery
@@ -78,7 +81,9 @@ export class CategoriesService {
       .countDistinct<{ count: string }>("categories.id as count")
       .first();
 
-    const rows = await baseQuery.offset((page - 1) * pageSize).limit(pageSize);
+    const rows = params.tree ? await baseQuery : await selectJoinedPage(
+      baseQuery, params, { id: "categories.id" }, "id", "desc", "categories.id"
+    );
 
     type CategoryRow = {
       id: number;

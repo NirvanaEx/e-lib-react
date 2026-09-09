@@ -1,3 +1,4 @@
+import { applySorting, SortParams } from "../../common/utils/sorting";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../../db/database.service";
 import { buildPaginationMeta } from "../../common/utils/pagination";
@@ -31,7 +32,7 @@ export class PositionsService {
     }
   }
 
-  async list(params: { page: number; pageSize: number; q?: string }) {
+  async list(params: SortParams & { page: number; pageSize: number; q?: string }) {
     const { page, pageSize, q } = params;
     const query = this.dbService
       .db("positions")
@@ -41,6 +42,11 @@ export class PositionsService {
     if (q) {
       query.whereILike("name", `%${q}%`);
     }
+
+    const db = this.dbService.db;
+    applySorting(query, params, { name: db.raw("lower(positions.name)"),
+      dataCount: db.raw("(select count(*) from users where users.position_id = positions.id and users.deleted_at is null)")
+    }, "name", "asc", ["positions.id"]);
 
     const countResult = await query
       .clone()

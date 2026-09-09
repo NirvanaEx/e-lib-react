@@ -1,3 +1,4 @@
+import { useTableSort } from "../../shared/hooks/useTableSort";
 import React from "react";
 import {
   Autocomplete,
@@ -146,6 +147,7 @@ export default function UsersPage() {
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
+  const { sort, onSortChange, sortParams } = useTableSort(setPage);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { t } = useTranslation();
@@ -157,8 +159,8 @@ export default function UsersPage() {
   }, [search, pageSize]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["users", page, pageSize, search],
-    queryFn: () => fetchUsers({ page, pageSize, q: search })
+    queryKey: ["users", page, pageSize, search, sort],
+    queryFn: () => fetchUsers({ ...sortParams, page, pageSize, q: search })
   });
 
   const { data: rolesData } = useQuery({ queryKey: ["roles"], queryFn: fetchRoles });
@@ -422,6 +424,8 @@ export default function UsersPage() {
         <EmptyState title={t("usersEmpty")} subtitle={t("usersEmptySubtitle")} action={{ label: t("newUser"), onClick: openCreate }} />
       ) : (
         <DataTable
+          sort={sort}
+          onSortChange={onSortChange}
           rows={rows}
           tableLayout="fixed"
           containerSx={{ overflow: "hidden" }}
@@ -446,6 +450,7 @@ export default function UsersPage() {
             },
             {
               key: "login",
+              sortKey: "login",
               label: `${t("login")} / ${t("fullName")}`,
               width: "20%",
               minWidth: 180,
@@ -465,6 +470,7 @@ export default function UsersPage() {
             },
             {
               key: "role",
+              sortKey: "role",
               label: t("role"),
               width: 120,
               minWidth: 120,
@@ -472,6 +478,7 @@ export default function UsersPage() {
             },
             {
               key: "department",
+              sortKey: "department",
               label: `${t("department")} / ${t("position")}`,
               width: "28%",
               minWidth: 220,
@@ -495,6 +502,7 @@ export default function UsersPage() {
             },
             {
               key: "status",
+              sortKey: "status",
               label: t("status"),
               width: 104,
               minWidth: 104,
@@ -508,6 +516,7 @@ export default function UsersPage() {
             },
             {
               key: "created_at",
+              sortKey: "created_at",
               label: t("createdAt"),
               width: 140,
               minWidth: 140,
@@ -516,6 +525,7 @@ export default function UsersPage() {
             },
             {
               key: "connectionStatus",
+              sortKey: "connectionStatus",
               label: t("connectionStatus"),
               align: "center",
               width: 124,

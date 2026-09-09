@@ -96,16 +96,16 @@ export default function CategoriesPage() {
 
   React.useEffect(() => {
     autoExpandRef.current = false;
-  }, [search, page, pageSize]);
+  }, [search]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["categories", page, pageSize, search],
-    queryFn: () => fetchCategories({ page, pageSize, q: search })
+    queryKey: ["categories", "tree", search],
+    queryFn: () => fetchCategories({ tree: true, page: 1, pageSize: 500, q: search })
   });
 
   const { data: parentOptionsData } = useQuery({
     queryKey: ["categories", "options", 500],
-    queryFn: () => fetchCategories({ page: 1, pageSize: 500 })
+    queryFn: () => fetchCategories({ tree: true, page: 1, pageSize: 500 })
   });
 
   const { data: categoryDetails } = useQuery({
@@ -164,7 +164,6 @@ export default function CategoriesPage() {
   });
 
   const rows: CategoryRow[] = data?.data || [];
-  const meta = data?.meta || { page, pageSize, total: 0 };
 
   const parentOptions: CategoryRow[] = parentOptionsData?.data || [];
   const filteredParentOptions = editingId
@@ -195,6 +194,10 @@ export default function CategoriesPage() {
       }),
     [rows, expandedIds, sort]
   );
+
+  const visiblePage = Math.min(page, Math.max(1, Math.ceil(treeRows.length / pageSize)));
+  const pageRows = treeRows.slice((visiblePage - 1) * pageSize, visiblePage * pageSize);
+  React.useEffect(() => { setPage(visiblePage); }, [visiblePage]);
 
   const defaultExpandedIds = React.useMemo(() => {
     const childrenByParent = new Map<number, number>();
@@ -293,13 +296,14 @@ export default function CategoriesPage() {
         />
       ) : (
         <DataTable
-          rows={treeRows}
+          rows={pageRows}
           sort={sort}
-          onSortChange={(key, direction) =>
-            setSort(direction ? { key, direction } : { key: null, direction: null })
-          }
+          onSortChange={(key, direction) => {
+            setSort(direction ? { key, direction } : { key: null, direction: null });
+            setPage(1);
+          }}
           columns={[
-            rowNumberColumn<TreeRow>({ total: treeRows.length }),
+            rowNumberColumn<TreeRow>({ total: treeRows.length, page: visiblePage, pageSize }),
             {
               key: "title",
               label: t("title"),
@@ -414,9 +418,9 @@ export default function CategoriesPage() {
       )}
 
       <PaginationBar
-        page={meta.page}
-        pageSize={meta.pageSize}
-        total={meta.total}
+        page={visiblePage}
+        pageSize={pageSize}
+        total={treeRows.length}
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
       />

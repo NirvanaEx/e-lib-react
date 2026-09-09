@@ -1,3 +1,4 @@
+import { useTableSort } from "../../shared/hooks/useTableSort";
 import React from "react";
 import {
   Button,
@@ -53,6 +54,7 @@ export default function PositionsPage() {
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
+  const { sort, onSortChange, sortParams } = useTableSort(setPage);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { t } = useTranslation();
@@ -62,8 +64,8 @@ export default function PositionsPage() {
   }, [search, pageSize]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["positions", page, pageSize, search],
-    queryFn: () => fetchPositions({ page, pageSize, q: search })
+    queryKey: ["positions", page, pageSize, search, sort],
+    queryFn: () => fetchPositions({ ...sortParams, page, pageSize, q: search })
   });
 
   const rows: PositionRow[] = data?.data || [];
@@ -162,11 +164,14 @@ export default function PositionsPage() {
         />
       ) : (
         <DataTable
+          sort={sort}
+          onSortChange={onSortChange}
           rows={rows}
           columns={[
             rowNumberColumn({ total: meta.total, page: meta.page, pageSize: meta.pageSize }),
             {
               key: "name",
+              sortKey: "name",
               label: t("name"),
               sortable: true
             },
@@ -184,6 +189,7 @@ export default function PositionsPage() {
             },
             {
               key: "dataCount",
+              sortKey: "dataCount",
               label: t("positionUsersCount"),
               sortable: true,
               render: (row) => row.dataCount ?? 0

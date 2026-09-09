@@ -1,3 +1,4 @@
+import { applySorting } from "../../common/utils/sorting";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import fs from "fs/promises";
@@ -268,6 +269,7 @@ export class StatsService {
       action?: string;
       q?: string;
       sortDir?: string;
+      sortBy?: string;
     },
     preferredLang: string | null
   ) {
@@ -287,7 +289,7 @@ export class StatsService {
       .count<{ count: string }>("activity.source_id as count")
       .first();
 
-    const rows = await this.buildActivityQuery(queryParams, preferredLang)
+    const activityQuery = this.buildActivityQuery(queryParams, preferredLang)
       .select(
         "activity.action",
         "activity.source_id",
@@ -306,11 +308,14 @@ export class StatsService {
         "file_versions.version_number as version_number",
         "file_version_assets.original_name as asset_name",
         db.raw("coalesce(??, ??) as title", ["ft_pref.title", "ft_def.title"])
-      )
-      .orderBy("activity.created_at", direction)
-      .orderBy("activity.source_id", direction)
-      .offset((page - 1) * pageSize)
-      .limit(pageSize);
+      );
+    applySorting(activityQuery, params, {
+      createdAt: "activity.created_at", action: "activity.action",
+      user: db.raw("lower(users.login)"), department: db.raw("lower(departments.name)"),
+      file: db.raw("lower(coalesce(ft_pref.title, ft_def.title))"),
+      versionNumber: "file_versions.version_number", lang: "activity.lang", ip: "activity.ip"
+    }, "createdAt", direction, ["activity.action", "activity.source_id"]);
+    const rows = await activityQuery.offset((page - 1) * pageSize).limit(pageSize);
 
     const data: ActivityRow[] = rows.map((row: any) => ({
       id: `${row.action}-${row.source_id}`,

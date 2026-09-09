@@ -19,6 +19,8 @@ export class SessionsController {
     return this.sessionsService.list({
       page: query.page || 1,
       pageSize: query.pageSize || 20,
+      sortBy: query.sortBy,
+      sortDir: query.sortDir,
       userId: query.userId,
       from: query.from,
       to: query.to

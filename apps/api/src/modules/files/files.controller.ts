@@ -188,7 +188,7 @@ export class FilesController {
   @Access("file.trash.read")
   async trash(@Query() query: TrashQueryDto, @Lang() lang: string | null) {
     return this.filesService.listTrash(
-      { page: query.page || 1, pageSize: query.pageSize || 20, q: query.q },
+      { page: query.page || 1, pageSize: query.pageSize || 20, q: query.q, sortBy: query.sortBy, sortDir: query.sortDir },
       lang
     );
   }
