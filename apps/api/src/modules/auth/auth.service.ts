@@ -18,6 +18,12 @@ const DEFAULT_LOCKOUT_MINUTES = 15;
 // A single address may legitimately host a whole office behind NAT, so its
 // budget is a multiple of the per-account one.
 const IP_ATTEMPT_MULTIPLIER = 6;
+// Ответ «неверные учётные данные» одинаков для существующего и несуществующего
+// логина, но время ответа — нет: реальный логин платит за bcrypt (~100 мс), а
+// несуществующий возвращался сразу. Разница по секундомеру и есть перечисление
+// логинов. Сравниваем пароль с заведомо неподходящим хешем той же стоимости,
+// чтобы обе ветки стоили одинаково.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync("login-probe-never-matches", 10);
 
 @Injectable()
 export class AuthService {
@@ -185,6 +191,8 @@ export class AuthService {
       .first();
 
     if (!user) {
+      // Не выходим раньше проверки пароля: см. DUMMY_PASSWORD_HASH.
+      await bcrypt.compare(password, DUMMY_PASSWORD_HASH);
       await this.recordLoginAttempt({
         login,
         userId: null,
