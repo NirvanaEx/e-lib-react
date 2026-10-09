@@ -178,8 +178,7 @@ export class GuidesService {
   async listStatuses() {
     const statuses = {} as Record<GuideKey, boolean>;
     for (const key of GUIDE_KEYS) {
-      await this.ensureSeeded(key);
-      const row = await this.getGuideRow(key);
+      const row = await this.ensureSeeded(key);
       statuses[key] = Boolean(row?.is_active);
     }
     return statuses;
