@@ -108,10 +108,18 @@ export class GuidesService {
     await this.db.transaction(async (trx) => {
       let guide = await trx("guides").where({ key }).first();
       if (!guide) {
-        const [row] = await trx("guides")
+        // key уникален, а разворачивание из поставки запускает первый же
+        // запрос за инструкцией. Два параллельных запроса (меню и страница на
+        // первой загрузке) оба видели пустую таблицу, и второй INSERT падал с
+        // нарушением уникальности — 500 на ровном месте. onConflict делает
+        // вставку безопасной, дальше просто перечитываем строку.
+        await trx("guides")
           .insert({ key, is_active: true, created_at: trx.fn.now(), updated_at: trx.fn.now() })
-          .returning("id");
-        guide = { id: row?.id ?? row };
+          .onConflict("key")
+          .ignore();
+        guide = await trx("guides").where({ key }).first();
+        if (!guide) return;
+        await trx("guide_blocks").where({ guide_id: guide.id }).delete();
       } else {
         await trx("guides").where({ id: guide.id }).update({ updated_at: trx.fn.now() });
         await trx("guide_blocks").where({ guide_id: guide.id }).delete();
