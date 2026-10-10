@@ -2,6 +2,7 @@ import { applySorting, SortParams } from "../../common/utils/sorting";
 import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../../db/database.service";
 import { buildPaginationMeta } from "../../common/utils/pagination";
+import { applyDateRange } from "../../common/utils/date-range";
 
 @Injectable()
 export class SessionsService {
@@ -44,12 +45,7 @@ export class SessionsService {
     if (userId) {
       query.where("sessions.user_id", userId);
     }
-    if (from) {
-      query.where("sessions.created_at", ">=", from);
-    }
-    if (to) {
-      query.where("sessions.created_at", "<=", to);
-    }
+    applyDateRange(query, "sessions.created_at", from, to);
 
     const db = this.dbService.db;
     applySorting(query, params, { login: db.raw("lower(users.login)"), ip: "sessions.ip", created_at: "sessions.created_at", last_activity: "last_activity.last_activity"
