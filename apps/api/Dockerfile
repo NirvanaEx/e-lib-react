@@ -1,15 +1,16 @@
-FROM node:18-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
 COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
-RUN npm install
+RUN npm ci --no-audit --no-fund
 
 COPY . .
 RUN npm run build --workspace apps/api
 
-FROM node:18-alpine
+FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 

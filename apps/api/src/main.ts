@@ -7,6 +7,7 @@ import { ConfigService } from "@nestjs/config";
 import { Logger } from "nestjs-pino";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { requestContextMiddleware } from "./common/request-context";
+import { UploadExceptionFilter } from "./common/upload-exception.filter";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
@@ -25,6 +26,7 @@ async function bootstrap() {
   }
   app.use(requestContextMiddleware);
   app.use(helmet());
+  app.useGlobalFilters(new UploadExceptionFilter());
   const corsOrigins = (configService.get<string>("CORS_ORIGINS", "") || "")
     .split(",")
     .map((origin) => origin.trim())

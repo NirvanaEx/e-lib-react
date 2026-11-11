@@ -1,5 +1,14 @@
 # Table sorting regression tests
 
+Security upload regression tests (no database required):
+
+```sh
+npm run test:security --workspace apps/api
+```
+
+These exercise the NestJS/Multer integration over HTTP: valid disk uploads,
+file/field size limits, extra files, malicious field names and disk cleanup.
+
 Set `TEST_DATABASE_URL` to a disposable PostgreSQL database, then run:
 
 ```sh

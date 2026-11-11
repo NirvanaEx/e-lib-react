@@ -1,5 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 import { diskStorage } from "multer";
+import { uploadLimits } from "../../common/upload-limits";
 import fs from "fs";
 import path from "path";
 
@@ -22,7 +23,7 @@ export const avatarUploadOptions = {
       cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
     }
   }),
-  limits: { fileSize: MAX_AVATAR_SIZE },
+  limits: uploadLimits(MAX_AVATAR_SIZE),
   fileFilter: (
     _req: any,
     file: Express.Multer.File,

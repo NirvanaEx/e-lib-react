@@ -15,6 +15,7 @@ import {
 import { ApiBearerAuth, ApiConsumes, ApiTags } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
+import { uploadLimits } from "../../common/upload-limits";
 import fs from "fs";
 import path from "path";
 import { Roles } from "../../common/decorators/roles.decorator";
@@ -158,7 +159,7 @@ export class FilesController {
           cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}.tmp`);
         }
       }),
-      limits: { fileSize: maxSize }
+      limits: uploadLimits(maxSize)
     })
   )
   @Post("files/:id/versions/:versionId/assets")

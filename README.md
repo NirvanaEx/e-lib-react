@@ -5,7 +5,7 @@ Monorepo for the e-lib electronic library.
 ## Local development
 
 Prerequisites:
-- Node.js 18+
+- Node.js 24 LTS (also used by the Docker images)
 - Docker
 
 1) Copy env files:
@@ -17,7 +17,7 @@ cp .env.example .env
 2) Install deps:
 
 ```
-npm install
+npm ci
 ```
 
 3) Run dev (starts Postgres + API + Web):
